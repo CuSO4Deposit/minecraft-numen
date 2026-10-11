@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.dwinovo.numen.api.entity.Controls;
+import com.dwinovo.numen.api.entity.Mouse;
+import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.search.Route;
@@ -15,8 +18,13 @@ import org.slf4j.LoggerFactory;
 
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -182,5 +190,45 @@ public final class PathLog {
         return "身体 " + at(body.position()) + (body.onGround() ? " 地上" : " 空中") + (body.isInWater() ? " 水里" : "")
                 + (body.isEyeInFluid(net.minecraft.tags.FluidTags.WATER) ? " 眼在水里" : "")
                 + " 氧气 " + body.getAirSupply() + "/" + body.getMaxAirSupply() + " 血 " + num(body.getHealth());
+    }
+
+    /**
+     * 身体的手此刻的样子:按着的键、主手拿的、准星落着的东西、鼠标正在挖哪一格与进度、控制器正在做哪件改动
+     * ({@code working},没有为 null)。"不在推进"时她手上在干什么,看这一段。
+     */
+    public static String hands(ServerPlayer body, Controls keys, Mouse mouse, Edit working) {
+        StringBuilder pressed = new StringBuilder();
+        for (Controls.Key key : Controls.Key.values()) {
+            if (keys.held(key)) {
+                pressed.append(pressed.isEmpty() ? "" : "+").append(key);
+            }
+        }
+        BlockPos digging = mouse.pressing();
+        return "按键 " + (pressed.isEmpty() ? "-" : pressed) + " 主手 " + stack(body.getMainHandItem()) + " 准星 " + crosshair(body, mouse.pick())
+                + " 鼠标 " + (digging == null ? "没在挖" : "挖 " + pos(digging) + " 进度 " + num(mouse.progress()))
+                + " 在做 " + (working == null ? "-" : edit(working));
+    }
+
+    private static String stack(ItemStack stack) {
+        return stack.isEmpty() ? "空手" : BuiltInRegistries.ITEM.getKey(stack.getItem()) + "×" + stack.getCount();
+    }
+
+    private static String crosshair(ServerPlayer body, HitResult hit) {
+        return switch (hit) {
+            case BlockHitResult block when block.getType() == HitResult.Type.BLOCK -> "方块 " + pos(block.getBlockPos()) + " "
+                    + block(body.serverLevel().getBlockState(block.getBlockPos())) + " 面 " + block.getDirection();
+            case EntityHitResult entity -> "实体 " + BuiltInRegistries.ENTITY_TYPE.getKey(entity.getEntity().getType());
+            default -> "空";
+        };
+    }
+
+    /** 一件改动:做什么、哪一格、原来是什么。 */
+    private static String edit(Edit edit) {
+        return switch (edit) {
+            case Edit.Dig dig -> "挖 " + pos(dig.pos()) + " " + block(dig.state());
+            case Edit.Place place -> "放 " + pos(place.pos()) + " " + BuiltInRegistries.BLOCK.getKey(place.block());
+            case Edit.Door door -> "开关 " + pos(door.pos()) + " " + block(door.state());
+            case Edit.Catch caught -> "倒水 " + pos(caught.pos());
+        };
     }
 }

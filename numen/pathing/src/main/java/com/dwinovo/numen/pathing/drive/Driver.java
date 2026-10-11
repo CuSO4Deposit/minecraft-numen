@@ -261,8 +261,9 @@ public final class Driver {
         if (now) {
             PathLog.debug("{} 恢复推进 {}", rig.who, PathLog.at(rig.entity.position()));
         } else {
-            PathLog.info("{} 不在推进(一秒没挪也没干活) {} {}", rig.who,
-                    step != null ? PathLog.step(step.planned()) : "没有在走的步", PathLog.body(rig.entity));
+            PathLog.info("{} 不在推进(一秒没挪也没干活) {} {} {}", rig.who,
+                    step != null ? PathLog.step(step.planned()) : "没有在走的步", PathLog.body(rig.entity),
+                    PathLog.hands(rig.entity, rig.keys, rig.mouse, step == null ? null : step.working()));
         }
     }
 

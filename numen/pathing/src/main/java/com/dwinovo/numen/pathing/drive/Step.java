@@ -68,6 +68,12 @@ final class Step {
         return planned;
     }
 
+    /** 控制器此刻正在做的那件改动;还没动手、或动手的那件已经做完为 null。 */
+    Edit working() {
+        Edit edit = control == null ? null : control.work.current();
+        return edit != null && !control.work.done(edit) ? edit : null;
+    }
+
     /** 这一步此刻是计划内的坠落。 */
     boolean falls() {
         return control != null && control.falls();
