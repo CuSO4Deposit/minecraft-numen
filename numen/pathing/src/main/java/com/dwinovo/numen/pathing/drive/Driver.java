@@ -387,10 +387,18 @@ public final class Driver {
                 if (step != null) {
                     step.finish(node);
                 }
+                // 冲劲可能把身体带过了几步:这一路的刻数按各步几何最短耗时的比例分给走完的每一步
+                double shortest = 0;
+                for (int k = course.cur(); k < advanced.to(); k++) {
+                    shortest += course.minimumAt(k);
+                }
                 for (int k = course.cur(); k < advanced.to(); k++) {
                     Maneuver walked = course.at(k);
                     rig.ledger.stepped(walked.kind());
                     recovery.walked(walked);
+                    if (step != null) {
+                        rig.journal.timed(walked.kind(), watchdog.stepTicks() * course.minimumAt(k) / shortest, course.minimumAt(k));
+                    }
                 }
                 course.advanceTo(advanced.to());
                 step = null;
