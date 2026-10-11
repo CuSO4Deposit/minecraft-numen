@@ -36,7 +36,7 @@ class GaitTest {
 
     /** 窗口只有 {@code m} 和 {@code next} 两步时 {@code m} 的步态。 */
     private static Gait.Stride stride(TestWorld world, boolean maySprint, Maneuver m, Maneuver next) {
-        return Gait.stride(world, model(maySprint), next == null ? List.of(m) : List.of(m, next));
+        return Gait.stride(world, model(maySprint), null, next == null ? List.of(m) : List.of(m, next));
     }
 
     /** 原版身体,吃饱了({@code maySprint})或饿得跑不动。 */
@@ -50,7 +50,8 @@ class GaitTest {
     private static List<Gait.Stride> strides(TestWorld world, List<Maneuver> steps, boolean maySprint) {
         List<Gait.Stride> out = new ArrayList<>();
         for (int i = 0; i < steps.size(); i++) {
-            out.add(Gait.stride(world, model(maySprint), steps.subList(i, Math.min(steps.size(), i + Continuation.TAIL))));
+            out.add(Gait.stride(world, model(maySprint), i == 0 ? null : steps.get(i - 1),
+                    steps.subList(i, Math.min(steps.size(), i + Continuation.TAIL))));
         }
         return out;
     }
@@ -158,10 +159,10 @@ class GaitTest {
         int at = steps.indexOf(firstOf(MoveKind.DESCEND, steps));
         assertEquals(MoveKind.FALL, steps.get(at + 1).kind(), "下一级之后落两格");
         List<Maneuver> window = steps.subList(at, steps.size());
-        Gait.Stride loose = Gait.stride(world, model(true), window);
+        Gait.Stride loose = Gait.stride(world, model(true), null, window);
         assertTrue(loose.sprint() && loose.flows());
         RouteSpec tight = RouteSpec.defaults().edit().maxFallHeightNoWater(2).build();
-        Gait.Stride walking = Gait.stride(world, Fixtures.model(tight), window);
+        Gait.Stride walking = Gait.stride(world, Fixtures.model(tight), null, window);
         assertFalse(walking.sprint());
         assertTrue(walking.flows());
     }
@@ -228,12 +229,32 @@ class GaitTest {
     }
 
     @Test
-    void aStepBesideADropDoesNotRunAndTheStepBeforeItStops() {
+    void aStepBesideADropRunsAlongAStraightLineButNotAtTheEndsOrTheCorner() {
+        // 一格宽、两侧都是落坑的窄道:直线上身体不会歪出中心线,中间的步子照跑;头一步(身体怎么走上来不知道)、最后一步、拐弯处照旧不跑
         TestWorld ledge = new TestWorld().floor(-4, 0, 20, 0, Y - 1);
         List<Maneuver> steps = route(ledge, new BlockPos(0, Y, 0), new BlockPos(8, Y, 0));
         List<Gait.Stride> strides = strides(ledge, steps, true);
-        assertTrue(strides.stream().noneMatch(Gait.Stride::sprint), "一格宽的窄道,两侧都是落坑,贴着落坑不跑");
-        assertTrue(strides.stream().noneMatch(Gait.Stride::flows), "也不带着冲劲进下一步");
+        int last = steps.size() - 1;
+        assertFalse(strides.get(0).sprint(), "头一步贴着落坑不跑");
+        assertFalse(strides.get(last).sprint(), "最后一步后面没有路,贴着落坑不跑");
+        for (int i = 1; i < last; i++) {
+            assertTrue(strides.get(i).sprint(), "第 " + i + " 步在直线上,照跑");
+        }
+        for (int i = 1; i < last - 1; i++) {
+            assertTrue(strides.get(i).flows(), "第 " + i + " 步带着冲劲进下一步");
+        }
+        assertFalse(strides.get(last - 1).flows(), "最后一步贴着落坑,前一步在它的落点上收脚");
+        TestWorld bend = new TestWorld().floor(-4, 0, 8, 0, Y - 1).floor(8, 0, 8, 8, Y - 1);
+        List<Maneuver> turning = route(bend, new BlockPos(0, Y, 0), new BlockPos(8, Y, 8));
+        List<Gait.Stride> turns = strides(bend, turning, true);
+        int corner = 0;
+        while (turning.get(corner).heading().dx() == turning.get(corner + 1).heading().dx()
+                && turning.get(corner).heading().dz() == turning.get(corner + 1).heading().dz()) {
+            corner++;
+        }
+        assertFalse(turns.get(corner).sprint(), "拐弯前的一步不跑");
+        assertFalse(turns.get(corner + 1).sprint(), "拐弯后的一步不跑");
+        assertTrue(turns.get(corner - 1).sprint(), "拐弯前直线上的步子照跑");
         // 宽地上的一步后面接窄道的一步:宽地上的这一步在落点上收脚
         TestWorld wide = new TestWorld().floor(-4, -4, 4, 4, Y - 1);
         assertFalse(stride(ledge, true, walk(wide, 1, 0), steps.get(0)).flows(), "窄道前收脚");

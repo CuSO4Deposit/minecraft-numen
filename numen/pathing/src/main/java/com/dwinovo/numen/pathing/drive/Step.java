@@ -32,6 +32,8 @@ import net.minecraft.core.BlockPos;
 final class Step {
 
     private final Rig rig;
+    /** 路线上紧接在这一步前面的一步;路线的头一步没有。步态要看身体是不是沿着一条直线走进来的。 */
+    private final Maneuver previous;
     private final Maneuver planned;
     /** 路线上这一步后面的几步:步态要看得到连着的冲劲接不接得住。 */
     private final List<Maneuver> ahead;
@@ -50,8 +52,10 @@ final class Step {
     /** 计划内的坠落预计掉几点血。 */
     private int expectedDamage;
 
-    Step(Rig rig, Maneuver planned, List<Maneuver> ahead, List<Maneuver> diving, Goal goal, RouteSpec spec, Watchdog watchdog) {
+    Step(Rig rig, Maneuver previous, Maneuver planned, List<Maneuver> ahead, List<Maneuver> diving, Goal goal, RouteSpec spec,
+         Watchdog watchdog) {
         this.rig = rig;
+        this.previous = previous;
         this.planned = planned;
         this.ahead = List.copyOf(ahead);
         this.diving = List.copyOf(diving);
@@ -98,7 +102,7 @@ final class Step {
             List<Maneuver> window = new ArrayList<>(ahead.size() + 1);
             window.add(fresh);
             window.addAll(ahead);
-            control = Control.of(rig, fresh, Gait.stride(rig.world(), model, window));
+            control = Control.of(rig, fresh, Gait.stride(rig.world(), model, previous, window));
             double expected = Moves.of(fresh.kind()).ticks(model, fresh);
             watchdog.begin(expected, rig.entity.position());
             begun(fresh, expected);

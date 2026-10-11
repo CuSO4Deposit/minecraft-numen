@@ -322,7 +322,8 @@ public final class Driver {
             for (int i = course.cur() + 1; planned.submerged() && i < course.size() && course.at(i).submerged(); i++) {
                 diving.add(course.at(i));
             }
-            step = new Step(rig, planned, course.ahead(Continuation.TAIL - 1), diving, goal, spec, watchdog);
+            step = new Step(rig, course.cur() > 0 ? course.at(course.cur() - 1) : null, planned, course.ahead(Continuation.TAIL - 1), diving,
+                    goal, spec, watchdog);
         }
         Beat beat = step.tick();
         switch (beat) {

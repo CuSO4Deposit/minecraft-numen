@@ -42,22 +42,24 @@ final class Gait {
      * 它自己带着冲劲往下走(连着的上坡、台阶)就不用停,落点前贴着墙也无妨。每一步先试疾跑:身体跑得动、路径两侧站得稳、物理上跑得起来,
      * 冲劲能带进下一步就连着跑,带不进去就看落点格里的余量够不够在这一步收脚时停下来;跑不了再退到走,走着能带进下一步就带。
      *
-     * @param level 脚下的世界
-     * @param model 成本模型:身体(运动学读它的速度)、跑不跑得动、多落一次摔不摔得起
-     * @param steps 这一步,和路线上紧接着它的几步(够不够都行,最后一步没有下一步)
+     * @param level    脚下的世界
+     * @param model    成本模型:身体(运动学读它的速度)、跑不跑得动、多落一次摔不摔得起
+     * @param previous 路线上紧接在这一步前面的一步(路线的头一步没有);看身体是不是沿着一条直线走进来的
+     * @param steps    这一步,和路线上紧接着它的几步(够不够都行,最后一步没有下一步)
      */
-    static Stride stride(BlockGetter level, CostModel model, List<Maneuver> steps) {
+    static Stride stride(BlockGetter level, CostModel model, Maneuver previous, List<Maneuver> steps) {
         Stride after = null;
         for (int i = steps.size() - 1; i >= 0; i--) {
-            after = stride(level, model, steps.get(i), steps.subList(i + 1, steps.size()), after);
+            after = stride(level, model, i == 0 ? previous : steps.get(i - 1), steps.get(i), steps.subList(i + 1, steps.size()), after);
         }
         return after;
     }
 
-    private static Stride stride(BlockGetter level, CostModel model, Maneuver m, List<Maneuver> following, Stride onward) {
+    private static Stride stride(BlockGetter level, CostModel model, Maneuver before, Maneuver m, List<Maneuver> following,
+                                 Stride onward) {
         BodyStats body = model.body().stats();
         double run = Kinematics.sprintSpeed(body);
-        if (model.maySprint() && canRun(level, body, m)) {
+        if (model.maySprint() && canRun(level, body, before, m, following.isEmpty() ? null : following.get(0))) {
             if (flows(level, model, true, m, following, onward)) {
                 return new Stride(true, true);
             }
@@ -73,10 +75,10 @@ final class Gait {
      * 这一步能不能在跑动里走:跑酷要助跑就跑;平走、斜走、上一级、下一级要物理上跑得起来、路径两侧站得稳;下落、攀、游、垫、挖不在跑动里。
      * 下一级只有带着冲劲走出去({@link #stride} 里 {@code flows})才真的跑。
      */
-    private static boolean canRun(BlockGetter level, BodyStats body, Maneuver m) {
+    private static boolean canRun(BlockGetter level, BodyStats body, Maneuver before, Maneuver m, Maneuver after) {
         return switch (m.kind()) {
             case PARKOUR -> true;
-            case WALK, DIAGONAL, ASCEND, DESCEND -> m.runnable() && flanked(level, body, m);
+            case WALK, DIAGONAL, ASCEND, DESCEND -> m.runnable() && flanked(level, body, before, m, after);
             case FALL, PILLAR, DOWNWARD, CLIMB, SWIM -> false;
         };
     }
@@ -96,7 +98,7 @@ final class Gait {
         }
         boolean flat = switch (next.kind()) {
             // 带进来的速度,下一步要收脚时它的落点格里要停得住;下一步贴着落坑就不带
-            case WALK, DIAGONAL, ASCEND -> flanked(level, body, next)
+            case WALK, DIAGONAL, ASCEND -> flanked(level, body, m, next, following.size() > 1 ? following.get(1) : null)
                     && (onward != null && onward.flows() || Kinematics.stopDistance(body, speed) <= room(level, body, next)
                             || wallAhead(level, body, next));
             case DESCEND, FALL, PARKOUR -> true;
@@ -163,8 +165,25 @@ final class Gait {
         return Kinematics.stopDistance(body, speed * wasted) <= room(level, body, m);
     }
 
-    private static boolean flanked(BlockGetter level, BodyStats body, Maneuver m) {
-        return Stepping.flanked(level, body, m.from(), m.start().feetY(), m.to(), m.landing().feetY(), m.heading().dx(), m.heading().dz());
+    private static boolean flanked(BlockGetter level, BodyStats body, Maneuver before, Maneuver m, Maneuver after) {
+        return Stepping.flanked(level, body, m.from(), m.start().feetY(), m.to(), m.landing().feetY(), m.heading().dx(), m.heading().dz(),
+                inLine(before, m, after));
+    }
+
+    /**
+     * 身体沿着一条直线走过这一步:前后两步和它朝同一个方向,都是平走、上一级、下一级(落脚的步子、跑酷、斜走、转弯处都不算)。
+     * 直线上身体不会歪出中心线({@link Stepping#flanked})。
+     */
+    private static boolean inLine(Maneuver before, Maneuver m, Maneuver after) {
+        return before != null && after != null && alongLine(before, m) && alongLine(m, after);
+    }
+
+    private static boolean alongLine(Maneuver a, Maneuver b) {
+        return a.heading().dx() == b.heading().dx() && a.heading().dz() == b.heading().dz() && walkingKind(a) && walkingKind(b);
+    }
+
+    private static boolean walkingKind(Maneuver m) {
+        return m.kind() == MoveKind.WALK || m.kind() == MoveKind.ASCEND || m.kind() == MoveKind.DESCEND;
     }
 
     /**
