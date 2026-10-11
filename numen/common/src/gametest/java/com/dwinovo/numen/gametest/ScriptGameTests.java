@@ -431,6 +431,24 @@ public class ScriptGameTests {
     }
 
     /**
+     * 点号调用方法({@code a.dist(b)},该写 {@code a:dist(b)}):报错落在库内部用到缺的那个参数的一行,可回执说清方法要用冒号调用;
+     * 冒号调用照常。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 200, batch = "numen_scripts")
+    public static void a_method_called_with_a_dot_says_to_use_a_colon(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        NumenPlayer her = spawnAt(helper, "gametest_lua_colon", new BlockPos(2, 2, 2), false);
+        ToolRun dot = lua(her, "local a = numen.shape.pos(1, 2, 3); return a.dist(numen.shape.pos(4, 5, 6))");
+        helper.assertTrue(!dot.ranToTheEnd() && dot.receipt().contains("attempt to index")
+                        && dot.receipt().contains("call it as obj:name(args), not obj.name(args)"),
+                "the dot call does not say to use a colon: " + dot.receipt());
+        ToolRun colon = lua(her, "local a = numen.shape.pos(1, 2, 3); return a:dist(numen.shape.pos(4, 5, 6))");
+        helper.assertTrue(colon.ranToTheEnd(), "the colon call failed: " + colon.receipt());
+        CompanionFactory.despawn(level.getServer(), her);
+        helper.succeed();
+    }
+
+    /**
      * 查到的东西原样交给动作:{@code numen.scan.blocks} 一团的最近一格、{@code numen.scan.block} 读到的一块,都直接进 {@code numen.work.dig};两格都挖掉,
      * 程序拿到的是两份数据({@code dug} 各一格),不是话。
      */
