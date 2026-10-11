@@ -164,12 +164,13 @@ EditLedger edits = run.stop();              // 叫停也交出实际账
 - 端口的实现:`CompanionPorts`(组端口、组成本模型)、`GateTerrain`
   (`TerrainPolicy`)、`ThrowawayBlocks`(`Materials`);`Threats` 由 `Menace.dangers` 答。
 - 规划 `Survey`:只搜不走,一串路段从她脚下逐段规划,下一段接在上一段后面(`PlanQuery.after`),没走到的那一段交出看清的那一截
-  (`PlanResult.partial`)。执行 `Trip`:照一段规划好的路走(`Trip.following`),或反射层直接 `Trip.to`;门面外面补上许动要主人
-  同意的格时开走前先规划一条过目、问主人,实际账并进旅程账,反射看得见在走的那一趟。没路就照实收场,不替她放宽规格。
-- 说给模型:结局(连同路线上的一段没走到时改这条路线的下一步)、实际账、身体动作、计划要改的格渲染成英文、结局到 `FailureType` 的
+  (`PlanResult.partial`);只剩跟随受理前的那一次在用。执行 `Trip`:从她当时的位置按一份规格走到一个目标,一截一截规划、走、接着规划
+  都在模块里;被拒的格当墙重新规划(`Trip.consentRefused`),实际账并进旅程账,反射看得见在走的那一趟。模型走路的规格是
+  `Walking.spec`,没路就照实收场。
+- 说给模型:结局、实际账、身体动作、路上被拒的格、不改地形的活要改的格渲染成英文、结局到 `FailureType` 的
   映射,只在 `NavText`;旅程账 `Journey`。
-- 只搜不走的规划(`route plan`)的结论交付 `RouteQueries`。路线这个名词(意图、计划、承诺)在 `numen/route`,见 `look-plan-act.md`
-  与 `cli.md` 附录 G"move 与 route"。
+- 给模型的寻路只有 `numen.move.to`、`away`、`follow`:去哪儿 `Where`、怎样算到 `Arrival`、编成目标 `Destination`,走路的任务
+  `MoveToCompanionTask`,没有计划、承诺、途经点(第 7 步,见 `pathing-015.md`)。
 - 第 0 层按她的身体在活世界上答:她在哪个节点 `Feet`、她身边的地形 `Terrain`(待不待得住、能不能站、身体放不放得下、
   种类、托着她的格、迈不迈得进下一列;`scan_around`、钓鱼站位、建造表演、跟随落脚都问它)。
 - 挖一格的定价 `DigQuote`(挖矿挑目标),建造工地的位置代价 `BuildSite`,船 `BoatNav`(读 `Terrain`)。
@@ -211,7 +212,7 @@ Numen 在适配层之外只 import 门面(`api`)、规格(`spec`)、目标族(�
 | 11 | 用哪把工具 | 定价 `ToolSet`(快捷栏)、执行 `ToolSelect`(全背包)、挖矿 `bestToolFor`;规划不计价的镐子执行照拿 | `ToolChoice`(由身体快照建，看全背包),规划执行共用 |
 | 12 | 有没有料 ★ | `ThrowawayBlocks.available`、`CalculationContext.hasThrowaway`(和"许不许改地形"折成一个布尔)、`shortageAdvice`(自己扫背包);取料又有两套 | `Materials` 端口 |
 | 13 | 下一块用什么料 | 拆回定价按垫路料算，执行先问建造登记 | `Materials.next` 与 `PlacementAdvice` 端口 |
-| 14 | 许不许动 | 规划 `permissionMultiplier`、账单再问一遍、`PlayerNav.admits`;执行放置直接调 `Permission.judge`;`BuildCalculationContext` 对图纸格不问权限、漏了按种类禁挖 | `TerrainPolicy`(规划)端口与她的鼠标(执行,同伴的鼠标自己问) |
+| 14 | 许不许动 | 规划 `permissionMultiplier`、账单再问一遍、`PlayerNav.admits`;执行放置直接调 `Permission.judge`;`BuildCalculationContext` 对图纸格不问权限、漏了按种类禁挖 | `TerrainPolicy`(规划)端口与她的鼠标(执行)读同一个 `Gate`;模型的走路只由它们决定能不能动哪一格(工具与任务里不另判),主人拒了的格这一趟里当墙归 `Trip` |
 | 15 | 代价与罚分 | `ActionCosts`、`RouteSpec` 出厂值、`NavSettings`、建造上下文各有常量;每类格子代价除"禁止"外从没计价;`noise` 没人读;斜向上不收跳罚;涉水罚只在两种动作里收 | 第 1 层 `CostModel`;物理耗时一律来自 `Kinematics`,`ActionCosts` 只留摔伤折价、危险、视线遮挡这类权衡 |
 | 16 | 到没到 ★ | `NavGoal` 与 `goals/Goal` 两族目标经 `GoalAdapter` 映射，`adjacent` 成员集不同;任务层另有 `reached`、`closeEnoughToSucceed`(按高度放宽到 `|dy|≤1`)、跟随按三维距离 | 第 2 层只留一族目标;模块里没有"差不多到了" |
 | 17 | 估价权重 | `NavGoal.COST_HEURISTIC` 常量与 `NavSettings.costHeuristic` 两份 | 第 0 层 `Kinematics.pace`(`Pace`):水平/往上/往下每格的价钱按这一次的身体推出,搜索每次搜索算一份传给 `Goal.estimate`;权衡(`ActionCosts` 的 `*_BLOCKS`)只写格数,乘这具身体平走一格的刻数才是刻;绕不开的挖掘(埋深)第 2 层 `Burial`,每格的最低价 `CostModel.digFloor`,见第十三节"挖掘时搜索铺开" |
@@ -228,7 +229,7 @@ Numen 在适配层之外只 import 门面(`api`)、规格(`spec`)、目标族(�
 | 28 | 世界边界 | A* 整格在内，挖放内缩一格 | 第 0 层 |
 | 29 | 区块加载与搜索视图 | `CachedNavView` 在工作线程读活的区块调色板，不是注释说的冻结快照 | 第 2 层 `WorldSnapshot` |
 | 30 | 目标格保护(sacred)、目标移动与重根 | 分散在 `GoalCompiler`、`PlayerNav`、`Goal.keepsStop` | 第 2 层:`Goal.protection`、`Goal.keepsStop`、`Favoring` |
-| 31 | 载具 | 起步时静默下载具，没报给模型 | `Body` 端口，记进结局 |
+| 31 | 载具 | 起步时静默下载具,没报给模型 | 走路的一趟从不自己下车:`Precondition.sitting` 受理就拒绝并指 `numen.use.dismount()`;坐在船上去一处位置是 `MoveToCompanionTask` 驾船(`BoatNav`)。模块的 `Driver` 不碰载具 |
 | 32 | 看不看得见一格(视线)★ | 09-29 补查:瞄点射线(`Aim.hits`)、到达复核(`Driver.sees`:瞄点加准星比对)、`use block` 的遮挡(瞄点加准星比对)各一份;"用一格方块"的到达只判几何,真机上一半结局是到了看不见 | 第 0 层 `Sight`:搜索在快照上、执行在活世界上调同一个函数 |
 | 33 | 能憋多久、一步憋不憋气 ★ | 09-30 真机:规划不知道要憋气,把她带进封顶的水下洞穴;Numen 的换气本能按"氧气不到 240"另判,计划内的水下三秒就被它接管 | 规则第 1 层 `Breath`(身体快照),眼睛换不换得了气第 0 层 `Semantics.breathless`,一步憋不憋气 `Maneuver.submerged`;搜索、执行复核、诊断同一份,见第十三节"憋气" |
 | 34 | 身体怎么动(速度、起跳、下落、攀爬、每种走法几何上的最短耗时) ★ | 靶场量到:`ActionCosts` 写死原版玩家的速度常数,`JUMP_ONE_BLOCK` 是"升到一格高"的 3.2 刻、不是"落在高一格上"的 9 刻;`BodyStats.jumpHeight` 只判跳不跳得上;`Steering` 自己一份地面加速、摩擦、空中加速和几刻落地。上一格的估价实际/估价 1.74 | 第 0 层 `Kinematics`(读 `BodyStats` 的移动速度、起跳力度、重力与调用方给的脚下方块量,照原版逐刻推);已并入:`ActionCosts` 的物理耗时、`BodyStats.jumpHeight`、`Steering` 自算的那份。代价、估价、`Steering` 预判、`Watchdog` 期限基数都读它 |
@@ -241,6 +242,10 @@ Numen 在适配层之外只 import 门面(`api`)、规格(`spec`)、目标族(�
 | 41 | 什么时候先交半程、交哪一截 ★ | `Driver.HAND_OVER` 与 `AStar.partial`、`MIN_PARTIAL` 各管一半 | 第 2 层 `HandOver`:阈值 `NODES`(依据随它走)、`due`、交哪一截 `cut`/`pick`——截到最后一个 `reversible` 的节点、也不是憋着气的节点,离起点不到 `MIN_PARTIAL` 格的不交;第一步就回不了头的没有可交的,搜索接着搜到目标或搜完 |
 | 42 | 没加载的区块怎么看 | 搜索快照读不到的列读出来是空气,当不当墙由加载进度碰运气 | 第 2 层 `AStar` + `Recall`:一步的前提读到了没加载的列,它成不成立就不知道,这一步不走,停因记成"未加载"(与前提读没读到那些列无关的步子不算);没到目标时交的半程也是 `HandOver` 的一截,停在已加载区域边上回得了头的节点上,身体走过去、区块加载了从那里接着搜 |
 | 43 | 水里一步的落点:浮着还是踩在水底上 ★ | 靶场 `long_300` 游过湖时三次"卡住":深水游进水底顶面正好在节点脚高上的浅水格,规划里落点是 `GROUND`(踩着水底),`SwimControl` 却一直按跳托住、浮在水底之上老远(原版水里不按键每刻只沉 0.005 格),段状态机等的是脚着地,等不到 | 第 1 层 `Stance`(水底有托着脚的碰撞箱就是站着)定落点姿势,第 3 层 `SwimControl` 照做:落点是站着的,到了落点那一列的中心就按住潜行沉到踩上水底,不再按跳;落点是浮着的才按跳托在水面。规划的每步耗时是 `Kinematics.wadeTicksPerBlock`,实测水里一步约 10.2 刻与估价一致 |
+| 44 | 走路默认能不能挖放 | 模型每次写 `costs`;计划承诺又守"只改计划里列的格";权限层在第三处 | `Walking.spec`(可挖可搭、只看价钱,垫路料用出厂 `numen:throwaway`);能不能动哪一格只归第 14 行 |
+| 45 | 主人拒了的格 | 拒绝即收场,模型再写 `avoid` 重新规划 | `Trip.consentRefused`:那一格这一趟里当墙、从当时的位置重新规划;同一行规则问出来的同一种东西不再问;绕不开才以 `denied` 收场 |
+| 46 | 动手的活够不够得着、够不着怎么办 | 判据在动作里,走过去是模型的一步(`arrive`) | 判据只在动作那一处的到达目标(`Arrival.use/dig/place`);够不着时 `AbstractCompanionTask.walkTo` 起一个走路的子活,账归这件活 |
+| 47 | 一趟路交代了什么 | `Journey` 的一句话、`Followed`、`Walked` 各说各的 | `Journey` 是唯一的账(挖放、身体动作、潜水、裁定);路程回执 `Walked` 只此一个类型,`move.to`/`away`/`follow` 共用 |
 
 另外，普查发现几处文档或注释与代码不符:`spatial-perception.md` 说 `scan_around` 与寻路同口径(实际不是)、
 `BlockHelper.canHarvest` 的注释、`ContextFactory` 关于冻结快照的注释。重写后这些随旧代码一起删除。
@@ -1032,8 +1037,8 @@ C* = 286、h ≈ 21,地面铺开半径约 37 格,11589 个节点。挖掘的代�
 
 ### 规格的三个开关与越界才问(10-03,`api2` 之上)
 
-`alter` 的三级(`none` / `natural` / `any`)把三件事捆在一根旋钮上:许不许挖、许不许放、许不许走要问主人的格。脚本里一趟路的描述
-(`route.plan` 收的那张表,见 `shell.md` §七)要能分开说"只挖不放""不问主人",所以拆开:
+`alter` 的三级(`none` / `natural` / `any`)把三件事捆在一根旋钮上:许不许挖、许不许放、许不许走要问主人的格。所以拆开(模型
+不再有这些旋钮,第 7 步起走路一律可挖可搭、要问的格加价,见 `pathing-015.md`;模块里的三个开关还在,不改地形的活仍用):
 
 - **`RouteSpec`**:`dig`、`place`、`consent` 三个布尔,加 `consentMultiplier`(要问的格价钱乘几倍,不小于 1,默认
   `RouteSpec.CONSENT_MULTIPLIER` = 10,原在 `ActionCosts`)。`changes()` 是"许挖或许放"。出厂默认不挖、不放、许征询;征询只在
@@ -1047,9 +1052,9 @@ C* = 286、h ≈ 21,地面铺开半径约 37 格,11589 个节点。挖掘的代�
   单测之外的模块 GameTest `GoalGameTests.passing_through_a_cell_does_not_stop_in_it`。
 - **权限只在越界那一刻问**:规划时许可(`GateTerrain`,与执行同一个 `Gate` 判定)把拒绝的格当墙、要问的格按价钱加倍列进计划;
   执行时 `CompanionHands` 在活世界上再判同一格,答"要问"时不动手,交回 `Unasked`(裁决与那一格的征询项);Numen 的 `Trip` 停在
-  那一格跟前、问主人,答应了接着走剩下的路,拒绝了在那里收场(`kind = "denied"`,下一步是把那一格写进描述的 `avoid` 再规划)。
+  那一格跟前、问主人,答应了接着走剩下的路,拒绝了那一格这一趟里当墙、从当时的位置重新规划,绕不开才以 `denied` 收场。
   开走前整条规划一次、把要问的格一次问完的那一步删了——它唯一的理由就是权限的时机。
-- **模块没加的**:模块不认识"一趟路的描述""计划""途经点";多段、乘船、垫路料清单都在 Numen 侧(`numen/route`、`numen/nav`)。
+- **模块没加的**:模块不认识"一趟路的描述""计划""途经点";乘船、垫路料在 Numen 侧(`numen/nav`、`numen/task/move`)。
 
 ### 她的输入层(10-07,1.21.1 之上,设计稿 `docs/input-pipeline.md` §七)
 
