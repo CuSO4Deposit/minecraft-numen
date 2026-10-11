@@ -1051,7 +1051,7 @@ C* = 286、h ≈ 21,地面铺开半径约 37 格,11589 个节点。挖掘的代�
   开走前整条规划一次、把要问的格一次问完的那一步删了——它唯一的理由就是权限的时机。
 - **模块没加的**:模块不认识"一趟路的描述""计划""途经点";多段、乘船、垫路料清单都在 Numen 侧(`numen/route`、`numen/nav`)。
 
-### 她的输入层(10-07,1.21.1 之上,设计稿 `docs/companion-input.md`)
+### 她的输入层(10-07,1.21.1 之上,设计稿 `docs/input-pipeline.md` §七)
 
 - **公式与几何进 Numen API**:`DigTime`(挖掘时间与挖完的缓手;身体上的事实是 `DigTime.Mining`)、`Reach`、`Sight`、`Faces`、`Replaceable`
   搬进 `com.dwinovo.numen.api.entity`,pathing 与 Numen 都按它们用;`Reach` 只认眼睛的位置与交互距离,站在某一列时眼睛在哪由 `BodyStats.eye` 算。
