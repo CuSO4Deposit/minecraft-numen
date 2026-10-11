@@ -173,25 +173,20 @@ final class Vertical {
         }
     }
 
-    /** 一种方块状态:碰撞箱顶面的高度、能不能落进去不摔。 */
-    private record Info(double[] tops, boolean bypass) {
+    /**
+     * 一种方块状态:碰撞箱顶面的高度、能不能落进去不摔;以及值得逐格找出来的({@code interesting}):顶面有小数(不是整格也不是空),
+     * 或落进去不摔。调色板里每种状态每个方块段都问一遍,所以开搜时算定。
+     */
+    private record Info(double[] tops, boolean bypass, boolean interesting) {
 
         static Info of(BodyStats body, BlockState state) {
             boolean bypass = !state.getFluidState().isEmpty() || state.is(BlockTags.CLIMBABLE) || state.getBlock() instanceof TrapDoorBlock;
-            return new Info(Footing.tops(body, state), bypass);
-        }
-
-        /** 值得逐格找出来的:顶面有小数(不是整格也不是空),或落进去不摔。 */
-        boolean interesting() {
-            if (bypass) {
-                return true;
-            }
+            double[] tops = Footing.tops(body, state);
+            boolean interesting = bypass;
             for (double top : tops) {
-                if (top - Math.floor(top + Footing.EPSILON) > Footing.EPSILON) {
-                    return true;
-                }
+                interesting |= top - Math.floor(top + Footing.EPSILON) > Footing.EPSILON;
             }
-            return false;
+            return new Info(tops, bypass, interesting);
         }
     }
 }

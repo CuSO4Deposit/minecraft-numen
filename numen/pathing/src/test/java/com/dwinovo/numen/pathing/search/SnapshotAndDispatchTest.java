@@ -85,6 +85,64 @@ class SnapshotAndDispatchTest {
         assertTrue(none.isEmpty());
     }
 
+    /** 读一格的结果与拷下来的方块段一模一样:每个区段、每一层、每一格,重复读也一样;建筑高度之外与没加载的区块是空气。 */
+    @Test
+    void everyCellReadsBackWhatWasCopied() {
+        TestWorld heights = new TestWorld();
+        LevelChunkSection[] live = chunk(heights);
+        java.util.Random random = new java.util.Random(7);
+        BlockState[] some = {Blocks.DIRT.defaultBlockState(), Blocks.OAK_STAIRS.defaultBlockState(), Blocks.WATER.defaultBlockState()};
+        for (int i = 0; i < 300; i++) {
+            live[heights.getSectionIndex(Y)].setBlockState(random.nextInt(16), random.nextInt(16), random.nextInt(16),
+                    some[random.nextInt(some.length)]);
+        }
+        WorldSnapshot snapshot = WorldSnapshot.capture(heights, new WorldBorder(), false, (cx, cz) -> cx == 0 && cz == 0 ? live : null, 0, 0, 1);
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (int pass = 0; pass < 2; pass++) {
+            for (int y = heights.getMinBuildHeight(); y < heights.getMinBuildHeight() + heights.getHeight(); y++) {
+                LevelChunkSection section = live[heights.getSectionIndex(y)];
+                for (int x = 0; x < 16; x++) {
+                    for (int z = 0; z < 16; z++) {
+                        BlockState expected = section == null ? air : section.getBlockState(x, y & 15, z);
+                        assertEquals(expected, snapshot.getBlockState(new BlockPos(x, y, z)), x + "," + y + "," + z);
+                    }
+                }
+            }
+        }
+        assertTrue(snapshot.getBlockState(new BlockPos(3, heights.getMinBuildHeight() - 1, 3)).isAir());
+        assertTrue(snapshot.getBlockState(new BlockPos(3, heights.getMinBuildHeight() + heights.getHeight(), 3)).isAir());
+        assertTrue(snapshot.getBlockState(new BlockPos(-1, Y, 3)).isAir(), "没加载的区块");
+    }
+
+    /** 方块段里状态多到用上全局调色板时,调色板不问谓词、直接答"也许有",照样逐格找得全。 */
+    @Test
+    void aSectionWithAGlobalPaletteStillGivesUpItsBlocks() {
+        TestWorld heights = new TestWorld();
+        LevelChunkSection[] live = chunk(heights);
+        List<BlockState> states = new ArrayList<>(Block.BLOCK_STATE_REGISTRY.size());
+        Block.BLOCK_STATE_REGISTRY.forEach(states::add);
+        LevelChunkSection section = live[heights.getSectionIndex(Y)];
+        List<Integer> expected = new ArrayList<>();
+        for (int i = 0; i < 4096; i++) {
+            BlockState state = states.get((int) ((long) i * 7919 % states.size()));
+            section.setBlockState(i & 15, (i >> 8) & 15, (i >> 4) & 15, state);
+        }
+        for (int y = 0; y < 16; y++) {
+            for (int z = 0; z < 16; z++) {
+                for (int x = 0; x < 16; x++) {
+                    if (section.getBlockState(x, y, z).getBlock() instanceof net.minecraft.world.level.block.StairBlock) {
+                        expected.add(((heights.getSectionIndex(Y) + heights.getMinSection()) << 4) + y);
+                    }
+                }
+            }
+        }
+        assertTrue(expected.size() > 20, "场景里有这种方块");
+        WorldSnapshot snapshot = WorldSnapshot.capture(heights, new WorldBorder(), false, (cx, cz) -> cx == 0 && cz == 0 ? live : null, 0, 0, 1);
+        List<Integer> levels = new ArrayList<>();
+        snapshot.forEachBlock(state -> state.getBlock() instanceof net.minecraft.world.level.block.StairBlock, (state, y) -> levels.add(y));
+        assertEquals(expected, levels);
+    }
+
     /** 叫停时还在队里排着的搜索直接从队里拿走,它握着的世界快照不必等到有线程空出来才放掉。 */
     @Test
     void aCancelledSearchStillInTheQueueLetsGoOfItsInputs() throws InterruptedException {

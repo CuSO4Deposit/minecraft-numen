@@ -5,6 +5,7 @@ import java.util.function.Predicate;
 
 import com.dwinovo.numen.pathing.plan.WorldView;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -15,6 +16,11 @@ public interface SearchView extends WorldView {
 
     /** {@code (x, z)} 这一列所在的区块在快照里。 */
     boolean isLoaded(int x, int z);
+
+    /** 一格的方块状态;这一列不在快照里为 null(读{@link #getBlockState}是空气,不是测量)。读一格问一次,比先问 {@link #isLoaded} 再读省一趟查区块。 */
+    default BlockState loadedBlockState(BlockPos pos) {
+        return isLoaded(pos.getX(), pos.getZ()) ? getBlockState(pos) : null;
+    }
 
     /**
      * 快照里状态让 {@code wanted} 答是的每一格,回调它的状态与所在的层(格的 y)。估价靠它知道每一层有什么台阶、水、梯子。

@@ -241,10 +241,12 @@ public final class AStar {
 
         @Override
         public BlockState getBlockState(BlockPos pos) {
-            if (!view.isLoaded(pos.getX(), pos.getZ())) {
+            BlockState state = view.loadedBlockState(pos);
+            if (state == null) {
                 recall.touchUnloaded();
+                return view.getBlockState(pos);
             }
-            return view.getBlockState(pos);
+            return state;
         }
 
         @Override
