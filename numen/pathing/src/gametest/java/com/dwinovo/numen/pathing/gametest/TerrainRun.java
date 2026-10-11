@@ -110,7 +110,7 @@ final class TerrainRun {
                         phase = Phase.FINISHED;
                         return;
                     }
-                    body = TestBody.spawn(level, "terrain_" + route.name(), from.getX() + 0.5, from.getY(), from.getZ() + 0.5);
+                    body = TestBody.spawn(level, route.name(), from.getX() + 0.5, from.getY(), from.getZ() + 0.5);
                     body.getFoodData().setFoodLevel(20);
                     phase = Phase.SPAWNED;
                 }

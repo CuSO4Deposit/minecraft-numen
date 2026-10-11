@@ -27,6 +27,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.util.StringUtil;
 import net.minecraft.world.level.GameType;
 
 /**
@@ -51,8 +52,11 @@ final class TestBody extends ServerPlayer implements Body {
         super(server, level, profile, ClientInformation.createDefault());
     }
 
-    /** 在 {@code level} 里 {@code (x, y, z)} 处拉起一具。 */
+    /** 在 {@code level} 里 {@code (x, y, z)} 处拉起一具。{@code name} 是玩家档案的名字,照原版的规矩(至多 16 个字符):它要随档案发给客户端。 */
     static TestBody spawn(ServerLevel level, String name, double x, double y, double z) {
+        if (!StringUtil.isValidPlayerName(name)) {
+            throw new IllegalArgumentException("not a valid player name (at most 16 characters): " + name);
+        }
         MinecraftServer server = level.getServer();
         GameProfile profile = new GameProfile(UUID.randomUUID(), name);
         TestBody body = new TestBody(server, level, profile);
