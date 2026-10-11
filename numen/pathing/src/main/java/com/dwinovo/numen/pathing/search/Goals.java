@@ -276,6 +276,16 @@ public final class Goals {
         return pace.sprint() * Math.max(0, Math.hypot(dx, dz) - reach);
     }
 
+    /**
+     * 把 {@code more} 并进 {@code into}。逐个加:一次 {@code addAll} 会按两边个数之和扩表,几十个大半重叠的成员(挖放同一片里的几十格)
+     * 并起来的表比并出的格数大几十倍。
+     */
+    private static void union(LongOpenHashSet into, LongSet more) {
+        for (long cell : more) {
+            into.add(cell);
+        }
+    }
+
     /** 坐标 {@code v} 离 {@code [cell, cell + 1]} 这一段有多远:在段里为 0。 */
     private static double gap(double v, int cell) {
         return gap(v, cell, cell + 1);
@@ -498,22 +508,63 @@ public final class Goals {
         public LongSet endCells() {
             double reach = body.blockReach();
             double eye = body.eyeHeight();
-            int span = (int) Math.ceil(reach + eye) + 1;
-            LongOpenHashSet out = new LongOpenHashSet();
-            for (int x = target.getX() - span; x <= target.getX() + span; x++) {
-                for (int y = target.getY() - span; y <= target.getY() + span; y++) {
-                    for (int z = target.getZ() - span; z <= target.getZ() + span; z++) {
-                        double dx = gap(x + 0.5, target.getX());
-                        double dz = gap(z + 0.5, target.getZ());
-                        // 脚在 [y, y + 1) 里,眼睛在 [y + eye, y + 1 + eye) 里:取离那一格最近的高度
-                        double dy = Math.max(0, Math.max(target.getY() - (y + 1 + eye), y + eye - (target.getY() + 1)));
-                        if (dx * dx + dy * dy + dz * dz < reach * reach) {
-                            out.add(BlockPos.asLong(x, y, z));
+            int span = span(reach, eye);
+            // 每个方向上离目标那一格的距离只和这一格的坐标有关:先各量一遍,三层循环里只相加比较
+            double[] dxs = new double[2 * span + 1];
+            double[] dys = new double[2 * span + 1];
+            double[] dzs = new double[2 * span + 1];
+            for (int i = 0; i < dxs.length; i++) {
+                dxs[i] = gap(target.getX() - span + i + 0.5, target.getX());
+                dys[i] = lift(target.getY() - span + i, eye);
+                dzs[i] = gap(target.getZ() - span + i + 0.5, target.getZ());
+            }
+            // 先数出有几格再建表:一格格往空表里加,表要翻着倍地扩上七八回
+            long[] found = new long[dxs.length * dys.length * dzs.length];
+            int count = 0;
+            for (int i = 0; i < dxs.length; i++) {
+                for (int j = 0; j < dys.length; j++) {
+                    for (int k = 0; k < dzs.length; k++) {
+                        if (near(dxs[i], dys[j], dzs[k], reach)) {
+                            found[count++] = BlockPos.asLong(target.getX() - span + i, target.getY() - span + j, target.getZ() - span + k);
                         }
                     }
                 }
             }
-            return out;
+            return new LongOpenHashSet(found, 0, count);
+        }
+
+        /** 终点格所在的高度范围:{@link #endCells} 里最低与最高的一层。水平上取目标自己那一列,离它最近。 */
+        @Override
+        public Heights heights() {
+            double reach = body.blockReach();
+            double eye = body.eyeHeight();
+            int span = span(reach, eye);
+            double dx = gap(target.getX() + 0.5, target.getX());
+            double dz = gap(target.getZ() + 0.5, target.getZ());
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            for (int y = target.getY() - span; y <= target.getY() + span; y++) {
+                if (near(dx, lift(y, eye), dz, reach)) {
+                    lo = Math.min(lo, y);
+                    hi = Math.max(hi, y);
+                }
+            }
+            return lo > hi ? null : new Heights(lo, hi);
+        }
+
+        /** 终点格往各个方向最多离目标这么远(格数)。 */
+        private static int span(double reach, double eye) {
+            return (int) Math.ceil(reach + eye) + 1;
+        }
+
+        /** 脚在 [y, y + 1) 里,眼睛在 [y + eye, y + 1 + eye) 里:取离目标那一格最近的高度,量竖直方向的距离。 */
+        private double lift(int y, double eye) {
+            return Math.max(0, Math.max(target.getY() - (y + 1 + eye), y + eye - (target.getY() + 1)));
+        }
+
+        /** 三个方向的距离合起来够得着:终点格与它所在的高度范围用的是同一个判据。 */
+        private static boolean near(double dx, double dy, double dz, double reach) {
+            return dx * dx + dy * dy + dz * dz < reach * reach;
         }
 
         /**
@@ -591,9 +642,22 @@ public final class Goals {
         public LongSet endCells() {
             LongOpenHashSet all = new LongOpenHashSet();
             for (Dig g : members) {
-                all.addAll(g.endCells());
+                union(all, g.endCells());
             }
             return all;
+        }
+
+        /** 各成员的范围合起来。 */
+        @Override
+        public Heights heights() {
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            for (Dig g : members) {
+                Heights own = g.heights();
+                lo = Math.min(lo, own.lo());
+                hi = Math.max(hi, own.hi());
+            }
+            return new Heights(lo, hi);
         }
 
         @Override
@@ -626,6 +690,11 @@ public final class Goals {
         @Override
         public LongSet endCells() {
             return reach.endCells();
+        }
+
+        @Override
+        public Heights heights() {
+            return reach.heights();
         }
 
         @Override
@@ -772,7 +841,7 @@ public final class Goals {
                 if (own == null) {
                     return null;
                 }
-                all.addAll(own);
+                union(all, own);
             }
             return all;
         }

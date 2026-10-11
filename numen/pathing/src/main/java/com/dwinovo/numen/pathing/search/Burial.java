@@ -53,11 +53,11 @@ final class Burial {
 
     /** 这次搜索的埋深:在 {@code view} 上从 {@code goal} 的终点往外算,到 {@code start} 为止,最多定下 {@code cap} 格。 */
     static Burial of(SearchView view, CostModel model, Goal goal, BlockPos start, int cap) {
-        LongSet ends = goal.endCells();
-        if (ends == null || !model.spec().dig()) {
+        if (!model.spec().dig()) {
             return NONE;
         }
-        return new Field(view, model, start).run(ends, cap);
+        LongSet ends = goal.endCells();
+        return ends == null ? NONE : new Field(view, model, start).run(ends, cap);
     }
 
     /** 一次 Dijkstra 的工作区。 */

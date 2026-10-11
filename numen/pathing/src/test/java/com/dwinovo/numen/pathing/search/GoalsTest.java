@@ -296,6 +296,24 @@ class GoalsTest {
         }
     }
 
+    /** 挖、放、挖几格里的一格交出的高度范围,就是它们终点格里最低与最高的一层。 */
+    @Test
+    void theHeightsOfADigAreTheLowestAndHighestLevelOfItsEndCells() {
+        List<Goal> goals = List.of(Goals.dig(new BlockPos(3, 70, -2), SURVIVAL, Goals.Clearing.ANY),
+                Goals.place(new BlockPos(-5, 12, 9), SURVIVAL),
+                Goals.dig(List.of(new Goals.DigTarget(new BlockPos(0, 40, 0), 1), new Goals.DigTarget(new BlockPos(6, 47, 3), 2)),
+                        SURVIVAL, Goals.Clearing.ANY));
+        for (Goal goal : goals) {
+            int lo = Integer.MAX_VALUE;
+            int hi = Integer.MIN_VALUE;
+            for (long cell : goal.endCells()) {
+                lo = Math.min(lo, BlockPos.getY(cell));
+                hi = Math.max(hi, BlockPos.getY(cell));
+            }
+            assertEquals(new Goal.Heights(lo, hi), goal.heights(), goal.toString());
+        }
+    }
+
     /**
      * 挖一格时,站位与它之间每隔着一格硬遮挡就加一份到达价;软遮挡(高草)不加。
      */
