@@ -109,6 +109,17 @@ class SearchTest {
     }
 
     /**
+     * 加载区块最东一列(x = 15)上有一格水:走到它旁边一列时看它伤不伤身,只看它是什么方块。水往哪流要读边外 x = 16 那一列,
+     * 那是没加载的,可水流与伤不伤身无关——这一步不能因为它就被当成"读到了未加载的列"。
+     */
+    @Test
+    void aHarmCheckBesideAWaterCellAtTheEdgeDoesNotReadPastTheEdge() {
+        TestWorld world = new TestWorld().floor(0, 0, 15, 3, Y - 1).set(15, Y, 1, Blocks.WATER.defaultBlockState()).loadedWithin(0);
+        SearchResult result = search(world, defaults(), new BlockPos(8, Y, 1), Goals.at(new BlockPos(14, Y, 1)));
+        assertEquals(SearchResult.Stop.ARRIVED, result.stop());
+    }
+
+    /**
      * 一间封死的小屋贴着加载区块的边(原点所在区块 x 到 15 为止,屋子的东墙在 x = 13):屋里走遍了也没有路。跑酷那一步
      * 伸得到边外的列,可它没开、或者紧挨着的那一列是墙根本不是空隙——这一步与边外是什么无关,结论是搜完无路,不是"未加载"。
      */
