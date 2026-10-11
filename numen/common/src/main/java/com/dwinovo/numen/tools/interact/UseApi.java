@@ -30,9 +30,10 @@ import java.util.Optional;
  * {@code numen.use}:像玩家那样点世界——右键一格(打开它就交回那个界面)、对着前方用手里的东西、右键一只实体、左键点一格或一只实体一下,
  * 上床、从坐着的东西上下来。打开之后在界面里搬东西是 {@code gui} 那一组。
  *
- * <p>按键是有界短活(经 {@link ServerCall#sync}),动手前各自把动作交给权限层;上床当场回。按键都站在原地按:目标得在手够得着、看得见的
- * 地方,不然当场失败,说清先走过去({@code numen.move.to})。对准一格和不对准任何东西是两件事,拆成 {@code block} 与 {@code item}。右键是
- * "用"这一组的本义,左键一下是 {@code hit};把一格挖下来是 {@code numen.work.dig}。上床放在这一组:原版里睡觉就是用一张床。
+ * <p>按键经 {@link ServerCall#sync},动手前各自把动作交给权限层;上床当场回。目标得在手够得着、看得见的地方才按,够不着先走到能按的
+ * 地方({@code InReachTask} 的走过去,到达目标是动作自己那一处的)。对准一格和不对准任何东西是两件事,拆成 {@code block} 与
+ * {@code item}。右键是"用"这一组的本义,左键一下是 {@code hit};把一格挖下来是 {@code numen.work.dig}。上床放在这一组:原版里睡觉就是
+ * 用一张床。
  */
 public final class UseApi {
 
@@ -67,9 +68,9 @@ public final class UseApi {
             + "right-click: aiming at water with a bucket scoops it, with a boat places it.")
     @Note("With sneak = true and something in hand, a right click skips what the aimed block itself does: a block "
             + "goes onto a chest instead of opening it.")
-    @Note("It does NOT travel: you must already be within working reach (~4.5 blocks) of the aim point; "
-            + "`numen.move.to({x = 120, y = 64, z = -35}, {arrive = \"use\"})` stands you where one of its faces is in "
-            + "sight and in reach. Farther away it fails and names that call.")
+    @Note("Out of working reach (~4.5 blocks) of the aim point, it first walks to where one of its faces is in sight and in "
+            + "reach, then clicks; the walk digs and builds its own way like `numen.move.to` and is told in the result. "
+            + "A walk that can't get there fails with its reason and nothing is clicked.")
     @Note("It is a bare key press: whatever you hold is what is used, and the block the crosshair lands on is the one "
             + "clicked — if something else is in the way (tall grass in front of a chest, a leaf), that is what gets "
             + "clicked, and the result says so and names the next step. It never moves, never swaps tools, never "
@@ -112,10 +113,10 @@ public final class UseApi {
             + "it returns that Window.")
     @Example("numen.use.entity(812, {item = \"minecraft:shears\"})")
     @Example("numen.use.entity(812, {sneak = true})")
-    @Note("It does NOT travel: an entity farther than your reach, or behind a wall, fails with where it is and the "
-            + "numen.move.to call to copy. numen.scan.entities gives its cell.")
-    @Note("Right on a boat or rideable boards it: runtime_state then shows <riding>; a plan with mode = \"boat\" "
-            + "steers it, numen.use.dismount() steps off. Never click your own vehicle again.")
+    @Note("An entity farther than your reach, or behind a wall, is walked up to first, then clicked; the walk is told in "
+            + "the result and a walk that can't get there fails with its reason.")
+    @Note("Right on a boat or rideable boards it: runtime_state then shows <riding>; `numen.move.to` sails a boat "
+            + "across water, numen.use.dismount() steps off. Never click your own vehicle again.")
     @SeeAlso({"numen.use.block", "numen.use.hit"})
     public static Pending<Clicks.Pressed> entity(ServerCall call, OnEntity args) {
         return call.sync(BlockActionOps.interactEntity(call, MouseButton.RIGHT, idOf(call, args.entity()),
@@ -131,8 +132,8 @@ public final class UseApi {
     @Example("numen.use.hit(812)")
     @Note("One press, never held: a block that takes several hits to break is only hit once — `numen.work.dig` breaks "
             + "blocks (best tool, the way cleared); `numen.fight.attack` fights.")
-    @Note("It does NOT travel: the target must be within reach and in sight of where you stand; otherwise it fails "
-            + "with the numen.move.to call to copy.")
+    @Note("A target out of reach or out of sight is walked up to first, then hit; a walk that can't get there fails "
+            + "with its reason and nothing is hit.")
     @Note("Hitting your owner's blocks, pets, named mobs or villagers asks your owner first; the call waits for the "
             + "answer.")
     @SeeAlso({"numen.use.block", "numen.use.entity"})
@@ -163,8 +164,7 @@ public final class UseApi {
     @Example("numen.use.sleep()")
     @Example("numen.use.sleep({at = {x = 120, y = 64, z = -35}})")
     @Note("It does NOT travel: find a bed with `numen.scan.blocks(\"#minecraft:beds\")` (that one tag covers every "
-            + "colour), `numen.move.to({x = 120, y = 64, z = -35}, {arrive = \"use\"})` with its coordinates, then call "
-            + "this.")
+            + "colour), `numen.move.to({x = 120, y = 64, z = -35}, 2)` with its coordinates, then call this.")
     @Note("Succeeds only when the server confirms you are sleeping; otherwise it hands back Minecraft's own reason. "
             + "\"Only at night\" means wait (`numen.task.timer`), not retry; \"too far away\" means numen.move.to.")
     @Note("Returns the moment you lie down; night passes on its own.")

@@ -131,7 +131,7 @@ public class CollectGameTests {
     }
 
     /**
-     * 三块铁锭搁在一根三格高的石柱顶上,不改地形的路走不上去:走过去的那一步(规划路线)失败,整段如实停在那里,回执说是哪一步、
+     * 三块铁锭搁在一根三格高的石柱顶上,她身上没有垫脚的方块,走不上去:走过去的那一步失败,整段如实停在那里,回执说是哪一步、
      * 为什么;铁锭原样留在柱顶——不能让模型以为这一片已经干净了。
      */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = "numen_collect")
@@ -146,7 +146,7 @@ public class CollectGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(collect.receipt() != null, "numen.work.collect has not finished");
-            helper.assertTrue(!collect.ranToTheEnd() && collect.receipt().contains("numen.move.go: "),
+            helper.assertTrue(!collect.ranToTheEnd() && collect.receipt().contains("numen.move.to: "),
                     "a sweep that can reach nothing did not stop at the walk: " + collect.receipt());
             helper.assertTrue(companion.getInventory().countItem(Items.IRON_INGOT) == 0
                             && onFloor(helper, Items.IRON_INGOT) == 3,

@@ -12,6 +12,8 @@ import com.dwinovo.numen.pathing.drive.Journal;
 import com.dwinovo.numen.pathing.plan.Threats;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.Blocks;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.logging.LogUtils;
@@ -31,6 +33,8 @@ import org.slf4j.Logger;
 final class TerrainRun {
 
     private static final Logger LOG = LogUtils.getLogger();
+    /** 走路的规格:可挖可搭、只看价钱,与 numen 里模型走路用的出厂规格同一口径(身上没有垫路的料)。 */
+    private static final RouteSpec WALKING = RouteSpec.defaults().edit().changes(true).build();
     /** 汇总表要等所有路线都跑完;每条跑完时登记一行。 */
     private static final List<JsonObject> DONE = new ArrayList<>();
 
@@ -91,6 +95,16 @@ final class TerrainRun {
             case LOADING -> {
                 if (loaded()) {
                     BlockPos from = route.from();
+                    if (route.carveMin() != null) {
+                        for (BlockPos cell : BlockPos.betweenClosed(route.carveMin(), route.carveMax())) {
+                            level.setBlock(cell, Blocks.AIR.defaultBlockState(), 2);
+                        }
+                    }
+                    if (route.buried() && !sealedInRock(route.to())) {
+                        helper.fail("路线常量过期:终点 " + route.to().toShortString() + " 不是封闭在实心方块里的一格");
+                        phase = Phase.FINISHED;
+                        return;
+                    }
                     if (level.getBlockState(from.below()).isAir()) {
                         helper.fail("路线常量过期:起点 " + from.toShortString() + " 脚下是空气");
                         phase = Phase.FINISHED;
@@ -105,7 +119,7 @@ final class TerrainRun {
                 // 出生无敌期里摔落不掉血,等过了再走,记的最低血量才有意义
                 if (++waited > Trial.SPAWN_INVULNERABILITY) {
                     Navigator navigator = Navigator.of(body, new Ports(Trial.ALLOW_ALL, Trial.NO_MATERIALS, Threats.NONE));
-                    navigation = navigator.drive(NavRequest.to(Goals.at(route.to()), RouteSpec.defaults()));
+                    navigation = navigator.drive(NavRequest.to(Goals.at(route.to()), WALKING));
                     phase = Phase.WALKING;
                 }
             }
@@ -113,6 +127,19 @@ final class TerrainRun {
             case FINISHED -> {
             }
         }
+    }
+
+    /** 这一格和它上下四面六邻都是实心方块。 */
+    private boolean sealedInRock(BlockPos cell) {
+        if (!level.getBlockState(cell).isSolid()) {
+            return false;
+        }
+        for (Direction side : Direction.values()) {
+            if (!level.getBlockState(cell.relative(side)).isSolid()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void walk() {

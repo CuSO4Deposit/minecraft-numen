@@ -10,6 +10,9 @@ import net.minecraft.core.BlockPos;
  * <p>类型:平地直行、上坡、下坡、陡坎(中途有一级 5 格以上的落差)、穿树林、树林里上坡、绕障碍(直线中间隔着 30 格以上的断崖)、
  * 起伏、长距离(160 格)。时限是够从容走完的刻数,超过就算没走到。
  *
+ * <p>最后两条是地下的目标:从地面到封闭石头里的一格(像主人开了观察模式钻进石头),和到地下一个空腔(开跑前在那里挖出一间 3×3×3 的空房,
+ * 世界每次运行都从存档重来,挖出来的不会留下)。走路默认可挖可搭、只看价钱,这两条量的是往下挖着去的账。
+ *
  * <p>后一批是难路线,全是地形里天然存在的:峡谷(30 格深的裂缝)底、跨峡谷、被高地或山脊挡住要绕远、掉进盆地、300 格以上的长路、
  * 破碎地形、密林。起终点按勘测表挑,没有照寻路能不能走通来挑;走不通的原样记着,是后面分析的素材。
  */
@@ -17,8 +20,19 @@ final class TerrainRoutes {
 
     private TerrainRoutes() {}
 
-    /** 一条固定路线。 */
-    record Route(String name, String kind, BlockPos from, BlockPos to, int limit) {
+    /**
+     * 一条固定路线。
+     *
+     * @param carveMin 开跑前挖成空气的盒子的一角;路线不挖空房为 null
+     * @param carveMax 盒子的另一角
+     * @param buried   终点那一格得是封闭的实心(六面都是实心方块):核对存档里那一格还是石头
+     */
+    record Route(String name, String kind, BlockPos from, BlockPos to, int limit, BlockPos carveMin, BlockPos carveMax,
+                 boolean buried) {
+
+        Route(String name, String kind, BlockPos from, BlockPos to, int limit) {
+            this(name, kind, from, to, limit, null, null, false);
+        }
 
         /** 起终点的水平直线距离。 */
         double distance() {
@@ -57,7 +71,13 @@ final class TerrainRoutes {
     static final Route LAKE_CROSS = new Route("lake_cross", "横渡深湖", new BlockPos(156, 63, 183), new BlockPos(217, 63, 183), 1200);
     static final Route LAKE_SHALLOWS = new Route("lake_shallows", "深浅交错的湖", new BlockPos(217, 63, 138), new BlockPos(250, 63, 138), 1200);
 
+    /** 地下的两条:从平地出发,往下挖着去封闭石头里的一格 / 一间挖出来的空房。 */
+    static final Route BURIED_CELL = new Route("buried_cell", "到封闭石头里的一格", new BlockPos(343, 67, 212), new BlockPos(343, 60, 212),
+            1500, null, null, true);
+    static final Route BURIED_CAVITY = new Route("buried_cavity", "到地下一个空腔", new BlockPos(311, 65, 174), new BlockPos(311, 56, 174),
+            1500, new BlockPos(310, 56, 173), new BlockPos(312, 58, 175), false);
+
     static final List<Route> ALL = List.of(FLAT, UPHILL, DOWNHILL, STEP, FOREST, FOREST_UPHILL, WALL, LONG_A, LONG_B, ROLLING,
             RAVINE_FLOOR, RAVINE_CROSS, RIDGE_DETOUR, HILL_DETOUR, BASIN_DESCENT, LONG_300, BROKEN, DENSE_FOREST,
-            LAKE_CROSS, LAKE_SHALLOWS);
+            LAKE_CROSS, LAKE_SHALLOWS, BURIED_CELL, BURIED_CAVITY);
 }

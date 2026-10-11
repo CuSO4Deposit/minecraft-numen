@@ -111,8 +111,7 @@ public final class NumenContent {
     }
 
     /**
-     * Numen API 自己的 API 组,和插件走同一扇门({@code NumenPlugins.register})。{@code route} 在 {@code move} 之前:路线描述里的几种值与
-     * {@code numen.move.go} 收的计划在它那里登记。
+     * Numen 自己的 API 组,和插件走同一扇门({@code NumenPlugins.register})。
      */
     private static void registerTools() {
         com.dwinovo.numen.api.NumenPlugins.register(com.dwinovo.numen.api.NumenPlugins.NUMEN, numen -> {
@@ -120,7 +119,6 @@ public final class NumenContent {
             com.dwinovo.numen.tools.perception.StatusApi.install(numen);
             com.dwinovo.numen.tools.perception.ScanApi.install(numen);
             com.dwinovo.numen.tools.locate.LocateApi.install(numen);
-            com.dwinovo.numen.tools.work.RouteApi.install(numen);
             com.dwinovo.numen.tools.work.MoveApi.install(numen);
             com.dwinovo.numen.tools.work.WorkApi.install(numen);
             com.dwinovo.numen.tools.work.BuildApi.install(numen);

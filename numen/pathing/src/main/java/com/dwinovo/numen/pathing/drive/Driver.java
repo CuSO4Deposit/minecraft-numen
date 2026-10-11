@@ -244,18 +244,6 @@ public final class Driver {
             PathLog.info("{} 出水 从 {} 到 {} 憋了 {} 刻 氧气最低 {}/{}", rig.who, PathLog.pos(surfaced.from()),
                     PathLog.pos(surfaced.to()), surfaced.ticks(), surfaced.lowestAir(), surfaced.maxAir());
         }
-        if (rig.entity.isPassenger()) {
-            // 原版按潜行就从载具上下来
-            rig.keys.releaseAll();
-            rig.keys.press(Key.SNEAK);
-            BodyAction.Dismounted dismount = new BodyAction.Dismounted(rig.entity.getVehicle().getType());
-            pendingDismount = dismount;
-            return state;
-        }
-        if (pendingDismount != null) {
-            rig.act(pendingDismount);
-            pendingDismount = null;
-        }
         poll();
         if (state != State.RUNNING) {
             return state;
@@ -278,9 +266,6 @@ public final class Driver {
                     step != null ? PathLog.step(step.planned()) : "没有在走的步", PathLog.body(rig.entity));
         }
     }
-
-    /** 按了潜行、还没看到身体下来的那次下载具。 */
-    private BodyAction.Dismounted pendingDismount;
 
     private void drive() {
         ServerPlayer body = rig.entity;

@@ -1,26 +1,38 @@
 package com.dwinovo.numen.task.move;
 
+import com.dwinovo.numen.nav.Walked;
 import com.dwinovo.numen.api.sdk.ServerCall;
-import com.dwinovo.numen.route.Plan;
 import com.dwinovo.numen.api.task.TaskRecord;
 
 /**
- * Typed task descriptor for {@code numen.move.go(plan)}, which the library function {@code numen.move.to} calls: walk a plan that
- * {@code numen.route.plan} made in the same program. The plan itself — stops, description, the way she saw — rides along
- * in memory; it is not saved, so a restart has nothing to walk and the task ends saying so. The deadline is handled by
- * the base class.
+ * {@code numen.move.to} 与 {@code numen.move.away} 这件活的记录:走到哪儿({@link Arrival})。动手的活够不着时替自己走过去也用它
+ * ({@link #errand}),那时只走路、不驾船。基础期限是 30 秒,出发后按路程再往后推(见 {@link MoveToCompanionTask})。
  */
-public final class MoveToTaskRecord extends TaskRecord<MoveToCompanionTask.Walked> {
+public final class MoveToTaskRecord extends TaskRecord<Walked> {
 
     /** 基础期限:30 秒,出发后按路程再往后推(见 {@code MoveToCompanionTask})。 */
     private static final long BUDGET_TICKS = 30 * 20;
 
-    /** 走哪一份计划。 */
-    public final Plan plan;
+    /** 怎样算到了。 */
+    public final Arrival arrival;
+    /** 坐在船上可以驾船过去;不可以(动手的活替自己走路)就只走路,坐着任何载具都要先下来。 */
+    public final boolean sailing;
 
-    public MoveToTaskRecord(ServerCall source, Plan plan) {
+    public MoveToTaskRecord(ServerCall source, Arrival arrival) {
         super(source, source.her().level().getGameTime() + BUDGET_TICKS);
-        this.plan = plan;
+        this.arrival = arrival;
+        this.sailing = true;
+    }
+
+    private MoveToTaskRecord(TaskRecord<?> parent, long now, Arrival arrival) {
+        super(parent.getToolName(), parent.getToolCallId(), now + BUDGET_TICKS);
+        this.arrival = arrival;
+        this.sailing = false;
+    }
+
+    /** {@code parent} 这件活够不着时替自己走过去的一趟:挂在它名下,只走路。 */
+    public static MoveToTaskRecord errand(TaskRecord<?> parent, long now, Arrival arrival) {
+        return new MoveToTaskRecord(parent, now, arrival);
     }
 
     /**
@@ -29,9 +41,6 @@ public final class MoveToTaskRecord extends TaskRecord<MoveToCompanionTask.Walke
      */
     @Override
     public String describe() {
-        var stops = plan.description().stops();
-        return (plan.description().mode() == com.dwinovo.numen.route.Description.Mode.BOAT ? "驾船," : "")
-                + stops.get(stops.size() - 1).describe() + (stops.size() > 1 ? "(途经 " + (stops.size() - 1) + " 处)"
-                : "");
+        return arrival.describe();
     }
 }

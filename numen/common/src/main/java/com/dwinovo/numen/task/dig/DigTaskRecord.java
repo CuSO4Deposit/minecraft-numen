@@ -1,7 +1,6 @@
 package com.dwinovo.numen.task.dig;
 
 import com.dwinovo.numen.api.area.Cells;
-import com.dwinovo.numen.api.sdk.Call;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import com.dwinovo.numen.api.sdk.Target;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
@@ -33,7 +32,7 @@ public final class DigTaskRecord extends TaskRecord<DigCompanionTask.Dug> {
 
     /**
      * 点名的目标按这份规格定价、判挖不挖得成:要问主人的格也算挖得成({@link RouteSpec#consent})——目标是她点名要挖的,要问主人的照价乘倍、
-     * 动手前问,规则不许的、物理上挖不成的价钱无穷。{@code numen.work.dig} 挑目标与 {@code arrive = "dig"} 挑能去挖的格都按它。
+     * 动手前问,规则不许的、物理上挖不成的价钱无穷。{@code numen.work.dig} 挑目标与走去挖时挑能去挖的格({@code Arrival.dig})都按它。
      */
     public static final RouteSpec TARGET_SPEC = SPEC.edit().consent(true).build();
 
@@ -46,8 +45,6 @@ public final class DigTaskRecord extends TaskRecord<DigCompanionTask.Dug> {
 
     /** 要挖的格;点名 Block 的附带当时的方块。 */
     public final Cells cells;
-    /** 她点名的几格,按写下的顺序:回执里能照抄的下一步照它写。 */
-    public final List<Target> named;
     /** 此刻要挖的那几种方块:工具收不收得到掉落按它们判。 */
     public final Set<Block> targets;
     /** 至多挖几格,或 {@link #ALL}。 */
@@ -60,11 +57,10 @@ public final class DigTaskRecord extends TaskRecord<DigCompanionTask.Dug> {
     /** 进度:挖掉的格数。任务每刻写。 */
     private int dug = 0;
 
-    public DigTaskRecord(ServerCall source, long now, Cells cells, List<Target> named, Set<Block> targets,
-                         int count, String label, String what) {
+    public DigTaskRecord(ServerCall source, long now, Cells cells, Set<Block> targets, int count, String label,
+                         String what) {
         super(source, now + timeoutTicks(count == ALL ? (int) Math.min(cells.size(), 64) : count));
         this.cells = cells;
-        this.named = List.copyOf(named);
         this.targets = Set.copyOf(targets);
         this.count = count;
         this.what = what;
@@ -103,35 +99,6 @@ public final class DigTaskRecord extends TaskRecord<DigCompanionTask.Dug> {
     /** 挖 {@code blocks} 格的期限预算。 */
     private static long timeoutTicks(int blocks) {
         return Math.max(MIN_TIMEOUT_TICKS, (long) blocks * TICKS_PER_BLOCK);
-    }
-
-    /**
-     * 够不着的那些格的下一步,能照抄:{@code numen.move.to(最近那一格, {arrive = "dig"})},再挖同样的几格。点名的不超过
-     * {@value #WRITTEN_OUT} 格时挖的那一次写全;再多就说"再挖同样的那些"。
-     *
-     * @param named 她点名的几格,按写下的顺序
-     */
-    public static String reachThem(List<Target> named, BlockPos nearest) {
-        List<String> calls = reach(named, nearest);
-        return "`" + calls.get(0) + "`, then " + (calls.size() > 1 ? "`" + calls.get(1) + "`" : "dig the same blocks "
-                + "again");
-    }
-
-    /** 同一个下一步写成能照抄的调用:走过去,再挖(写得全时);失败的 {@code hint} 用它。 */
-    public static String reachLine(List<Target> named, BlockPos nearest) {
-        return String.join("\n", reach(named, nearest));
-    }
-
-    /** 回执里写全"再挖同样的几格"那一次调用的上限:再多,一行调用写不下。 */
-    private static final int WRITTEN_OUT = 3;
-
-    /** 走过去的那一次调用,与(写得全时)挖的那一次调用。 */
-    private static List<String> reach(List<Target> named, BlockPos nearest) {
-        String walk = Call.of("numen.move.to", nearest, Map.of("arrive", "dig"));
-        if (named.size() > WRITTEN_OUT) {
-            return List.of(walk);
-        }
-        return List.of(walk, Call.of("numen.work.dig", named.toArray()));
     }
 
     public int getDug() {

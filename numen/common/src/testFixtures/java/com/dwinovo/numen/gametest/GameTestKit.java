@@ -220,9 +220,8 @@ public final class GameTestKit {
 
     /**
      * 当场就挖 {@code blocks}(一团,或一串 Block 或 Pos 的 Lua 写法),和库里的 {@code numen.work.mine} 同一个流程、拆成原子调用一轮轮
-     * 组合:先走——{@code numen.move.to(blocks, {arrive = "dig", costs = …})} 走到一次够得着最多格的地方,再挖——
-     * {@code numen.work.dig(blocks, {count = 还差几格})} 挖手够得着的,{@code numen.work.collect} 许挖许放地捡这一挖还落在地上的
-     * 掉落物(挖的结果里的 {@code drops});那一团还有没挖的格,就再来一轮。每一步是一段一行的程序,方块每次原样写进去;挖了几格读那件活的收尾数据,脚本里拿不到它。
+     * 组合:挖——{@code numen.work.dig(blocks, {count = 还差几格})} 自己走到够得着最多格的地方挖,{@code numen.work.collect} 捡这一挖还落在
+     * 地上的掉落物(挖的结果里的 {@code drops});那一团还有没挖的格,就再来一轮。每一步是一段一行的程序,方块每次原样写进去;挖了几格读那件活的收尾数据,脚本里拿不到它。
      * 不另挂每刻的回调,每次问 {@link Mining#done} 时往下推一步。
      *
      * <p>哪一步(走、挖)失败,这次挖矿就以那一步的结论收场;挖够了、那一团不剩了,或一轮一格也没挖到,以最后一次挖的结论收场。
@@ -242,7 +241,7 @@ public final class GameTestKit {
         /** 一团最多走几轮:每轮至少挖掉一格,轮数到了还没挖完就以最后一次挖的结论收场。 */
         private static final int MAX_ROUNDS = 16;
 
-        private enum Step { BEFORE, GOTO, DIG, COLLECT }
+        private enum Step { BEFORE, DIG, COLLECT }
 
         private final NumenPlayer companion;
         /** 挖的那些方块的 Lua 写法;先扫再挖的,扫的回执到了才有。 */
@@ -257,16 +256,13 @@ public final class GameTestKit {
         private int dugThisRound;
         private int rounds;
 
-        /** 许挖许放、要问主人的格当墙:走去挖、走去捡都按它。 */
-        private static final String COSTS = "costs = {dig = true, place = true, consent = false}";
-
         private Mining(NumenPlayer companion, ToolRun before, String blocks, int count) {
             this.companion = companion;
             this.blocks = blocks;
             this.count = count;
             this.current = before;
             if (before == null) {
-                walk();
+                dig();
             }
         }
 
@@ -276,15 +272,12 @@ public final class GameTestKit {
             }
             com.dwinovo.numen.Constants.LOG.info("[numen-task] mine {} -> {}", step, current.outcome());
             switch (step) {
-                case BEFORE, GOTO -> {
+                case BEFORE -> {
                     if (!current.succeeded()) {
                         last = current;
-                    } else if (step == Step.BEFORE) {
-                        blocks = blocksIn(current.reply());
-                        walk();
                     } else {
-                        run(Step.DIG, "numen.work.dig(" + blocks + (count > 0 ? ", {count = " + (count - dug) + "}" : "")
-                                + ")");
+                        blocks = blocksIn(current.reply());
+                        dig();
                     }
                 }
                 case DIG -> {
@@ -295,9 +288,9 @@ public final class GameTestKit {
                     lastDig = current;
                     dugThisRound = current.result(DigCompanionTask.Dug.class).dug();
                     dug += dugThisRound;
-                    run(Step.COLLECT, "numen.work.collect({items = " + dropIds(current) + ", " + COSTS + "})");
+                    run(Step.COLLECT, "numen.work.collect({items = " + dropIds(current) + "})");
                 }
-                // 捡的库函数改地形走到每一件跟前;捡不到的(走不到、包满)不算挖矿失败,接着下一轮
+                // 捡的库函数走到每一件跟前;捡不到的(走不到、包满)不算挖矿失败,接着下一轮
                 case COLLECT -> nextRound();
             }
         }
@@ -308,7 +301,7 @@ public final class GameTestKit {
             if ((count > 0 && dug >= count) || left == 0 || dugThisRound == 0 || ++rounds >= MAX_ROUNDS) {
                 last = lastDig;
             } else {
-                walk();
+                dig();
             }
         }
 
@@ -326,9 +319,9 @@ public final class GameTestKit {
             current = lua(companion, code);
         }
 
-        /** 走到一次够得着这些方块最多格的地方。 */
-        private void walk() {
-            run(Step.GOTO, "numen.move.to(" + blocks + ", {arrive = \"dig\", " + COSTS + "})");
+        /** 挖这些方块:够不着的先走到一次够得着最多格的地方。 */
+        private void dig() {
+            run(Step.DIG, "numen.work.dig(" + blocks + (count > 0 ? ", {count = " + (count - dug) + "}" : "") + ")");
         }
 
         /** 挖的那些方块的 Lua 写法:再挖同样的那些时照抄;先扫再挖的,扫的回执到之前是 null。 */
@@ -353,6 +346,11 @@ public final class GameTestKit {
 
         String outcome() {
             return last == null ? null : last.outcome();
+        }
+
+        /** 收场那一步失败的种类({@code denied}、{@code no_path} ……);成功或还没收场是 null。 */
+        String kind() {
+            return last == null ? null : last.kind();
         }
 
         /** 收场那一步当场的回执:受理的"已受理"或拒收的原因;还没收场是 null。 */
