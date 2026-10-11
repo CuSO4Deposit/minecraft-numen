@@ -130,6 +130,21 @@ public class ClimbGameTests {
         t.go(body, Goals.at(t.at(10, 6, 5)), RouteSpec.defaults()).arrives();
     }
 
+    /**
+     * 在一列脚手架最上面一格里,顺着它下到底再走出去。脚手架每格顶上的板托得住人,潜行才让开:往下爬每一格都要按住潜行
+     * (梯子相反,潜行是抓住不滑)。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 600)
+    public static void climbs_down_scaffolding_to_the_bottom(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(9, 1, 3, 12, 5, 7, Blocks.STONE);
+        for (int y = 1; y <= 5; y++) {
+            t.set(8, y, 5, Blocks.SCAFFOLDING.defaultBlockState().setValue(ScaffoldingBlock.DISTANCE, 0));
+        }
+        TestBody body = t.body(8, 5, 5);
+        t.go(body, Goals.at(t.at(4, 1, 5)), RouteSpec.defaults()).arrives().then(UpDownGameTests::unhurt);
+    }
+
     /** 连续爬九格的梯子:一路上对外一直是"在推进",脱困反射不会来打断。 */
     @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 700)
     public static void keeps_progressing_up_a_long_ladder(GameTestHelper helper) {
