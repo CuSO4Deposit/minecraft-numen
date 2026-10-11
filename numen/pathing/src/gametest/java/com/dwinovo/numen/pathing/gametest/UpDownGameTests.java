@@ -7,6 +7,10 @@ import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
+import com.mojang.logging.LogUtils;
+
+import org.slf4j.Logger;
+
 import net.minecraft.gametest.framework.AfterBatch;
 import net.minecraft.gametest.framework.BeforeBatch;
 import net.minecraft.gametest.framework.GameTest;
@@ -114,6 +118,86 @@ public class UpDownGameTests {
         TestBody body = t.body(3, 7, 3);
         t.go(body, Goals.at(t.at(18, 1, 11)), RouteSpec.defaults()).arrives()
                 .then(UpDownGameTests::unhurt).then(r -> paced(r, MoveKind.DESCEND, 1.25));
+    }
+
+    /**
+     * 疾跑过一段平地,接着七级一格宽、每级只落一格的连续下坡:冲劲飘出去落过了一列,一直落到后面连着的下一级上。一路往前,不回头走到
+     * 哪一级的中心再接着下——离终点的最后一段(终点要停稳在中心)之前,沿前进方向的坐标只增不减;下一级实际用的刻数不超过最短的 1.1 倍。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 600)
+    public static void runs_down_one_deep_steps_without_going_back_to_a_cell_center(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        t.fill(0, 1, 3, 9, 8, 7, Blocks.STONE);
+        for (int k = 1; k <= 7; k++) {
+            t.fill(9 + k, 1, 3, 9 + k, 8 - k, 7, Blocks.STONE);
+        }
+        TestBody body = t.body(2, 9, 5);
+        double[] farthest = {Double.NEGATIVE_INFINITY};
+        t.go(body, Goals.at(t.at(19, 1, 5)), RouteSpec.defaults())
+                .during(r -> {
+                    double x = r.body.getX();
+                    if (x < farthest[0] - 0.05 && x - t.origin.getX() < 18) {
+                        throw new GameTestAssertException("往回走了:到过 x=" + (farthest[0] - t.origin.getX()) + ",此刻 " + (x - t.origin.getX()));
+                    }
+                    farthest[0] = Math.max(farthest[0], x);
+                })
+                .arrives().then(UpDownGameTests::unhurt).then(r -> paced(r, MoveKind.DESCEND, 1.1));
+    }
+
+    private static final Logger LOG = LogUtils.getLogger();
+
+    /**
+     * 悬在半空的台阶:地板在最下面,台阶从第八层往上垒,一格宽、每级进深两格、升(或降)一格,首尾各一块一格宽的平台;{@code solidSides} 在两侧
+     * 再垫上同样高的实心方块。两侧掉下去是八格以上的落差,摔不起,所以只有走在台阶上这一条路。
+     */
+    private static void stairs(Trial t, int z, boolean up, boolean solidSides) {
+        for (int dz = solidSides ? -1 : 0; dz <= (solidSides ? 1 : 0); dz++) {
+            for (int i = 0; i < 6; i++) {
+                t.fill(4 + 2 * i, 8, z + dz, 5 + 2 * i, up ? 9 + i : 14 - i, z + dz, Blocks.STONE);
+            }
+            t.fill(up ? 2 : 16, 8, z + dz, up ? 3 : 17, 8, z + dz, Blocks.STONE);
+        }
+    }
+
+    /**
+     * 一格宽、两侧悬空的台阶(每级进深两格、升一格,共六级)上行:到达、不掉下去、不掉血;同样的台阶两侧垫上实心方块作对照,
+     * 两条的刻数、疾跑的刻数与身体偏离中心线的最大横向距离记进日志({@code [hanging-stairs]})。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 900)
+    public static void climbs_a_one_wide_staircase_with_open_sides(GameTestHelper helper) {
+        hangingStairs(helper, true);
+    }
+
+    /** 同一道台阶下行。 */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 900)
+    public static void descends_a_one_wide_staircase_with_open_sides(GameTestHelper helper) {
+        hangingStairs(helper, false);
+    }
+
+    private static void hangingStairs(GameTestHelper helper, boolean up) {
+        Trial t = new Trial(helper).floor();
+        int open = 6;
+        int solid = 20;
+        stairs(t, open, up, false);
+        stairs(t, solid, up, true);
+        for (var lane : new Object[][] {{open, "open"}, {solid, "solid"}}) {
+            int z = (Integer) lane[0];
+            TestBody body = up ? t.body(3, 9, z) : t.body(4, 15, z);
+            double[] lateral = {0};
+            int[] sprinting = {0};
+            t.go(body, Goals.at(up ? t.at(15, 15, z) : t.at(16, 9, z)), RouteSpec.defaults()).within(700)
+                    .during(r -> {
+                        lateral[0] = Math.max(lateral[0], Math.abs(r.body.getZ() - (t.at(0, 0, z).getZ() + 0.5)));
+                        sprinting[0] += r.body.isSprinting() ? 1 : 0;
+                    })
+                    .arrives().then(UpDownGameTests::unhurt).then(r -> {
+                        if (lateral[0] >= 0.5) {
+                            throw new GameTestAssertException("偏离了台阶的中心线 " + lateral[0]);
+                        }
+                        LOG.info("[hanging-stairs] {} {}: {} ticks, sprint {} ticks, max lateral {}", up ? "up" : "down", lane[1], r.ticks,
+                                sprinting[0], String.format("%.3f", lateral[0]));
+                    });
+        }
     }
 
     /** 从两格高处落下,不掉血。 */
