@@ -98,7 +98,7 @@ final class Step {
             List<Maneuver> window = new ArrayList<>(ahead.size() + 1);
             window.add(fresh);
             window.addAll(ahead);
-            control = Control.of(rig, fresh, Gait.stride(rig.world(), model.body().stats(), model.maySprint(), window));
+            control = Control.of(rig, fresh, Gait.stride(rig.world(), model, window));
             double expected = Moves.of(fresh.kind()).ticks(model, fresh);
             watchdog.begin(expected, rig.entity.position());
             begun(fresh, expected);

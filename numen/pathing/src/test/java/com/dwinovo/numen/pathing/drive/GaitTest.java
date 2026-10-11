@@ -10,13 +10,16 @@ import java.util.List;
 import com.dwinovo.numen.pathing.Fixtures;
 import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
+import com.dwinovo.numen.pathing.plan.BodySnapshot;
 import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
+import com.dwinovo.numen.pathing.plan.Threats;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.search.Route;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -33,14 +36,21 @@ class GaitTest {
 
     /** 窗口只有 {@code m} 和 {@code next} 两步时 {@code m} 的步态。 */
     private static Gait.Stride stride(TestWorld world, boolean maySprint, Maneuver m, Maneuver next) {
-        return Gait.stride(world, Vanilla.SURVIVAL, maySprint, next == null ? List.of(m) : List.of(m, next));
+        return Gait.stride(world, model(maySprint), next == null ? List.of(m) : List.of(m, next));
+    }
+
+    /** 原版身体,吃饱了({@code maySprint})或饿得跑不动。 */
+    private static CostModel model(boolean maySprint) {
+        BodySnapshot body = new BodySnapshot(Vanilla.SURVIVAL, GameType.SURVIVAL, 20, 3, 1, maySprint ? 20 : 6, 0, List.of(),
+                Fixtures.MINING, Fixtures.BREATH);
+        return CostModel.of(RouteSpec.defaults(), body, Fixtures.ALLOW_ALL, Fixtures.NO_MATERIALS, Threats.NONE);
     }
 
     /** 这条路线每一步的步态(每一步看得到后面的四步),最后一步没有下一步。 */
     private static List<Gait.Stride> strides(TestWorld world, List<Maneuver> steps, boolean maySprint) {
         List<Gait.Stride> out = new ArrayList<>();
         for (int i = 0; i < steps.size(); i++) {
-            out.add(Gait.stride(world, Vanilla.SURVIVAL, maySprint, steps.subList(i, Math.min(steps.size(), i + Continuation.TAIL))));
+            out.add(Gait.stride(world, model(maySprint), steps.subList(i, Math.min(steps.size(), i + Continuation.TAIL))));
         }
         return out;
     }
@@ -120,8 +130,8 @@ class GaitTest {
     }
 
     @Test
-    void aDropRightAfterADropDoesNotRunBecauseTheFlightLandsOnTheLip() {
-        // 每级只一格宽:疾跑飘出去落地时,落地那一刻的挪动把身子带过了这一列的外沿,落在唇上又滑下去;平走的冲劲落在这一列里
+    void aDropRightAfterADropRunsOnBecauseTheExtraFallStaysOnTheRoute() {
+        // 每级只一格宽:疾跑飘出去,身子落过了这一列的外沿,一直落到后面连着的下一级上。多落的那一格本来就在路线上,不收脚
         TestWorld world = flat();
         for (int k = 0; k < 4; k++) {
             world.fill(k, Y, -8, k, Y + 3 - k, 8, Blocks.STONE.defaultBlockState());
@@ -132,11 +142,28 @@ class GaitTest {
         for (int i = 0; i + 1 < steps.size(); i++) {
             if (steps.get(i).kind() == MoveKind.DESCEND && steps.get(i + 1).kind() == MoveKind.DESCEND) {
                 drops++;
-                assertFalse(strides.get(i).sprint(), "第 " + i + " 步之后紧接着又是下一级,不跑");
-                assertTrue(strides.get(i).flows(), "平走的冲劲接得住");
+                assertTrue(strides.get(i).sprint(), "第 " + i + " 步之后紧接着又是下一级,照跑");
+                assertTrue(strides.get(i).flows(), "第 " + i + " 步冲劲带着往下落,不收脚");
             }
         }
         assertTrue(drops >= 2, "路线里连着几级下坡");
+    }
+
+    @Test
+    void anExtraFallThatTheBodyCannotBearIsNotRun() {
+        // 下一级之后是落两格:疾跑飘出去会一直落到那里,合起来落三格。规格许落三格就疾跑着落,只许落两格就改成平走(平走飘得近,落在这一列里)
+        TestWorld world = flat().fill(0, Y, -8, 0, Y + 3, 8, Blocks.STONE.defaultBlockState())
+                .fill(1, Y, -8, 1, Y + 2, 8, Blocks.STONE.defaultBlockState()).fill(2, Y, -8, 2, Y, 8, Blocks.STONE.defaultBlockState());
+        List<Maneuver> steps = route(world, new BlockPos(0, Y + 4, 0), new BlockPos(4, Y, 0));
+        int at = steps.indexOf(firstOf(MoveKind.DESCEND, steps));
+        assertEquals(MoveKind.FALL, steps.get(at + 1).kind(), "下一级之后落两格");
+        List<Maneuver> window = steps.subList(at, steps.size());
+        Gait.Stride loose = Gait.stride(world, model(true), window);
+        assertTrue(loose.sprint() && loose.flows());
+        RouteSpec tight = RouteSpec.defaults().edit().maxFallHeightNoWater(2).build();
+        Gait.Stride walking = Gait.stride(world, Fixtures.model(tight), window);
+        assertFalse(walking.sprint());
+        assertTrue(walking.flows());
     }
 
     @Test

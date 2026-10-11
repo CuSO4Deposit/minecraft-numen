@@ -2,6 +2,7 @@ package com.dwinovo.numen.pathing.drive;
 
 import java.util.List;
 
+import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.world.BodyStats;
@@ -22,8 +23,9 @@ import net.minecraft.world.level.BlockGetter;
  *       下落不在跑动里);跑酷要助跑({@link Maneuver#runUp})就跑。
  *       身体此刻饿不饿、撞没撞墙,由按键照原版客户端的规矩再管一道({@link com.dwinovo.numen.api.entity.Controls});</li>
  *   <li><b>带着冲劲进下一步</b>({@link Stride#flows}),否则这一步在落点上收脚:这一步没有水平方向(垫柱、向下挖),没有冲劲可带;下一步要先原地改地形、下一步贴着落坑、起步或
- *       落点不在地上(水里、攀着没有地面可借力)、自由下落(飘得太远)、下一步不是平地上的走法,都收脚;下一级与跑酷离地之后冲劲
- *       带着身子往前飘,只有下一步朝同一个方向才接得住(冲过了头也还在路上);转弯时下一步用不上的那一份速度(转角不到直角是侧向的
+ *       落点不在地上(水里、攀着没有地面可借力)、这一步是自由下落(飘得太远)、下一步不是平地上的走法,都收脚;下一级与跑酷离地之后冲劲
+ *       带着身子往前飘,只有下一步朝同一个方向才接得住(冲过了头也还在路上);下一级冲出去落过了这一列,多落的那一格只要还在路线上
+ *       (后面连着同方向的下一级,合起来的落差摔得起,{@link #landsOnRoute})就不收脚,由段状态机认到落在了哪一步;转弯时下一步用不上的那一份速度(转角不到直角是侧向的
  *       那一份,过了直角是全部)要在落点格里停得住——停下来要滑的距离不超过落点格里的余量。下一步的落点接不接得住冲劲:
  *       它自己带着冲劲往下走,或落点格里的余量够停,或落点前面是堵滑不过去的墙({@link #wallAhead}:冲过去只是撞停,连着的台阶就是这样)。</li>
  * </ul>
@@ -40,23 +42,23 @@ final class Gait {
      * 它自己带着冲劲往下走(连着的上坡、台阶)就不用停,落点前贴着墙也无妨。每一步先试疾跑:身体跑得动、路径两侧站得稳、物理上跑得起来,
      * 冲劲能带进下一步就连着跑,带不进去就看落点格里的余量够不够在这一步收脚时停下来;跑不了再退到走,走着能带进下一步就带。
      *
-     * @param level     脚下的世界
-     * @param body      身体(运动学读它的速度)
-     * @param maySprint 身体跑得动
-     * @param steps     这一步,和路线上紧接着它的几步(够不够都行,最后一步没有下一步)
+     * @param level 脚下的世界
+     * @param model 成本模型:身体(运动学读它的速度)、跑不跑得动、多落一次摔不摔得起
+     * @param steps 这一步,和路线上紧接着它的几步(够不够都行,最后一步没有下一步)
      */
-    static Stride stride(BlockGetter level, BodyStats body, boolean maySprint, List<Maneuver> steps) {
+    static Stride stride(BlockGetter level, CostModel model, List<Maneuver> steps) {
         Stride after = null;
         for (int i = steps.size() - 1; i >= 0; i--) {
-            after = stride(level, body, maySprint, steps.get(i), i + 1 < steps.size() ? steps.get(i + 1) : null, after);
+            after = stride(level, model, steps.get(i), steps.subList(i + 1, steps.size()), after);
         }
         return after;
     }
 
-    private static Stride stride(BlockGetter level, BodyStats body, boolean maySprint, Maneuver m, Maneuver next, Stride onward) {
+    private static Stride stride(BlockGetter level, CostModel model, Maneuver m, List<Maneuver> following, Stride onward) {
+        BodyStats body = model.body().stats();
         double run = Kinematics.sprintSpeed(body);
-        if (maySprint && canRun(level, body, m)) {
-            if (flows(level, body, true, m, next, onward)) {
+        if (model.maySprint() && canRun(level, body, m)) {
+            if (flows(level, model, true, m, following, onward)) {
                 return new Stride(true, true);
             }
             // 在落点上收脚而疾跑:走出边沿的下一级不带冲劲就是滑出去,没有"跑到落点再停"的疾跑
@@ -64,7 +66,7 @@ final class Gait {
                 return new Stride(true, false);
             }
         }
-        return new Stride(false, flows(level, body, false, m, next, onward));
+        return new Stride(false, flows(level, model, false, m, following, onward));
     }
 
     /**
@@ -83,8 +85,11 @@ final class Gait {
      * 疾跑({@code sprinting})或平走的冲劲走完 {@code m} 进下一步,接不接得住。{@code onward} 是下一步自己的步态:它也带着冲劲往下走
      * 就不用在它的落点上停;没有(窗口到头,或路线到头)就当它要收脚。
      */
-    private static boolean flows(BlockGetter level, BodyStats body, boolean sprinting, Maneuver m, Maneuver next, Stride onward) {
+    private static boolean flows(BlockGetter level, CostModel model, boolean sprinting, Maneuver m, List<Maneuver> following,
+                                 Stride onward) {
+        BodyStats body = model.body().stats();
         double speed = sprinting ? Kinematics.sprintSpeed(body) : Kinematics.walkSpeed(body);
+        Maneuver next = following.isEmpty() ? null : following.get(0);
         if (next == null || !m.heading().horizontal() || !next.edits().isEmpty() || !m.landing().grounded() || m.wading()
                 || !next.start().grounded() || m.kind() == MoveKind.FALL) {
             return false;
@@ -103,23 +108,48 @@ final class Gait {
         boolean sameWay = next.heading().dx() == m.heading().dx() && next.heading().dz() == m.heading().dz();
         boolean airborne = m.kind() == MoveKind.DESCEND || m.kind() == MoveKind.PARKOUR;
         if (m.kind() == MoveKind.DESCEND) {
-            return sameWay && landsOnFooting(body, sprinting, m, next);
+            return sameWay && landsOnRoute(level, model, sprinting, m, following);
         }
         return airborne ? sameWay : turnAbsorbed(level, body, speed, m, next);
     }
 
     /**
-     * 带着冲劲走出边沿的下一级,落地那一刻身子还压在有东西托着的地方({@link Kinematics#dropLanding}):下一步还是平的(平走、上一级),
-     * 脚下一直托着,落进下一列也行;下一步又往下掉(下一级、下落、跑酷起跳),托着的只有这一列,落地那一刻的挪动把身子带过了这一列的外沿,
-     * 落在唇上又滑下去,白白多掉一次。
+     * 带着冲劲走出边沿的下一级,落在哪一列({@link Kinematics#dropLanding}):压在脚下托着的那一列的外沿以内(身子还压着它),就落在这一步的落点上;
+     * 下一步是平的(平走、上一级),落进下一列也行。落过了这一列的外沿,身子就一直落到后面连着的、同方向的下一级上——多掉的那一格本来就在
+     * 路线上(规划里每一级都摔得起,合起来的落差也要摔得起:{@link CostModel#bearsLanding}),落在路线后面的哪一步上由段状态机认。
+     * 一路落过去都落不到路线上(越出了这几步,或合起来的落差摔不起),这一步收脚。
      */
-    private static boolean landsOnFooting(BodyStats body, boolean sprinting, Maneuver m, Maneuver next) {
+    private static boolean landsOnRoute(BlockGetter level, CostModel model, boolean sprinting, Maneuver m, List<Maneuver> following) {
+        BodyStats body = model.body().stats();
         double half = body.width() / 2;
         double speed = sprinting ? Kinematics.sprintSpeed(body) : Kinematics.walkSpeed(body);
-        double landing = Kinematics.dropLanding(body.gravity(), 0.5 + half, speed, Kinematics.pushAcceleration(body, sprinting),
-                Kinematics.airAcceleration(sprinting), m.drop());
-        boolean level = next.kind() == MoveKind.WALK || next.kind() == MoveKind.ASCEND;
-        return Double.isNaN(landing) || landing <= (level ? 2.5 : 1.5) + half;
+        double push = Kinematics.pushAcceleration(body, sprinting);
+        double air = Kinematics.airAcceleration(sprinting);
+        Maneuver step = m;
+        double drop = 0;
+        for (int j = 0;; j++) {
+            drop += step.drop();
+            double landing = Kinematics.dropLanding(body.gravity(), 0.5 + half, speed, push, air, drop);
+            if (Double.isNaN(landing)) {
+                return true;
+            }
+            Maneuver after = j < following.size() ? following.get(j) : null;
+            boolean flatNext = after != null && (after.kind() == MoveKind.WALK || after.kind() == MoveKind.ASCEND);
+            if (landing <= j + 1.5 + (flatNext ? 1 : 0) + half) {
+                return j == 0 || bears(level, model, step, drop);
+            }
+            if (after == null || after.kind() != MoveKind.DESCEND && after.kind() != MoveKind.FALL
+                    || after.heading().dx() != m.heading().dx() || after.heading().dz() != m.heading().dz()) {
+                return false;
+            }
+            step = after;
+        }
+    }
+
+    /** 一路落下来合起来的落差 {@code drop},落在 {@code last} 的落点上摔得起。 */
+    private static boolean bears(BlockGetter level, CostModel model, Maneuver last, double drop) {
+        int damage = model.fallDamage(level, last.landing(), last.support(), drop, last.wading());
+        return model.bearsLanding(last.landing(), last.wading(), drop, damage);
     }
 
     /** 转向之后下一步用不上的那一份速度,在落点格里停得住。 */
