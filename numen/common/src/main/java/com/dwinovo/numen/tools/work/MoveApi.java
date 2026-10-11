@@ -9,7 +9,6 @@ import com.dwinovo.numen.task.move.FollowCompanionTask;
 import com.dwinovo.numen.task.move.FollowTaskRecord;
 import com.dwinovo.numen.task.move.MoveToCompanionTask;
 import com.dwinovo.numen.task.move.MoveToTaskRecord;
-import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.api.sdk.Doc;
 import com.dwinovo.numen.api.sdk.EntityRef;
 import com.dwinovo.numen.api.sdk.Example;
@@ -20,14 +19,13 @@ import com.dwinovo.numen.api.sdk.Omitted;
 import com.dwinovo.numen.api.sdk.Positional;
 import com.dwinovo.numen.api.sdk.SeeAlso;
 import com.dwinovo.numen.api.sdk.ServerCall;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
 /**
- * {@code numen.move}:移动——照一份计划走({@code go}),跟着谁走一阵({@code follow}),从坐着的东西上下来({@code dismount})。
+ * {@code numen.move}:移动——照一份计划走({@code go}),跟着谁走一阵({@code follow})。
  *
  * <p>{@code go} 只走:计划由 {@code numen.route.plan} 算({@link com.dwinovo.numen.route.Planning}),计划就是它守的承诺,从她此刻
  * 的位置起只改承诺里的格;要问主人的格走到那一格才问。"去一处"是库里的 {@code numen.move.to}:规划、再走,两次 API 调用。驾船也是
@@ -47,8 +45,8 @@ public final class MoveApi {
     private MoveApi() {}
 
     public static void install(NumenApi numen) {
-        numen.api("move", "Moving: walk a plan from numen.route.plan, follow someone for a while, step off what you "
-                + "ride. numen.move.to (library) plans and walks to one place.", MoveApi.class);
+        numen.api("move", "Moving: walk a plan from numen.route.plan, follow someone for a while. numen.move.to (library) "
+                + "plans and walks to one place.", MoveApi.class);
     }
 
     /** 照哪一份计划走。 */
@@ -68,8 +66,8 @@ public final class MoveApi {
             + "stops and says which. A leg the plan saw only in part is worked out on the way. A through stop is "
             + "passed without stopping.")
     @Note("A plan with mode = \"boat\" steers the boat you sit in; a walking plan started in a boat or on a mount "
-            + "steps off first (and says so).")
-    @SeeAlso({"numen.route.plan", "numen.move.to", "numen.move.dismount", "numen.task.stop"})
+            + "steps off first (and says so; numen.use.dismount() does it on its own).")
+    @SeeAlso({"numen.route.plan", "numen.move.to", "numen.use.dismount", "numen.task.stop"})
     public static Job<MoveToCompanionTask.Walked> go(ServerCall call, Go args) {
         String id = args.plan().id();
         Plan plan = Plans.of(call.her()).get(Plans.program(call.callId()), id);
@@ -119,29 +117,5 @@ public final class MoveApi {
         return Job.<FollowCompanionTask.Followed>of(
                         new FollowTaskRecord(call, distance, target.getUUID(), target.getName().getString(), ticks))
                 .replayedAs(new Follow(Optional.of(EntityRef.of(target)), args.distance(), args.seconds()));
-    }
-
-    /** {@code numen.move.dismount} 交回的值。 */
-    @Doc("What you stepped off.")
-    public record Dismounted(@Doc("What you stepped off, minecraft:oak_boat.") String vehicle,
-                             @Doc("Where you stand now.") Vec3 pos) {}
-
-    /**
-     * 下来:原版玩家按潜行就从坐着的东西上下来(服务端在骑乘刻里调 {@code stopRiding}),落脚点由原版的下车位置定。这里直接调同一个
-     * {@code stopRiding},结果一样,当场就有;下来了什么、站在哪照实交回。
-     */
-    @Fn("Step off the boat, minecart or mount you ride, as a player does with sneak.")
-    @Example("numen.move.dismount()")
-    @Note("Instant. Riding nothing fails with kind failed. Vanilla puts you down beside it, where there is room.")
-    @SeeAlso("numen.move.go")
-    public static Dismounted dismount(ServerCall call) {
-        NumenPlayer her = call.her();
-        Entity vehicle = her.getVehicle();
-        if (vehicle == null) {
-            throw new ApiError(ErrorKind.FAILED, "I am not riding anything", null);
-        }
-        String what = BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).toString();
-        her.stopRiding();
-        return new Dismounted(what, her.position());
     }
 }

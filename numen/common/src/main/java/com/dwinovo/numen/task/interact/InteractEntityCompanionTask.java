@@ -93,7 +93,7 @@ public final class InteractEntityCompanionTask extends InReachTask<InteractEntit
         if (entity == player.getVehicle()) {
             if (r.button == MouseButton.LEFT) {
                 fail("you are riding the " + targetName()
-                        + " — can't hit your own vehicle; numen.move.dismount() steps off first",
+                        + " — can't hit your own vehicle; numen.use.dismount() steps off first",
                         FailureType.UNKNOWN);
                 return TaskState.FAILED;
             }

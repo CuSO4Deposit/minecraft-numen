@@ -107,7 +107,7 @@ class NumenGroupsTest {
         assertTrue(planHelp.contains("\n---@field costs? ") && planHelp.contains("\n---@field stops? ")
                 && planHelp.contains("\n---@field avoid_break? ") && planHelp.contains("\n---@class Plan\n"), planHelp);
         String moveHelp = help("numen.move");
-        assertEquals(List.of("dismount", "follow", "go", "to", "flee", "explore"), functions(moveHelp, "move"),
+        assertEquals(List.of("follow", "go", "to", "flee", "explore"), functions(moveHelp, "move"),
                 "库函数与函数都列在组里: " + moveHelp);
         assertTrue(moveHelp.contains("\n---@field to fun(target: Pos|Block|Entity|table, spec?: table): "
                 + "{pos: Pos, distance_left: number} Walk to a place in one call: numen.route.plan with the description "
@@ -129,7 +129,7 @@ class NumenGroupsTest {
                 "numen.inv.drop(\"minecraft:cobblestone\", {count = 32})", "numen.work.dig({x = 120, y = 64, z = -35})",
                 "numen.work.dig({name = \"minecraft:iron_ore\", pos = {x = 120, y = 12, z = -35}}, "
                         + "{x = 121, y = 12, z = -35}, {count = 4})",
-                "numen.move.go({id = \"p1\"})", "numen.move.follow(184)", "numen.move.dismount()",
+                "numen.move.go({id = \"p1\"})", "numen.move.follow(184)", "numen.use.dismount()",
                 "numen.scan.blocks(\"iron_ore\")", "numen.scan.entities()",
                 "numen.scan.block({x = 1, y = 2, z = 3})", "numen.task.timer(\"check the furnace\", {after = 90})",
                 "numen.route.plan({to = {x = 1, y = 2, z = 3}})",

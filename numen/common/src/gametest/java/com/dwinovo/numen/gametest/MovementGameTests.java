@@ -136,7 +136,7 @@ public class MovementGameTests {
     }
 
     /**
-     * 驾船横渡:坐在船上,描述写明 {@code mode = "boat"},她把船开过水面到离目标最近的水边;再 {@code numen.move.dismount()} 下船、走完最后
+     * 驾船横渡:坐在船上,描述写明 {@code mode = "boat"},她把船开过水面到离目标最近的水边;再 {@code numen.use.dismount()} 下船、走完最后
      * 一段。守的是整条载具链——服务端权威开关(没有它船每刻被清零)、桨物理驱动、水面 A*、靠岸后下船与步行接力都由她的程序写明。
      */
     @GameTest(template = "floor16", timeoutTicks = 2400, batch = "numen_vehicle")
@@ -160,7 +160,7 @@ public class MovementGameTests {
         double boatStartDist = boat.position().distanceTo(Vec3.atCenterOf(target));
         helper.runAfterDelay(2, () -> {
             companion.startRiding(boat, true);
-            lua(companion, "numen.move.to(" + xyz(target) + ", {mode = \"boat\"})\nnumen.move.dismount()\nnumen.move.to(" + xyz(target)
+            lua(companion, "numen.move.to(" + xyz(target) + ", {mode = \"boat\"})\nnumen.use.dismount()\nnumen.move.to(" + xyz(target)
                     + ")");
         });
 

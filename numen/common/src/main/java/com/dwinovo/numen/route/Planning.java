@@ -175,7 +175,7 @@ public final class Planning {
                     legs.add(Plan.Leg.bare(stop, c.to(), c.spec(), Plan.Reach.PARTIAL, chart,
                             "the water ends at " + com.dwinovo.numen.api.permission.Listing.coords(chart.end())
                                     + ", the shore nearest " + stop.words() + "; from there it is on foot "
-                                    + "(numen.move.dismount, then plan a walk)"));
+                                    + "(numen.use.dismount, then plan a walk)"));
                     seen = false;
                 }
             }

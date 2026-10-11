@@ -1,6 +1,9 @@
 package com.dwinovo.numen.tools.interact;
 
 import com.dwinovo.numen.api.NumenApi;
+import com.dwinovo.numen.api.agent.script.ApiError;
+import com.dwinovo.numen.api.agent.script.ErrorKind;
+import com.dwinovo.numen.api.entity.NumenPlayer;
 import com.dwinovo.numen.task.MouseButton;
 import com.dwinovo.numen.tools.BlockActionOps;
 import com.dwinovo.numen.tools.Clicks;
@@ -16,14 +19,16 @@ import com.dwinovo.numen.api.sdk.Pending;
 import com.dwinovo.numen.api.sdk.SeeAlso;
 import com.dwinovo.numen.api.sdk.ServerCall;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
 /**
  * {@code numen.use}:像玩家那样点世界——右键一格(打开它就交回那个界面)、对着前方用手里的东西、右键一只实体、左键点一格或一只实体一下,
- * 上床。打开之后在界面里搬东西是 {@code gui} 那一组。
+ * 上床、从坐着的东西上下来。打开之后在界面里搬东西是 {@code gui} 那一组。
  *
  * <p>按键是有界短活(经 {@link ServerCall#sync}),动手前各自把动作交给权限层;上床当场回。按键都站在原地按:目标得在手够得着、看得见的
  * 地方,不然当场失败,说清先走过去({@code numen.move.to})。对准一格和不对准任何东西是两件事,拆成 {@code block} 与 {@code item}。右键是
@@ -38,7 +43,7 @@ public final class UseApi {
 
     public static void install(NumenApi numen) {
         numen.api("use", "Clicking the world like a player: right-click a block (opening its window) or an entity, use "
-                + "what you hold, hit something once, get into bed.", UseApi.class);
+                + "what you hold, hit something once, get into bed, step off what you ride.", UseApi.class);
     }
 
     /** 右键一格。 */
@@ -48,7 +53,7 @@ public final class UseApi {
                         @Doc("An item from your inventory to take in hand first, e.g. minecraft:bone_meal.")
                         @Omitted("use what you hold") Optional<Item> item,
                         @Doc("Hold sneak while pressing, as a player holds Shift and clicks; while riding, that steps "
-                                + "you off first (numen.move.dismount() does just that).")
+                                + "you off first (numen.use.dismount() does just that).")
                         @Omitted("press standing") Optional<Boolean> sneak) {}
 
     @Fn("Aim at a block, fluid or air cell within reach and right-click it: the full native click. When it opens a "
@@ -110,7 +115,7 @@ public final class UseApi {
     @Note("It does NOT travel: an entity farther than your reach, or behind a wall, fails with where it is and the "
             + "numen.move.to call to copy. numen.scan.entities gives its cell.")
     @Note("Right on a boat or rideable boards it: runtime_state then shows <riding>; a plan with mode = \"boat\" "
-            + "steers it, numen.move.dismount() steps off. Never click your own vehicle again.")
+            + "steers it, numen.use.dismount() steps off. Never click your own vehicle again.")
     @SeeAlso({"numen.use.block", "numen.use.hit"})
     public static Pending<Clicks.Pressed> entity(ServerCall call, OnEntity args) {
         return call.sync(BlockActionOps.interactEntity(call, MouseButton.RIGHT, idOf(call, args.entity()),
@@ -166,5 +171,29 @@ public final class UseApi {
     @SeeAlso("numen.task.timer")
     public static SleepOps.Slept sleep(ServerCall call, Sleep args) {
         return SleepOps.sleep(args.at().orElse(null), call.her());
+    }
+
+    /** {@code numen.use.dismount} 交回的值。 */
+    @Doc("What you stepped off.")
+    public record Dismounted(@Doc("What you stepped off, minecraft:oak_boat.") String vehicle,
+                             @Doc("Where you stand now.") Vec3 pos) {}
+
+    /**
+     * 下来:原版玩家按潜行就从坐着的东西上下来(服务端在骑乘刻里调 {@code stopRiding}),落脚点由原版的下车位置定。这里直接调同一个
+     * {@code stopRiding},结果一样,当场就有;下来了什么、站在哪照实交回。上载具是 {@code use.entity},下载具同属 {@code use}。
+     */
+    @Fn("Step off the boat, minecart or mount you ride, as a player does with sneak.")
+    @Example("numen.use.dismount()")
+    @Note("Instant. Riding nothing fails with kind failed. Vanilla puts you down beside it, where there is room.")
+    @SeeAlso("numen.use.entity")
+    public static Dismounted dismount(ServerCall call) {
+        NumenPlayer her = call.her();
+        Entity vehicle = her.getVehicle();
+        if (vehicle == null) {
+            throw new ApiError(ErrorKind.FAILED, "I am not riding anything", null);
+        }
+        String what = BuiltInRegistries.ENTITY_TYPE.getKey(vehicle.getType()).toString();
+        her.stopRiding();
+        return new Dismounted(what, her.position());
     }
 }

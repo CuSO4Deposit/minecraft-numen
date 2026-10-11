@@ -25,7 +25,7 @@ import net.minecraft.world.phys.Vec3;
  * 路线:{@code numen.route.plan} 照一份描述只规划不动身体,走不通不抛错、计划说为什么;{@code numen.move.go} 照计划走,只改计划里的格;路上世界
  * 变了、要承诺外的格时停下并说是哪几格;远途一格不改的路一路走到;走进计划看不清的部分后要改承诺外的格时停下;从别处出发、新计划超出
  * 承诺时不走并说出差别;途经点路过不停、要停的停下;{@code numen.move.to} 与分开两步结局相同;不许挖时一格不改;{@code numen.move.flee} 离开到
- * 够远;{@code numen.move.dismount} 从船上下来。都从脚本的入口进。
+ * 够远;{@code numen.use.dismount} 从船上下来。都从脚本的入口进。
  */
 public class RouteGameTests {
 
@@ -355,7 +355,7 @@ public class RouteGameTests {
         });
     }
 
-    /** {@code numen.move.dismount}:坐在船上的她下来,交回下来了什么、站在哪;什么都没坐时是失败。 */
+    /** {@code numen.use.dismount}:坐在船上的她下来,交回下来了什么、站在哪;什么都没坐时是失败。 */
     @GameTest(template = "floor16", timeoutTicks = 100000, batch = BATCH)
     public static void dismount_steps_off_the_boat(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -371,7 +371,7 @@ public class RouteGameTests {
         steps(helper)
                 .thenExecute(() -> {
                     helper.assertTrue(companion.getVehicle() == boat, "she did not board the boat");
-                    off[0] = lua(companion, "return numen.move.dismount()");
+                    off[0] = lua(companion, "return numen.use.dismount()");
                 })
                 .thenWaitUntil(() -> helper.assertTrue(off[0].done(), "dismount has not replied"))
                 .thenExecute(() -> {
@@ -379,7 +379,7 @@ public class RouteGameTests {
                             "she is still in the boat: " + off[0].receipt());
                     helper.assertTrue(returned(off[0]).get("vehicle").getAsString().contains("boat"),
                             "the reply does not say what she stepped off: " + off[0].receipt());
-                    again[0] = lua(companion, "numen.move.dismount()");
+                    again[0] = lua(companion, "numen.use.dismount()");
                 })
                 .thenWaitUntil(() -> helper.assertTrue(again[0].done(), "the second dismount has not replied"))
                 .thenExecute(() -> {
