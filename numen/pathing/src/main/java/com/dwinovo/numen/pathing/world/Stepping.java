@@ -310,9 +310,9 @@ public final class Stepping {
      * 碰撞箱不变,每段取中点;终点单独取。
      */
     private static double[] samplePoints(Obstacles obstacles, double half, double sx, double sz, int dx, int dz) {
-        double[] cuts = obstacles.cuts(half, sx, sz, dx, dz);
-        int n = cuts.length;
-        Arrays.sort(cuts);
+        double[] cuts = new double[obstacles.maxCuts()];
+        int n = obstacles.cuts(cuts, half, sx, sz, dx, dz);
+        Arrays.sort(cuts, 0, n);
         int distinct = 0;
         for (int i = 0; i < n; i++) {
             if (distinct == 0 || cuts[i] != cuts[distinct - 1]) {
@@ -351,8 +351,11 @@ public final class Stepping {
     /** 迈步推导要问碰撞箱的三件事。 */
     abstract static sealed class Obstacles permits Pieces, Columns {
 
-        /** 取样的切点:0、1,加上每个碰撞箱的竖边在路上切出的位置;可以有重复,未排序。 */
-        abstract double[] cuts(double half, double sx, double sz, int dx, int dz);
+        /** 取样的切点最多有几个。 */
+        abstract int maxCuts();
+
+        /** 取样的切点:0、1,加上每个碰撞箱的竖边在路上切出的位置,写进 {@code into} 的开头,交回写了几个;可以有重复,未排序。 */
+        abstract int cuts(double[] into, double half, double sx, double sz, int dx, int dz);
 
         /** 脚底中心在 {@code (cx, cz)}、脚在 {@code feet} 时身体撞上的碰撞箱里最高的顶面;没撞上是 NaN。 */
         abstract double highestHit(double cx, double cz, double half, double feet, double height);
@@ -374,15 +377,19 @@ public final class Stepping {
         }
 
         @Override
-        double[] cuts(double half, double sx, double sz, int dx, int dz) {
-            double[] cuts = new double[2 + 4 * boxes.size()];
+        int maxCuts() {
+            return 2 + 4 * boxes.size();
+        }
+
+        @Override
+        int cuts(double[] into, double half, double sx, double sz, int dx, int dz) {
             int n = 0;
-            cuts[n++] = 0.0;
-            cuts[n++] = 1.0;
+            into[n++] = 0.0;
+            into[n++] = 1.0;
             for (AABB box : boxes) {
-                n = addCuts(cuts, n, box.minX, box.minZ, box.maxX, box.maxZ, half, sx, sz, dx, dz);
+                n = addCuts(into, n, box.minX, box.minZ, box.maxX, box.maxZ, half, sx, sz, dx, dz);
             }
-            return Arrays.copyOf(cuts, n);
+            return n;
         }
 
         @Override
@@ -464,19 +471,29 @@ public final class Stepping {
         }
 
         @Override
-        double[] cuts(double half, double sx, double sz, int dx, int dz) {
-            double[] cuts = new double[2 + 4 * whole.length];
+        int maxCuts() {
+            int occupied = 0;
+            for (long bits : whole) {
+                if (bits != 0) {
+                    occupied++;
+                }
+            }
+            return 2 + 4 * occupied;
+        }
+
+        @Override
+        int cuts(double[] into, double half, double sx, double sz, int dx, int dz) {
             int n = 0;
-            cuts[n++] = 0.0;
-            cuts[n++] = 1.0;
+            into[n++] = 0.0;
+            into[n++] = 1.0;
             for (int i = 0; i < whole.length; i++) {
                 if (whole[i] != 0) {
                     int cx = x0 + i / nz;
                     int cz = z0 + i % nz;
-                    n = addCuts(cuts, n, cx, cz, cx + 1, cz + 1, half, sx, sz, dx, dz);
+                    n = addCuts(into, n, cx, cz, cx + 1, cz + 1, half, sx, sz, dx, dz);
                 }
             }
-            return Arrays.copyOf(cuts, n);
+            return n;
         }
 
         @Override

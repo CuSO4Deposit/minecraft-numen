@@ -139,7 +139,7 @@ final class Contact {
 
     /** 一步里数出来的格,{@link BlockPos#asLong} 编码,不重复:只有十来个,逐个比对比建哈希表快。 */
     private static final class Cells {
-        private long[] items = new long[8];
+        private long[] items = new long[4];
         private int size;
 
         boolean contains(long cell) {

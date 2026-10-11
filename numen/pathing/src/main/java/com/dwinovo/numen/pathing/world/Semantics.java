@@ -225,11 +225,12 @@ public final class Semantics {
      * 它不改起跳才看脚下半格处的方块。蜂蜜块是 0.5,其余原版方块是 1。
      */
     public static double jumpFactor(BlockGetter level, int x, double feetY, int z) {
-        float here = level.getBlockState(new BlockPos(x, Mth.floor(feetY), z)).getBlock().getJumpFactor();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, Mth.floor(feetY), z);
+        float here = level.getBlockState(pos).getBlock().getJumpFactor();
         if (here != 1.0F) {
             return here;
         }
-        return level.getBlockState(new BlockPos(x, Mth.floor(feetY - 0.500001), z)).getBlock().getJumpFactor();
+        return level.getBlockState(pos.setY(Mth.floor(feetY - 0.500001))).getBlock().getJumpFactor();
     }
 
     /**
@@ -237,12 +238,13 @@ public final class Semantics {
      * 否则它不改步速才看脚下半格处的方块。灵魂沙、蜂蜜块是 0.4,其余原版方块是 1。
      */
     public static double speedFactor(BlockGetter level, int x, double feetY, int z) {
-        BlockState here = level.getBlockState(new BlockPos(x, Mth.floor(feetY), z));
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, Mth.floor(feetY), z);
+        BlockState here = level.getBlockState(pos);
         float factor = here.getBlock().getSpeedFactor();
         if (here.is(Blocks.WATER) || here.is(Blocks.BUBBLE_COLUMN) || factor != 1.0F) {
             return factor;
         }
-        return level.getBlockState(new BlockPos(x, Mth.floor(feetY - 0.500001), z)).getBlock().getSpeedFactor();
+        return level.getBlockState(pos.setY(Mth.floor(feetY - 0.500001))).getBlock().getSpeedFactor();
     }
 
     // ==================== 眼睛 ====================
