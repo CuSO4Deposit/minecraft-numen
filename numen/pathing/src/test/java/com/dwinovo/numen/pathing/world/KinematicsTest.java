@@ -36,6 +36,25 @@ class KinematicsTest {
         return moved;
     }
 
+    /** 落地的耗时:自由下落的工夫,至少要走回落点那一列的中心。 */
+    @Test
+    void landingTakesTheFallOrTheWalkBackToTheCenterWhicheverIsLonger() {
+        assertEquals(Kinematics.fallTicks(SURVIVAL.gravity(), 3), Kinematics.fallLandingTicks(SURVIVAL, 3), 1e-12);
+        // 走得很慢的身体,落下一点点的工夫还不够走回中心
+        BodyStats slow = body(0.02, 0.42, 0.08);
+        assertEquals(Kinematics.centerAfterFallTicks(slow), Kinematics.fallLandingTicks(slow, 0.01), 1e-12);
+        assertTrue(Kinematics.centerAfterFallTicks(slow) > Kinematics.fallTicks(slow.gravity(), 0.01));
+    }
+
+    /** 估价的水平底价:平走与疾跑一格的耗时,疾跑比平走快。 */
+    @Test
+    void thePaceIsTheWalkAndSprintTicksPerBlock() {
+        Kinematics.Pace pace = Kinematics.pace(SURVIVAL);
+        assertEquals(Kinematics.walkTicksPerBlock(SURVIVAL), pace.walk(), 1e-12);
+        assertEquals(Kinematics.sprintTicksPerBlock(SURVIVAL), pace.sprint(), 1e-12);
+        assertTrue(pace.sprint() < pace.walk());
+    }
+
     @Test
     void groundSpeedsMatchTheTickByTickIntegrationAndTheVanillaFigures() {
         double walk = integratedStride(0.1, 0.6);

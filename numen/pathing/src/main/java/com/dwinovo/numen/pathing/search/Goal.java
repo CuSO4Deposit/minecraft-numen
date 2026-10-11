@@ -26,8 +26,9 @@ public interface Goal {
     boolean contains(int x, int y, int z, Stance stance);
 
     /**
-     * 从节点 {@code (x, y, z)} 到目标的估价(刻)。必须是下界:不高过任何一条路线从这个节点走到目标的真实代价。价钱由这具身体的
-     * 运动学给出({@link Kinematics#pace}),搜索每次搜索算一份传进来。
+     * 从节点 {@code (x, y, z)} 到目标的水平底价(刻):水平距离乘疾跑一格的耗时({@link Kinematics#pace},搜索每次搜索算一份传进来)。
+     * 必须是下界:水平上不高过任何一条路线走到目标至少要付的。挖开、升降、涉水的额外代价不在这里,搜索按世界另算
+     * ({@link Burial}、{@link Vertical}),与它相加才是估价。
      */
     double estimate(int x, int y, int z, Kinematics.Pace pace);
 
@@ -47,6 +48,28 @@ public interface Goal {
     default LongSet endCells() {
         return null;
     }
+
+    /**
+     * 到了时脚所在节点的高度范围,含两端;没有范围(离某处多远、远离这些)为 null。搜索靠它算竖直方向至少要升降几个节点
+     * ({@link Vertical})。默认从 {@link #endCells()} 取最低与最高的一层。
+     */
+    default Heights heights() {
+        LongSet cells = endCells();
+        if (cells == null || cells.isEmpty()) {
+            return null;
+        }
+        int lo = Integer.MAX_VALUE;
+        int hi = Integer.MIN_VALUE;
+        for (long cell : cells) {
+            int y = BlockPos.getY(cell);
+            lo = Math.min(lo, y);
+            hi = Math.max(hi, y);
+        }
+        return new Heights(lo, hi);
+    }
+
+    /** 到了时脚所在节点的高度范围 {@code [lo, hi]}。 */
+    record Heights(int lo, int hi) {}
 
     /**
      * 为了到得了这个目标,搜索不能动的格:别挖自己要站、要够的那一格,也别拿方块把它埋了。这是规划的正确性约束,

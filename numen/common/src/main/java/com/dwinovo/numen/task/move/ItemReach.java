@@ -38,12 +38,12 @@ final class ItemReach implements Goal {
                 && feet - GROW_Y <= item.maxY && feet + EntityType.PLAYER.getHeight() + GROW_Y >= item.minY;
     }
 
-    /** 下界:节点中心离"能算到了的那一圈"的水平距离;欧氏距离不超过任何走法的格数。 */
+    /** 水平底价:节点中心离"能算到了的那一圈"的水平距离乘疾跑一格;欧氏距离不超过任何走法的格数。 */
     @Override
     public double estimate(int x, int y, int z, Kinematics.Pace pace) {
         double dx = Math.max(0, Math.abs(x + 0.5 - item.getCenter().x) - (reachX() - CELL_HALF));
         double dz = Math.max(0, Math.abs(z + 0.5 - item.getCenter().z) - (reachZ() - CELL_HALF));
-        return pace.estimate(Math.hypot(dx, dz), 0);
+        return pace.sprint() * Math.hypot(dx, dz);
     }
 
     /** 水平上物品盒的中心到身体中心多远以内碰得上:身体半宽加向外放的量加物品半宽。 */

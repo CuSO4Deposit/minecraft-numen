@@ -40,7 +40,7 @@ class ItemReachTest {
     @Test
     void theEstimateIsZeroWhereItIsReachedAndNeverMoreThanTheWayThere() {
         ItemReach reach = new ItemReach(LIP);
-        Kinematics.Pace pace = new Kinematics.Pace(4, 3, 10, 2);
+        Kinematics.Pace pace = new Kinematics.Pace(4, 3);
         assertEquals(0, reach.estimate(10, -58, 0, pace), 1e-9);
         double far = reach.estimate(20, -58, 0, pace);
         assertTrue(far > 0 && far <= pace.sprint() * (20 - 10), "估价不高过走过去的格数");

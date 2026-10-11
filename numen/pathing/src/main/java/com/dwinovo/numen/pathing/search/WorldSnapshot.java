@@ -1,5 +1,8 @@
 package com.dwinovo.numen.pathing.search;
 
+import java.util.function.ObjIntConsumer;
+import java.util.function.Predicate;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
@@ -120,6 +123,36 @@ public final class WorldSnapshot implements SearchView {
     @Override
     public boolean isLoaded(int x, int z) {
         return chunk(x, z) != null;
+    }
+
+    /**
+     * 先问每个方块段的调色板里有没有 {@code wanted} 答是的状态,有的段才逐格找(段全空的不算,那是空气)。段里状态太多、用上了
+     * 全局调色板时调色板答"也许有",逐格找一遍。
+     */
+    @Override
+    public void forEachBlock(Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
+        for (PalettedContainer<BlockState>[] states : chunks) {
+            if (states == null) {
+                continue;
+            }
+            for (int s = 0; s < states.length; s++) {
+                PalettedContainer<BlockState> section = states[s];
+                if (section == null || !section.maybeHas(wanted)) {
+                    continue;
+                }
+                int bottom = (minSection + s) << 4;
+                for (int y = 0; y < 16; y++) {
+                    for (int z = 0; z < 16; z++) {
+                        for (int x = 0; x < 16; x++) {
+                            BlockState state = section.get(x, y, z);
+                            if (wanted.test(state)) {
+                                visitor.accept(state, bottom + y);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

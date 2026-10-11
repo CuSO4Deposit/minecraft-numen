@@ -142,8 +142,7 @@ final class Strides {
 
     /** 从 {@code drop} 高处落到这个落点的耗时:下落,至少要走回列中心那一截。 */
     static double landing(CostModel model, Maneuver m) {
-        BodyStats body = model.body().stats();
-        return Math.max(Kinematics.fallTicks(body.gravity(), m.drop()), Kinematics.centerAfterFallTicks(body));
+        return Kinematics.fallLandingTicks(model.body().stats(), m.drop());
     }
 
     /** 落地摔疼的折价:掉的血按 {@link ActionCosts#FALL_DAMAGE_PER_POINT} 折成刻。 */

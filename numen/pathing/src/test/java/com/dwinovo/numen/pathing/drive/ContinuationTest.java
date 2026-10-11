@@ -160,7 +160,7 @@ class ContinuationTest {
     void aNextSegmentThatFoundNoRouteIsTheConclusionOfTheWholeTrip() {
         // 走到终点后从脚下再搜,起点、目标、规格、世界都一样,结果必然相同:不再派第二次
         Continuation continuation = new Continuation();
-        SearchResult budget = new SearchResult(SearchResult.Stop.BUDGET, null, 40_000, false);
+        SearchResult budget = new SearchResult(SearchResult.Stop.BUDGET, null, 40_000, false, Double.NaN);
         assertNull(continuation.unfound());
         continuation.unfound(budget, null);
         assertSame(budget, continuation.unfound().result());
@@ -172,7 +172,7 @@ class ContinuationTest {
     void aNextSegmentThatRanIntoUnloadedChunksIsSearchedAgainOnceTheBodyIsThere() {
         // 走近了区块会加载,那时再搜的结果不一样
         Continuation continuation = new Continuation();
-        continuation.unfound(new SearchResult(SearchResult.Stop.UNLOADED, null, 900, false), null);
+        continuation.unfound(new SearchResult(SearchResult.Stop.UNLOADED, null, 900, false, Double.NaN), null);
         assertNull(continuation.unfound());
     }
 }

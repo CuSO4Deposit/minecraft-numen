@@ -67,6 +67,21 @@ class SnapshotAndDispatchTest {
         assertTrue(air.isAir(), "快照之外读出来是空气");
     }
 
+    /** 按状态逐格找:找到的每一格带着它的层;没有这种状态的方块段不逐格找。 */
+    @Test
+    void theSnapshotFindsTheBlocksAStateHasWhereverTheyAre() {
+        TestWorld heights = new TestWorld();
+        LevelChunkSection[] live = chunk(heights);
+        live[heights.getSectionIndex(Y)].setBlockState(2, (Y + 1) & 15, 2, Blocks.OAK_STAIRS.defaultBlockState());
+        WorldSnapshot snapshot = WorldSnapshot.capture(heights, new WorldBorder(), false, (cx, cz) -> cx == 0 && cz == 0 ? live : null, 0, 0, 1);
+        java.util.List<Integer> levels = new java.util.ArrayList<>();
+        snapshot.forEachBlock(state -> state.is(Blocks.OAK_STAIRS), (state, y) -> levels.add(y));
+        assertEquals(java.util.List.of(Y + 1), levels);
+        java.util.List<Integer> none = new java.util.ArrayList<>();
+        snapshot.forEachBlock(state -> state.is(Blocks.WATER), (state, y) -> none.add(y));
+        assertTrue(none.isEmpty());
+    }
+
     @Test
     void aSearchOnTheSnapshotStopsAtItsEdge() {
         TestWorld heights = new TestWorld();

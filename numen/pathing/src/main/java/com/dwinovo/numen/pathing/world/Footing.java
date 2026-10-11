@@ -6,6 +6,8 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.EmptyBlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -57,6 +59,21 @@ public final class Footing {
             }
         }
         return best;
+    }
+
+    /**
+     * 这种方块状态每个碰撞箱的顶面,相对它所在那一格的底(整块 1,下半砖与楼梯的下半层 0.5,土径与耕地 0.9375,栅栏 1.5)。
+     * 站在它上面时脚在格底之上这么高;脚所在的节点是 {@code floor(顶面)} 层,在那一层里高出 {@code 顶面 - floor(顶面)}。
+     * 估价按层扫快照里出现过的状态,靠它知道每一层上一个节点最少要抬多高、下一个节点最少要落多高。碰撞箱随世界变的方块按
+     * "没有世界、脚在格底"回答。
+     */
+    public static double[] tops(BodyStats body, BlockState state) {
+        AABB[] boxes = Boxes.at(EmptyBlockGetter.INSTANCE, body, 0, 0, 0, state, 0);
+        double[] tops = new double[boxes.length];
+        for (int i = 0; i < boxes.length; i++) {
+            tops[i] = boxes[i].maxY;
+        }
+        return tops;
     }
 
     /**
