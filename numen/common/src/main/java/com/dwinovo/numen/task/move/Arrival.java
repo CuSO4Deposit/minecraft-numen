@@ -10,7 +10,7 @@ import net.minecraft.core.BlockPos;
  * ({@link #use}、{@link #dig}、{@link #place}),判据就是动作自己那一处的到达目标。形状不成立(只给高度却要离开它)在建的时候就报,
  * 那是参数写错了;和世界有关的(那一格站不进去、没东西可用)在编成目标时说({@link Destination}),那是这一趟走不通。
  *
- * @param range {@link How#NEAR} 是离它不超过几格,{@link How#AWAY} 是离它至少几格;别的是 0
+ * @param range {@link How#NEAR}、{@link How#BESIDE} 是离它不超过几格,{@link How#AWAY} 是离它至少几格;别的是 0
  */
 public record Arrival(Where to, How how, int range) {
 
@@ -20,6 +20,10 @@ public record Arrival(Where to, How how, int range) {
         AT,
         /** 离它不超过 {@code range} 格。 */
         NEAR,
+        /**
+         * 没说距离,方块与实体站不进去,走到旁边:离它不超过 {@link #BESIDE} 格;掉在地上的东西是身体捡得到它的地方({@link ItemReach})。
+         */
+        BESIDE,
         /** 站在看得见那一格方块某一面、点得到它的地方,去用它。 */
         USE,
         /** 站在手够得着那一格方块的地方(挡着的可以挖开),去挖它。 */
@@ -62,7 +66,7 @@ public record Arrival(Where to, How how, int range) {
         if (distance != null) {
             return new Arrival(to, How.NEAR, checked(distance));
         }
-        return to.beside() ? new Arrival(to, How.NEAR, BESIDE) : new Arrival(to, How.AT, 0);
+        return to.beside() ? new Arrival(to, How.BESIDE, BESIDE) : new Arrival(to, How.AT, 0);
     }
 
     /** {@code numen.move.away}:离 {@code from} 至少 {@code distance} 格。 */
@@ -97,7 +101,7 @@ public record Arrival(Where to, How how, int range) {
         String where = to.words();
         return switch (how) {
             case AT -> where;
-            case NEAR -> where + " (within " + range + ")";
+            case NEAR, BESIDE -> where + " (within " + range + ")";
             case USE -> where + " (to use it)";
             case DIG -> where + " (to dig it)";
             case PLACE -> where + " (to build into it)";
@@ -110,7 +114,7 @@ public record Arrival(Where to, How how, int range) {
         String where = to.words();
         return switch (how) {
             case AT -> "走向 " + where;
-            case NEAR -> "走到 " + where + " " + range + " 格内";
+            case NEAR, BESIDE -> "走到 " + where + " " + range + " 格内";
             case USE -> "去用 " + where;
             case DIG -> "走到够得着 " + where + " 的地方";
             case PLACE -> "走到够得着 " + where + "、往里放方块的地方";

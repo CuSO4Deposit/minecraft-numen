@@ -16,6 +16,7 @@ import com.dwinovo.numen.pathing.search.Goals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 
 /**
  * 去处:一个到达目标({@link Arrival})按那一刻的世界编成的寻路目标。写法到目标的对应只在这里:
@@ -43,6 +44,13 @@ import net.minecraft.world.entity.Entity;
  */
 public record Destination(Arrival arrival, Goal goal, BlockPos toward) {
 
+    /** 点名的实体不在了(死了、走了、被捡走了):不是路的事,是 not_found。 */
+    public static final class Gone extends IllegalArgumentException {
+        Gone(String message) {
+            super(message);
+        }
+    }
+
     /** 一堆格子至多取几个成员:估价与判到没到逐个问成员,几十个仍是一次比较的量级。 */
     static final int MEMBERS = 64;
     /** {@code use} 至多几个成员。 */
@@ -62,8 +70,11 @@ public record Destination(Arrival arrival, Goal goal, BlockPos toward) {
             case Where.Mob mob -> {
                 Entity entity = mob.ref().in(her.serverLevel());
                 if (entity == null || entity == her) {
-                    throw new IllegalArgumentException("no entity with id " + mob.ref() + " is here — it died, left, "
+                    throw new Gone("no entity with id " + mob.ref() + " is here — it died, left, "
                             + "or ids changed with a restart; numen.scan.entities() lists who is around");
+                }
+                if (arrival.how() == Arrival.How.BESIDE && entity instanceof ItemEntity item) {
+                    yield new Destination(arrival, new ItemReach(item.getBoundingBox()), item.blockPosition());
                 }
                 yield cell(her, arrival, entity.blockPosition());
             }
@@ -80,7 +91,7 @@ public record Destination(Arrival arrival, Goal goal, BlockPos toward) {
     /** {@code at}、{@code near}、{@code away} 对一个位置:正好在、不超过 {@code range}、至少 {@code range}。 */
     private static Goal ranged(Arrival arrival, Goals.Position position) {
         return switch (arrival.how()) {
-            case NEAR -> Goals.within(position, 0, arrival.range());
+            case NEAR, BESIDE -> Goals.within(position, 0, arrival.range());
             case AWAY -> Goals.within(position, arrival.range(), Double.POSITIVE_INFINITY);
             default -> position;
         };
@@ -91,7 +102,7 @@ public record Destination(Arrival arrival, Goal goal, BlockPos toward) {
         Terrain terrain = Terrain.of(her);
         Goal goal = switch (arrival.how()) {
             case AT -> Goals.at(cell);
-            case NEAR, AWAY -> ranged(arrival, Goals.at(cell));
+            case NEAR, BESIDE, AWAY -> ranged(arrival, Goals.at(cell));
             case USE -> use(her, terrain, cell);
             case DIG -> dig(her, terrain, cell);
             case PLACE -> reach(her, cell);
@@ -106,7 +117,7 @@ public record Destination(Arrival arrival, Goal goal, BlockPos toward) {
         List<Goal> members = new ArrayList<>();
         BlockPos toward = nearest.get(0);
         switch (arrival.how()) {
-            case AT, NEAR, AWAY, PLACE -> {
+            case AT, NEAR, BESIDE, AWAY, PLACE -> {
                 for (BlockPos cell : nearest.subList(0, Math.min(MEMBERS, nearest.size()))) {
                     members.add(switch (arrival.how()) {
                         case AT -> Goals.at(cell);

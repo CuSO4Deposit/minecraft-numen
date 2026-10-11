@@ -21,9 +21,9 @@ class ArrivalTest {
         assertEquals(Arrival.How.AT, Arrival.to(new Where.Column(1, 3), null).how());
         assertEquals(Arrival.How.AT, Arrival.to(new Where.Height(12), null).how());
         Arrival block = Arrival.to(new Where.Cell(P, Blocks.CHEST), null);
-        assertEquals(Arrival.How.NEAR, block.how());
+        assertEquals(Arrival.How.BESIDE, block.how());
         assertEquals(Arrival.BESIDE, block.range());
-        assertEquals(Arrival.How.NEAR, Arrival.to(new Where.Cells(List.of(new Where.Cell(P, Blocks.CHEST))), null).how());
+        assertEquals(Arrival.How.BESIDE, Arrival.to(new Where.Cells(List.of(new Where.Cell(P, Blocks.CHEST))), null).how());
         assertEquals(Arrival.How.AT, Arrival.to(Where.Cells.of(List.of(P)), null).how());
     }
 

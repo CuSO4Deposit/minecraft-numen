@@ -79,7 +79,8 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
 
     /** 船能开到:去的是一处位置(一格、一列),站进去或到它附近。 */
     private boolean sails() {
-        return (r.arrival.how() == Arrival.How.AT || r.arrival.how() == Arrival.How.NEAR)
+        return (r.arrival.how() == Arrival.How.AT || r.arrival.how() == Arrival.How.NEAR
+                || r.arrival.how() == Arrival.How.BESIDE)
                 && (r.arrival.to() instanceof Where.Cell || r.arrival.to() instanceof Where.Column);
     }
 
@@ -88,6 +89,8 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
     protected Preparation preparation() {
         try {
             destination = Destination.of(player, r.arrival, Feet.cell(player));
+        } catch (Destination.Gone gone) {
+            return Preparation.refused(TaskResult.fail(ErrorKind.NOT_FOUND, gone.getMessage(), null, value()));
         } catch (IllegalArgumentException refused) {
             return Preparation.refused(TaskResult.fail(ErrorKind.NO_PATH, refused.getMessage(), null, value()));
         }
@@ -209,7 +212,7 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
     private double left() {
         double distance = distance();
         return switch (r.arrival.how()) {
-            case NEAR -> Math.max(0, distance - r.arrival.range());
+            case NEAR, BESIDE -> Math.max(0, distance - r.arrival.range());
             case AWAY -> Math.max(0, r.arrival.range() - distance);
             default -> distance;
         };
@@ -239,7 +242,7 @@ public final class MoveToCompanionTask extends AbstractCompanionTask<MoveToTaskR
                         + gy;
                 default -> "reached " + here(gy);
             };
-            case NEAR -> "arrived within " + a.range() + " blocks of " + where + ", standing at " + here(gy);
+            case NEAR, BESIDE -> "arrived within " + a.range() + " blocks of " + where + ", standing at " + here(gy);
             case AWAY -> "got at least " + a.range() + " blocks away from " + where + ", standing at " + here(gy);
             case USE -> "standing at " + here(gy) + ", with " + where + " in sight and in reach";
             case DIG -> "standing at " + here(gy) + ", within reach of " + where;

@@ -1,9 +1,11 @@
 -- Picking up and digging out: walk onto the dropped items lying around, dig out a cluster.
 local M = {}
 
----Pick up the dropped items around you, nearest first, walking onto each with numen.move.to. Given items (the drops
+---Pick up the dropped items around you, nearest first, walking up to each with numen.move.to(item.id): to where the pickup
+---reaches the item itself (an entity), not into the cell its coordinates round to (an item resting on a ledge's edge rounds
+---to the empty cell beside it). Given items (the drops
 ---numen.work.dig returned), it goes only after those of them still lying around. A fresh drop cannot be picked up for
----a few ticks (its pickup_delay): standing on it, it walks onto it again until it is taken. An item with no way to it
+---a few ticks (its pickup_delay): standing by it, it walks up to it again until it is taken. An item with no way to it
 ---(numen.move.to fails with no_path) is passed over and the rest are picked up; at the end the ones passed over raise
 ---no_path, with them in err.data.left. An item still there after walking onto it with no delay left (a full pack, or
 ---a spot you cannot stand in) raises failed; any other error of a walk stops here as it is.
@@ -42,10 +44,8 @@ function M.collect(opts)
         left[#left + 1] = item
       end
       if #left > 0 then
-        local p = left[1].pos
         raise("no_path", "picked up " .. picked .. " item(s); no way to the " .. #left .. " left, the nearest "
-            .. left[1].item .. " x" .. left[1].count, string.format("numen.move.to({x = %d, y = %d, z = %d})",
-            math.floor(p.x), math.floor(p.y), math.floor(p.z)),
+            .. left[1].item .. " x" .. left[1].count, string.format("numen.move.to(%d)", left[1].id),
             {picked = picked, left = left})
       end
       return picked
@@ -62,11 +62,13 @@ function M.collect(opts)
       raise("failed", item.item .. " x" .. item.count .. " cannot be picked up for another " .. item.pickup_delay
           .. " ticks", nil, {item = item})
     end
-    local ok, err = pcall(numen.move.to, item.pos)
+    local ok, err = pcall(numen.move.to, item.id)
     if ok then
       walked[item.id] = item.count
     elseif err.kind == "no_path" then
       unreachable[item.id] = item
+    elseif err.kind == "not_found" then
+      -- taken (by her, on the way) or gone while she walked: the next look at the ground decides what is left
     else
       error(err, 0)
     end

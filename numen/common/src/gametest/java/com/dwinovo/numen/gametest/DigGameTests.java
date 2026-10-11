@@ -782,9 +782,10 @@ public class DigGameTests {
 
         succeedWhen(helper, () -> {
             helper.assertTrue(dig.done(), "work dig has not finished");
-            helper.assertTrue(dig.succeeded() && level.getBlockState(debris).isAir(),
-                    "the buried block was not dug out: " + dig.outcome());
+            // 挖空只在发起 collect 之前判一次:succeedWhen 每刻重跑,而 collect 为够到隧道深处的物品可能在那一格垫柱
             if (fetch[0] == null) {
+                helper.assertTrue(dig.succeeded() && level.getBlockState(debris).isAir(),
+                        "the buried block was not dug out: " + dig.outcome());
                 fetch[0] = lua(companion, "numen.work.collect()");
             }
             helper.assertTrue(fetch[0].done(), "the walk to the drop has not finished");
