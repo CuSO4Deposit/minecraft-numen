@@ -274,6 +274,12 @@ public final class Driver {
             // 没有路,或路走完了还没到:等在飞的搜索,没有就从脚下搜
             hold();
             if (pending == null) {
+                Continuation.Unfound unfound = continuation.unfound();
+                if (unfound != null) {
+                    // 从这条路的终点接着搜过,没有路线:从脚下再搜是同一次搜索
+                    giveUp(unfound.result(), unfound.search());
+                    return;
+                }
                 if (node == null) {
                     // 脚下待不住:朝旁边待得住的节点挪,挪了一阵还不行就收场
                     if (++stranded > STRANDED_TICKS) {
@@ -517,8 +523,11 @@ public final class Driver {
         if (purpose == Purpose.NEXT) {
             if (continuation.splice(course, result.route(), result.arrived(), minimum())) {
                 partial(result);
+            } else if (result.route() == null) {
+                continuation.unfound(result, search);
+                PathLog.info("{} 接续段没搜出路线,走到终点 {} 以它的结论收场", rig.who, PathLog.pos(course.end()));
             } else {
-                // 接续段没搜出来:走到终点后从脚下再搜
+                // 接续段的起点不是路线的终点:走到终点后从脚下再搜
                 PathLog.info("{} 接续段接不上,走到终点 {} 再从脚下搜", rig.who, PathLog.pos(course.end()));
             }
             return;
@@ -533,13 +542,18 @@ public final class Driver {
                 course.install(new Route(node, here, List.of()), true, minimum());
                 return;
             }
-            halt(recovery.lastBlockage() != null && result.stop() == SearchResult.Stop.EXHAUSTED
-                    ? new Halt.Blocked(recovery.lastBlockage())
-                    : new Halt.Searched(result.stop(), result.breathless(), search));
+            giveUp(result, search);
             return;
         }
         install(result.route(), result.arrived());
         partial(result);
+    }
+
+    /** 一次搜索没交出路线,这一趟就此收场:走不下去之后重搜都走投无路的,是那一步的阻碍;其余是搜索自己的停因。 */
+    private void giveUp(SearchResult result, Search search) {
+        halt(recovery.lastBlockage() != null && result.stop() == SearchResult.Stop.EXHAUSTED
+                ? new Halt.Blocked(recovery.lastBlockage())
+                : new Halt.Searched(result.stop(), result.breathless(), search));
     }
 
     /**
