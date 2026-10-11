@@ -1,5 +1,7 @@
 package com.dwinovo.numen.pathing.gametest;
 
+import java.util.EnumSet;
+import java.util.List;
 import java.util.UUID;
 
 import com.dwinovo.numen.pathing.body.Body;
@@ -17,6 +19,8 @@ import net.minecraft.network.PacketSendListener;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.server.level.ServerLevel;
@@ -31,6 +35,10 @@ import net.minecraft.world.level.GameType;
  *
  * <p>它只进世界、不进玩家列表(不"登录"):没有客户端,也就没有与服务器协商过任何模组的网络通道,登录时别的模组发来的
  * 自定义包会被网络层当场拒掉。进了世界就有区块跟着它加载、实体刻照常跑;连接丢掉一切下行包。
+ *
+ * <p>客户端只画认得的玩家:生成一具玩家实体之前,原版客户端要先收到这个玩家的档案({@code ClientPacketListener.handleAddEntity}
+ * 收到没见过档案的玩家就丢掉)。开发客户端里 {@code /test run} 现场围观时,进世界前把档案发给在线的人(只加档案、不进 Tab 列表),
+ * 离开时撤掉;无头跑批没有在线的人,发了也没人收。
  */
 final class TestBody extends ServerPlayer implements Body {
 
@@ -50,6 +58,8 @@ final class TestBody extends ServerPlayer implements Body {
         TestBody body = new TestBody(server, level, profile);
         new ServerGamePacketListenerImpl(server, new Wire(), body, CommonListenerCookie.createInitial(profile, false));
         body.moveTo(x, y, z, 0, 0);
+        server.getPlayerList().broadcastAll(
+                new ClientboundPlayerInfoUpdatePacket(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER), List.of(body)));
         level.addNewPlayer(body);
         // 测试世界默认创造模式;身体默认生存,要创造的用例自己切
         body.setGameMode(GameType.SURVIVAL);
@@ -59,6 +69,7 @@ final class TestBody extends ServerPlayer implements Body {
     /** 离开世界。 */
     void leave() {
         serverLevel().removePlayerImmediately(this, RemovalReason.DISCARDED);
+        server.getPlayerList().broadcastAll(new ClientboundPlayerInfoRemovePacket(List.of(getUUID())));
     }
 
     @Override
