@@ -123,4 +123,14 @@ public class TerrainGameTests {
     public static void buried_cavity(GameTestHelper helper) {
         TerrainRun.start(helper, TerrainRoutes.BURIED_CAVITY);
     }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_stairs_up", timeoutTicks = TIMEOUT)
+    public static void stairs_up(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.STAIRS_UP);
+    }
+
+    @GameTest(template = TEMPLATE, batch = "terrain_slope_down", timeoutTicks = TIMEOUT)
+    public static void slope_down(GameTestHelper helper) {
+        TerrainRun.start(helper, TerrainRoutes.SLOPE_DOWN);
+    }
 }

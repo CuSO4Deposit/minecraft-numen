@@ -89,6 +89,11 @@ public final class Kinematics {
         return distance;
     }
 
+    /** 平地一直按前进键,疾跑({@code sprinting})或平走时每刻加的速度。 */
+    public static double pushAcceleration(BodyStats body, boolean sprinting) {
+        return groundAcceleration(body.movementSpeed() * (sprinting ? SPRINT_MULTIPLIER : 1), DEFAULT_FRICTION);
+    }
+
     /** 平地疾跑稳态的速度(格每刻)。 */
     public static double sprintSpeed(BodyStats body) {
         return steadyStride(body.movementSpeed() * SPRINT_MULTIPLIER, DEFAULT_FRICTION);
@@ -228,6 +233,41 @@ public final class Kinematics {
     /** 顺着梯子、藤蔓往下滑一格要几刻。 */
     public static double climbDownTicksPerBlock() {
         return 1 / CLIMB_DOWN_SPEED;
+    }
+
+    // ==================== 走出边沿 ====================
+
+    /**
+     * 地上沿前进方向走向支撑的边沿,走出去落下 {@code drop} 格,落地那一刻身体中心在哪(沿前进方向,离此刻的位置多远;包括落地那一刻
+     * 自己的水平挪动——原版先处理竖直方向落到地上,再接着水平挪,落在边上的会被这一挪带出支撑):地上这一刻挪 {@code move},之后
+     * 每刻先乘惯性({@link #groundDrag})再加 {@code groundAccel}(按着前进键是 {@link #groundAcceleration},松着为 0),挪过
+     * {@code toEdge} 就离了地;空中每刻加 {@code airAccel}(按着前进键是 {@link #airAcceleration},松着为 0)再乘阻力({@link #AIR_DRAG}),
+     * 直到落下 {@code drop} 格({@link #ticksToLand},从站着时的竖直速度起)。步态与走出边沿的控制拿它预判落点:冲出去太快就落过了落点那一列。
+     *
+     * @param move   这一刻身体会挪的距离:上一刻留下的速度加这一刻按键的加速度
+     * @param toEdge 身体中心此刻离"身子整个离开支撑"那一点的距离(整块的边沿是半格加半个身宽)
+     * @return 松着键滑不到边沿就停住了为 NaN
+     */
+    public static double dropLanding(double gravity, double toEdge, double move, double groundAccel, double airAccel, double drop) {
+        double drag = groundDrag(DEFAULT_FRICTION);
+        double x = 0;
+        double m = move;
+        while (x + m < toEdge) {
+            x += m;
+            m = m * drag + groundAccel;
+            if (m < REST) {
+                return Double.NaN;
+            }
+        }
+        x += m;
+        double v = m * drag;
+        int air = ticksToLand(drop, -gravity * VERTICAL_DRAG, 0, gravity, 200);
+        for (int t = 0; t < air; t++) {
+            v += airAccel;
+            x += v;
+            v *= AIR_DRAG;
+        }
+        return x;
     }
 
     // ==================== 几步合起来的几何 ====================

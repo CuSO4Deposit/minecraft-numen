@@ -2,6 +2,8 @@ package com.dwinovo.numen.pathing.gametest;
 
 import static com.dwinovo.numen.pathing.gametest.Trial.ARENA;
 
+import com.dwinovo.numen.pathing.drive.Journal;
+import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
@@ -72,6 +74,46 @@ public class UpDownGameTests {
         t.fill(11, 1, 4, 13, 5, 6, Blocks.STONE);
         TestBody body = t.body(3, 1, 5);
         t.go(body, Goals.at(t.at(12, 6, 5)), RouteSpec.defaults()).arrives();
+    }
+
+    /** 八级一格宽的台阶,立面紧贴着上一级的落点:一路跑着跳上去,不在每一级的落点上停,实际用的刻数不超过最短的 1.1 倍。 */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 600)
+    public static void runs_up_a_staircase_at_the_pace_of_its_jumps(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        for (int i = 0; i < 8; i++) {
+            t.fill(6 + i, 1, 3, 6 + i, 1 + i, 7, Blocks.STONE);
+        }
+        t.fill(14, 1, 3, 17, 8, 7, Blocks.STONE);
+        TestBody body = t.body(3, 1, 5);
+        t.go(body, Goals.at(t.at(16, 9, 5)), RouteSpec.defaults()).arrives()
+                .then(r -> paced(r, MoveKind.ASCEND, 1.1));
+    }
+
+    /** 五级两格宽的台阶笔直往下:疾跑走下一级,冲劲带着飘出去落在下一列,实际用的刻数不超过最短的 1.1 倍。 */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 600)
+    public static void runs_down_straight_terraces_at_the_pace_of_their_drops(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        for (int k = 0; k < 6; k++) {
+            t.fill(2 + 2 * k, 1, 2, 3 + 2 * k, 6 - k, 12, Blocks.STONE);
+        }
+        TestBody body = t.body(3, 7, 5);
+        t.go(body, Goals.at(t.at(18, 1, 5)), RouteSpec.defaults()).arrives()
+                .then(UpDownGameTests::unhurt).then(r -> paced(r, MoveKind.DESCEND, 1.1));
+    }
+
+    /**
+     * 同样的台阶,终点在斜前方:每级下一级之后紧接着拐弯,要在落点那一列里收脚。走到再快就会落过那一列为止才松开,滑出边沿
+     * (运动学预判落点),不是慢慢蹭着走出去:蹭出去每级要 1.4 倍的最短刻数,滑出去 1.2 倍以内。
+     */
+    @GameTest(template = ARENA, batch = BATCH, timeoutTicks = 600)
+    public static void slides_off_the_edge_to_land_before_a_turn_instead_of_crawling(GameTestHelper helper) {
+        Trial t = new Trial(helper).floor();
+        for (int k = 0; k < 6; k++) {
+            t.fill(2 + 2 * k, 1, 2, 3 + 2 * k, 6 - k, 12, Blocks.STONE);
+        }
+        TestBody body = t.body(3, 7, 3);
+        t.go(body, Goals.at(t.at(18, 1, 11)), RouteSpec.defaults()).arrives()
+                .then(UpDownGameTests::unhurt).then(r -> paced(r, MoveKind.DESCEND, 1.25));
     }
 
     /** 从两格高处落下,不掉血。 */
@@ -328,6 +370,18 @@ public class UpDownGameTests {
                 throw new GameTestAssertException("水应当倒在去处那一格、再收回:" + entries);
             }
         });
+    }
+
+    /** 这一种走法实际用的刻数不超过几何最短({@code limit} 倍;导航交回的行程里记着每种走法的实际与最短)。 */
+    private static void paced(Trial.Run r, MoveKind kind, double limit) {
+        Journal.Timing timing = r.report.journal().timings().get(kind);
+        if (timing == null || timing.steps() < 3) {
+            throw new GameTestAssertException("路线里没有走够几步 " + kind + ":" + r.report.journal().timings());
+        }
+        if (timing.ticks() > limit * timing.estimated()) {
+            throw new GameTestAssertException(kind + " 走得比几何最短慢:实际 " + timing.ticks() + " 刻,最短 " + timing.estimated() + " 刻("
+                    + timing.steps() + " 步),超过 " + limit + " 倍");
+        }
     }
 
     static void unhurt(Trial.Run r) {

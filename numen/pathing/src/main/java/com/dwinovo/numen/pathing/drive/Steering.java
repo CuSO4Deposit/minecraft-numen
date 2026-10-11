@@ -36,18 +36,23 @@ final class Steering {
     }
 
     /**
-     * 朝 {@code (x, z)} 走,沿那个方向的速度不超过 {@code speed}(格每刻):低于它就按前进,否则松开。走出边沿时用它压住
-     * 冲出去的速度,离地之后再由 {@link #stop} 在空中修正落点。
+     * 朝 {@code (x, z)} 走向支撑的边沿、走出去落下 {@code drop} 格:前进键按到"再按这一刻、之后松着滑出去"就会落过 {@code reach} 为止
+     * ({@link Kinematics#dropLanding},滑出去后空中不按键),之后松开,借着惯性滑出边沿。不是压一个固定的慢速——能多快走出去就多快,只要落点还在
+     * 落点那一列里。离地之后再由 {@link #stop} 在空中修正落点。
+     *
+     * @param toEdge 身体中心离"身子整个离开支撑"那一点沿前进方向还有多远
+     * @param reach  落点最远允许落在身体中心沿前进方向多远
      */
-    static void approach(Rig rig, double x, double z, double speed) {
+    static void approach(Rig rig, double x, double z, double toEdge, double reach, double drop) {
         ServerPlayer body = rig.entity;
         Controls keys = rig.keys;
         rig.look.faceToward(x, z);
         double yaw = Math.toRadians(body.getYRot());
         Vec3 motion = body.getDeltaMovement();
         double along = motion.x * -Math.sin(yaw) + motion.z * Math.cos(yaw);
+        double landing = Kinematics.dropLanding(body.getGravity(), toEdge, along + groundAccel(body), 0, 0, drop);
         keys.release(Key.BACK);
-        keys.set(Key.FORWARD, along < speed);
+        keys.set(Key.FORWARD, Double.isNaN(landing) || landing <= reach);
     }
 
     /** 按住前进的下一刻,身体沿它此刻朝着的方向会挪多远:原版先把这一刻的输入加速度加进速度,再移动。 */

@@ -3,6 +3,8 @@ package com.dwinovo.numen.pathing.drive;
 import com.dwinovo.numen.api.entity.Controls.Key;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.MoveKind;
+import com.dwinovo.numen.pathing.world.Kinematics;
+import com.dwinovo.numen.pathing.world.Semantics;
 
 import net.minecraft.world.phys.Vec3;
 
@@ -73,9 +75,15 @@ final class StrideControl extends Control {
         keys().set(Key.SPRINT, stride.sprint());
     }
 
-    /** 身体中心走出这么远就起跳:身子前沿快碰到那一列时。 */
+    /**
+     * 身体中心走出这么远就起跳:从离地到脚升过这一级的高度要几刻({@link Kinematics#riseTicks}),这几刻里身子每刻往前挪的距离按
+     * 下一刻的({@link Steering#nextStride}:上一刻留下的速度加这一刻按前进的加速度),挪到前沿碰上那一列时脚刚好高过去。
+     * 起得晚了,身子先撞在立面上停住,再从静止起跳,一级台阶白白多费几刻。
+     */
     private double jumpPoint() {
         double half = rig.entity.getBbWidth() / 2;
-        return 0.5 - half - horizontalSpeed();
+        double factor = Semantics.jumpFactor(rig.world(), m.from().getX(), m.start().feetY(), m.from().getZ());
+        double ticks = Kinematics.riseTicks(rig.snapshot().stats(), factor, m.landing().feetY() - m.start().feetY());
+        return 0.5 - half - Steering.nextStride(rig.entity) * ticks;
     }
 }

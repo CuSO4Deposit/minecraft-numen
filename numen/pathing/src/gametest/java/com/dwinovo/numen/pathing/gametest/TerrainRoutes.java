@@ -77,7 +77,11 @@ final class TerrainRoutes {
     static final Route BURIED_CAVITY = new Route("buried_cavity", "到地下一个空腔", new BlockPos(311, 65, 174), new BlockPos(311, 56, 174),
             1500, new BlockPos(310, 56, 173), new BlockPos(312, 58, 175), false);
 
+    /** 连续台阶与连续下坡:存档里一道笔直的十二级台阶(沿 +x 每格高一级),和一段每隔几格落一级的下坡,量上坡、下坡时身体的步态。 */
+    static final Route STAIRS_UP = new Route("stairs_up", "连续台阶上", new BlockPos(419, 74, 105), new BlockPos(432, 86, 105), 600);
+    static final Route SLOPE_DOWN = new Route("slope_down", "连续下坡", new BlockPos(283, 91, 274), new BlockPos(312, 70, 272), 600);
+
     static final List<Route> ALL = List.of(FLAT, UPHILL, DOWNHILL, STEP, FOREST, FOREST_UPHILL, WALL, LONG_A, LONG_B, ROLLING,
             RAVINE_FLOOR, RAVINE_CROSS, RIDGE_DETOUR, HILL_DETOUR, BASIN_DESCENT, LONG_300, BROKEN, DENSE_FOREST,
-            LAKE_CROSS, LAKE_SHALLOWS, BURIED_CELL, BURIED_CAVITY);
+            LAKE_CROSS, LAKE_SHALLOWS, BURIED_CELL, BURIED_CAVITY, STAIRS_UP, SLOPE_DOWN);
 }

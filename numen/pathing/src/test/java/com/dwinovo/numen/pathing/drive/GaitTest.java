@@ -101,7 +101,7 @@ class GaitTest {
     }
 
     @Test
-    void goingDownASlopeOnlyCarriesTheDropWhenTheNextStepKeepsTheSameWay() {
+    void goingDownASlopeRunsOffTheEdgeWhileTheNextStepKeepsTheSameWay() {
         TestWorld world = flat();
         for (int k = 0; k < 4; k++) {
             world.fill(2 * k, Y, -8, 2 * k + 1, Y + 3 - k, 8, Blocks.STONE.defaultBlockState());
@@ -112,11 +112,48 @@ class GaitTest {
         for (int i = 0; i + 1 < steps.size(); i++) {
             if (steps.get(i).kind() == MoveKind.DESCEND) {
                 seen = true;
-                assertFalse(strides.get(i).sprint(), "走出边沿的下一级压着速度,不在跑动里");
+                assertTrue(strides.get(i).sprint(), "疾跑走下一级,冲劲带着飘出去");
                 assertTrue(strides.get(i).flows(), "同一个方向接着走,冲过了头也还在路上");
             }
         }
         assertTrue(seen, "路线里有下一级");
+    }
+
+    @Test
+    void aDropRightAfterADropDoesNotRunBecauseTheFlightLandsOnTheLip() {
+        // 每级只一格宽:疾跑飘出去落地时,落地那一刻的挪动把身子带过了这一列的外沿,落在唇上又滑下去;平走的冲劲落在这一列里
+        TestWorld world = flat();
+        for (int k = 0; k < 4; k++) {
+            world.fill(k, Y, -8, k, Y + 3 - k, 8, Blocks.STONE.defaultBlockState());
+        }
+        List<Maneuver> steps = route(world, new BlockPos(0, Y + 4, 0), new BlockPos(5, Y, 0));
+        List<Gait.Stride> strides = strides(world, steps, true);
+        int drops = 0;
+        for (int i = 0; i + 1 < steps.size(); i++) {
+            if (steps.get(i).kind() == MoveKind.DESCEND && steps.get(i + 1).kind() == MoveKind.DESCEND) {
+                drops++;
+                assertFalse(strides.get(i).sprint(), "第 " + i + " 步之后紧接着又是下一级,不跑");
+                assertTrue(strides.get(i).flows(), "平走的冲劲接得住");
+            }
+        }
+        assertTrue(drops >= 2, "路线里连着几级下坡");
+    }
+
+    @Test
+    void aStaircaseWhoseRisersFaceEachOtherIsRunUpWithoutStopping() {
+        // 每级立面紧贴着上一级的落点:落点前面是堵墙,冲劲撞停在墙前,用不着在每一级的落点上收脚
+        TestWorld world = flat();
+        for (int i = 1; i <= 6; i++) {
+            world.fill(i, Y, -8, 40, Y + i - 1, 8, Blocks.STONE.defaultBlockState());
+        }
+        List<Maneuver> steps = route(world, new BlockPos(0, Y, 0), new BlockPos(8, Y + 6, 0));
+        List<Gait.Stride> strides = strides(world, steps, true);
+        long ascends = steps.stream().filter(m -> m.kind() == MoveKind.ASCEND).count();
+        assertTrue(ascends >= 6, "六级台阶");
+        for (int i = 0; i + 1 < steps.size(); i++) {
+            assertTrue(strides.get(i).sprint(), "第 " + i + " 步 " + steps.get(i).kind() + " 跑着上");
+            assertTrue(strides.get(i).flows(), "第 " + i + " 步不停:台阶一路连贯");
+        }
     }
 
     @Test
