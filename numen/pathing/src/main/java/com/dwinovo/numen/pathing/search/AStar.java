@@ -240,6 +240,11 @@ public final class AStar {
         }
 
         @Override
+        public boolean changed(int x, int yMin, int yMax, int z) {
+            return false;
+        }
+
+        @Override
         public BlockState getBlockState(BlockPos pos) {
             BlockState state = view.loadedBlockState(pos);
             if (state == null) {

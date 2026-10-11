@@ -32,8 +32,8 @@ public final class Footing {
      */
     public static final double EPSILON = 1.0E-5;
     private static final int NO_SUPPORT = Integer.MIN_VALUE;
-    /** 落脚高度,一次搜索里按格记住({@link Recall})。 */
-    private static final Recall.HeightFact HEIGHT = new Recall.HeightFact(Footing::measureHeight);
+    /** 落脚高度,一次搜索里按格记住({@link Recall})。读的格:这一列的 {@code y - 1} 与 {@code y},穿冰霜行者时再看水面上一格({@code y + 1})。 */
+    private static final Recall.HeightFact HEIGHT = new Recall.HeightFact(Footing::measureHeight, new Recall.Reach(1, 1));
 
     private Footing() {}
 

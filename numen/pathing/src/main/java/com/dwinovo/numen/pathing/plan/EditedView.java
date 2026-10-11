@@ -106,10 +106,15 @@ public class EditedView implements WorldView, Recall.Source {
         changed.put(pos.asLong(), state);
     }
 
-    /** 一件改动都没叠时,就是底下那份视图:照它交出记事本;叠了改动的世界不记。 */
+    /** 记事本是底下那份视图的:记的是没叠改动的快照,叠了改动的格子由 {@link #changed(int, int, int, int)} 告诉结论哪些不能用。 */
     @Override
     public Recall recall() {
-        return changed == null && base instanceof Recall.Source source ? source.recall() : null;
+        return base instanceof Recall.Source source ? source.recall() : null;
+    }
+
+    @Override
+    public boolean changed(int x, int yMin, int yMax, int z) {
+        return changed != null && changed.within(x, yMin, yMax, z);
     }
 
     /** 这一格改过。 */
@@ -211,6 +216,18 @@ public class EditedView implements WorldView, Recall.Source {
             copy.states = states.clone();
             copy.size = size;
             return copy;
+        }
+
+        /** 改过的格里有没有在 {@code (x, z)} 这一列 {@code yMin} 到 {@code yMax} 之间的。 */
+        boolean within(int x, int yMin, int yMax, int z) {
+            for (int i = 0; i < size; i++) {
+                long cell = cells[i];
+                int y = BlockPos.getY(cell);
+                if (y >= yMin && y <= yMax && BlockPos.getX(cell) == x && BlockPos.getZ(cell) == z) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /** 改过的格里有没有落在区段 {@code section}({@link SectionPos#asLong} 编码)里的。 */
