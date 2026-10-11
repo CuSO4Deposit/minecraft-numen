@@ -143,4 +143,30 @@ class VerticalTest {
         assertEquals(of(world, model(RouteSpec.defaults())).floor(Y - 1), vertical.floor(Y - 1), 1e-9);
         assertEquals(of(world, model(RouteSpec.defaults())).floor(Y + 1), vertical.floor(Y + 5), 1e-9);
     }
+
+    /**
+     * 表是问到哪一层才填到哪一层,填出来的数与问的先后无关:各带(16 层)里的落脚、上一带顶上的栅栏压到下一带最低一层的落脚,
+     * 隔着几带从上往下问、从下往上问、单独问一层,同一层答出来的数逐位相同。
+     */
+    @Test
+    void theAnswerDoesNotDependOnTheOrderOfTheQuestions() {
+        TestWorld world = new TestWorld().floor(-4, -4, 4, 4, Y - 1)
+                .set(1, 15, 0, Blocks.OAK_FENCE.defaultBlockState())
+                .set(1, 30, 1, Blocks.DIRT_PATH.defaultBlockState())
+                .set(2, 47, 0, Blocks.WATER.defaultBlockState())
+                .set(2, 80, 2, Blocks.LADDER.defaultBlockState())
+                .set(3, 111, 0, Blocks.OAK_FENCE.defaultBlockState());
+        CostModel model = model(RouteSpec.defaults());
+        Vertical down = of(world, model);
+        Vertical up = of(world, model);
+        int[] levels = {-20, -1, 0, 15, 16, 17, 31, 32, 48, 60, 100, 112, 113, 140};
+        double[] asked = new double[levels.length];
+        for (int i = levels.length - 1; i >= 0; i--) {
+            asked[i] = down.floor(levels[i]);
+        }
+        for (int i = 0; i < levels.length; i++) {
+            assertEquals(Double.doubleToLongBits(asked[i]), Double.doubleToLongBits(up.floor(levels[i])), "第 " + levels[i] + " 层");
+            assertEquals(Double.doubleToLongBits(asked[i]), Double.doubleToLongBits(of(world, model).floor(levels[i])), "单独问第 " + levels[i] + " 层");
+        }
+    }
 }

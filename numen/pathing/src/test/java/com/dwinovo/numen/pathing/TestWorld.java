@@ -74,14 +74,14 @@ public final class TestWorld implements SearchView {
     }
 
     @Override
-    public void forEachBlock(Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
+    public void forEachBlock(int fromY, int toY, Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
         blocks.forEach((pos, state) -> {
-            if (wanted.test(state)) {
+            if (pos.getY() >= fromY && pos.getY() < toY && wanted.test(state)) {
                 visitor.accept(state, pos.getY());
             }
         });
         if (wanted.test(ground)) {
-            for (int y = getMinBuildHeight(); y <= groundTop; y++) {
+            for (int y = Math.max(getMinBuildHeight(), fromY); y <= groundTop && y < toY; y++) {
                 visitor.accept(ground, y);
             }
         }

@@ -148,18 +148,20 @@ public final class WorldSnapshot implements SearchView {
 
     /**
      * 先问每个方块段的调色板里有没有 {@code wanted} 答是的状态,有的段才逐格找(段全空的不算,那是空气)。段里状态太多、用上了
-     * 全局调色板时调色板答"也许有",逐格找一遍。
+     * 全局调色板时调色板答"也许有",逐格找一遍。只看 {@code [fromY, toY)} 里的层。
      */
     @Override
-    public void forEachBlock(Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
+    public void forEachBlock(int fromY, int toY, Predicate<BlockState> wanted, ObjIntConsumer<BlockState> visitor) {
         List<BlockState> hits = new ArrayList<>(4);
         BlockState[] scratch = new BlockState[256];
+        int firstSection = Math.max(0, (fromY >> 4) - minSection);
         for (int c = 0; c < chunks.length; c++) {
             PalettedContainer<BlockState>[] states = chunks[c];
             if (states == null) {
                 continue;
             }
-            for (int s = 0; s < states.length; s++) {
+            int lastSection = Math.min(states.length - 1, ((toY - 1) >> 4) - minSection);
+            for (int s = firstSection; s <= lastSection; s++) {
                 PalettedContainer<BlockState> section = states[s];
                 if (section == null) {
                     continue;
@@ -177,7 +179,7 @@ public final class WorldSnapshot implements SearchView {
                     continue;
                 }
                 int bottom = (minSection + s) << 4;
-                for (int y = 0; y < 16; y++) {
+                for (int y = Math.max(0, fromY - bottom); y < Math.min(16, toY - bottom); y++) {
                     // 搜索读过的层现成的就用;没读过的解到一块共用的缓冲里,扫完就丢(估价扫的段大多搜索一辈子也不会读)
                     BlockState[] known = (BlockState[]) LAYER.getAcquire(layers[c], s << 4 | y);
                     for (BlockState state : known != null ? known : decode(section, y, scratch)) {

@@ -1,5 +1,6 @@
 package com.dwinovo.numen.pathing.search;
 
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
@@ -31,35 +32,76 @@ import net.minecraft.world.level.block.state.BlockState;
  *       斜走不升降节点,它的升降落差由跳与落带过。</li>
  * </ul>
  * 目标交出到了时脚所在的高度范围({@link Goal#heights()}):节点比它低就要升,比它高就要降,在范围里不用。没有范围的目标不加。
- * 开搜时读一遍快照里有这些方块的层(只扫调色板里有它们的方块段),之后每个节点只查一张表。
+ * 表是问到哪一层才填到哪一层:快照里有这些方块的层(只扫调色板里有它们的方块段)按区段高度一带一带读,没问到的层一格不读;
+ * 填出来的数与一开始把整张表填满逐位相同。
  */
 final class Vertical {
 
     /** 不加。 */
-    static final Vertical NONE = new Vertical(0, 0, 0, new double[0], new double[0]);
+    static final Vertical NONE = new Vertical();
 
+    private final CostModel model;
+    private final BodyStats body;
+    private final Levels levels;
     /** 表的下标 0 对应的层。 */
     private final int base;
+    private final int top;
     private final int lo;
     private final int hi;
-    /** {@code up[y - base]}:节点在第 {@code y} 层(低于 {@code lo})走到 {@code lo} 层至少多花的刻数。 */
+    /** 往上一个节点至少多付的刻数。 */
+    private final double jump;
+    private final double sprint;
+    private final boolean bucket;
+    /** {@code up[y - base]}:节点在第 {@code y} 层(低于 {@code lo})走到 {@code lo} 层至少多花的刻数;只填到 {@code upFrom}。 */
     private final double[] up;
-    /** {@code down[y - base]}:节点在第 {@code y} 层(高于 {@code hi})落到 {@code hi} 层至少多花的刻数。 */
+    private int upFrom;
+    private double upSum;
+    /** {@code down[y - base]}:节点在第 {@code y} 层(高于 {@code hi})落到 {@code hi} 层至少多花的刻数;只填到 {@code downTo}。 */
     private final double[] down;
+    private int downTo;
+    /** {@code fresh[k]}:落脚高度没有小数部分时,一次落 {@code k} 个节点的落脚多付的刻数;还没算过为 NaN。 */
+    private final double[] fresh;
 
-    private Vertical(int base, int lo, int hi, double[] up, double[] down) {
-        this.base = base;
-        this.lo = lo;
-        this.hi = hi;
-        this.up = up;
-        this.down = down;
+    private Vertical() {
+        this(null, null, null, 0, 0, 0, 0);
     }
 
-    /** 脚在第 {@code y} 层的节点走进目标,竖直方向至少还要多付的刻数。 */
+    private Vertical(CostModel model, BodyStats body, Levels levels, int base, int top, int lo, int hi) {
+        this.model = model;
+        this.body = body;
+        this.levels = levels;
+        this.base = base;
+        this.top = top;
+        this.lo = lo;
+        this.hi = hi;
+        if (levels == null) {
+            this.jump = 0;
+            this.sprint = 0;
+            this.bucket = false;
+        } else {
+            double penalty = model.spec().jumpPenalty();
+            double jumping = Math.max(0, Kinematics.jumpCycleTicks(body, 1.0, body.stepHeight()) + penalty - Kinematics.sprintTicksPerBlock(body));
+            this.jump = model.spec().parkour() ? Math.min(jumping, penalty) : jumping;
+            this.sprint = Kinematics.sprintTicksPerBlock(body);
+            this.bucket = model.body().carriesWaterBucket();
+        }
+        this.up = new double[Math.max(0, top - base)];
+        this.upFrom = Math.min(lo, top);
+        this.down = new double[Math.max(0, top - base)];
+        this.downTo = Math.max(hi + 1, base) - 1;
+        this.fresh = new double[Math.max(0, top - base) + 1];
+        Arrays.fill(fresh, Double.NaN);
+    }
+
+    /**
+     * 脚在第 {@code y} 层的节点走进目标,竖直方向至少还要多付的刻数。表不是一开始就填满的:问到哪一层,才把它和它到目标之间的层读出来
+     * ({@link Levels})、算到那一层;所以只能在搜索的那一个线程上用。
+     */
     double floor(int y) {
-        double[] table = y < lo ? up : y > hi ? down : null;
-        int i = y - base;
-        return table != null && i >= 0 && i < table.length ? table[i] : 0;
+        if (levels == null) {
+            return 0;
+        }
+        return y < lo ? rise(y) : y > hi ? fall(y) : 0;
     }
 
     /** 这次搜索的竖直额外代价:读 {@code view} 里的方块,按 {@code model} 的身体与规格,目标交出的高度范围。 */
@@ -69,107 +111,143 @@ final class Vertical {
             return NONE;
         }
         BodyStats body = model.body().stats();
-        Levels levels = Levels.of(view, body);
         int base = view.getMinBuildHeight();
-        int top = base + view.getHeight();
-        return new Vertical(base, heights.lo(), heights.hi(), up(model, body, levels, heights.lo(), base, top),
-                down(model, body, levels, heights.hi(), base, top));
+        return new Vertical(model, body, new Levels(view, body), base, base + view.getHeight(), heights.lo(), heights.hi());
     }
 
-    private static double[] up(CostModel model, BodyStats body, Levels levels, int lo, int base, int top) {
-        double penalty = model.spec().jumpPenalty();
-        double jumping = Math.max(0, Kinematics.jumpCycleTicks(body, 1.0, body.stepHeight()) + penalty - Kinematics.sprintTicksPerBlock(body));
-        double jump = model.spec().parkour() ? Math.min(jumping, penalty) : jumping;
-        double[] up = new double[top - base];
-        double sum = 0;
-        for (int y = Math.min(lo, top) - 1; y >= base; y--) {
-            sum += levels.smoothRise(y, body) ? 0 : jump;
-            up[y - base] = sum;
+    /** 往上:从目标那一层往下一层层累加,累加的先后与逐层填满整张表时一样。 */
+    private double rise(int y) {
+        if (y < base || y >= Math.min(lo, top)) {
+            return 0;
         }
-        return up;
+        while (upFrom > y) {
+            upFrom--;
+            upSum += levels.smoothRise(upFrom) ? 0 : jump;
+            up[upFrom - base] = upSum;
+        }
+        return up[y - base];
     }
 
-    private static double[] down(CostModel model, BodyStats body, Levels levels, int hi, int base, int top) {
-        double sprint = Kinematics.sprintTicksPerBlock(body);
-        boolean bucket = model.body().carriesWaterBucket();
-        double[] fresh = new double[top - base + 1];
-        for (int k = 1; k < fresh.length; k++) {
-            fresh[k] = landing(model, body, sprint, k, 0);
+    /** 往下:从目标那一层往上一层层算,每一层只读比它低的层。 */
+    private double fall(int y) {
+        if (y < Math.max(hi + 1, base) || y >= top) {
+            return 0;
         }
-        double[] down = new double[top - base];
-        for (int y = Math.max(hi + 1, base); y < top; y++) {
-            double best = Double.POSITIVE_INFINITY;
-            for (int k = 1; y - k >= hi; k++) {
-                int land = y - k;
-                double fraction = levels.fraction(land);
-                if (!bucket && !levels.bypass(land)
-                        && k > Math.max(1, (int) Math.floor(model.spec().maxFallHeightNoWater() + fraction + Footing.EPSILON))) {
-                    continue;
-                }
-                double once = fraction == 0 ? fresh[k] : landing(model, body, sprint, k, fraction);
-                best = Math.min(best, once + (land > hi ? down[land - base] : 0));
+        while (downTo < y) {
+            downTo++;
+            down[downTo - base] = cheapestFall(downTo);
+        }
+        return down[y - base];
+    }
+
+    private double cheapestFall(int y) {
+        double best = Double.POSITIVE_INFINITY;
+        for (int k = 1; y - k >= hi; k++) {
+            int land = y - k;
+            double fraction = levels.fraction(land);
+            if (!bucket && !levels.bypass(land)
+                    && k > Math.max(1, (int) Math.floor(model.spec().maxFallHeightNoWater() + fraction + Footing.EPSILON))) {
+                continue;
             }
-            down[y - base] = best;
+            double once = fraction == 0 ? fresh(k) : landing(k, fraction);
+            best = Math.min(best, once + (land > hi ? down[land - base] : 0));
         }
-        return down;
+        return best;
+    }
+
+    private double fresh(int k) {
+        if (Double.isNaN(fresh[k])) {
+            fresh[k] = landing(k, 0);
+        }
+        return fresh[k];
     }
 
     /**
      * 一次落 {@code k} 个节点的落脚至少比水平底价多付多少:走出边沿加落下去的工夫减去疾跑一格。落差至少 {@code k} 减去落脚高度的
      * 小数部分 {@code fraction}。落一个节点还有向下挖(只付落下去的工夫,挖的钱在埋深里),规格许挖时取便宜的。
      */
-    private static double landing(CostModel model, BodyStats body, double sprint, int k, double fraction) {
+    private double landing(int k, double fraction) {
         double landing = Kinematics.fallLandingTicks(body, k - fraction);
         double straight = Math.max(0, Kinematics.walkOffEdgeTicks(body) + landing - sprint);
         return k == 1 && model.spec().dig() ? Math.min(straight, landing) : straight;
     }
 
-    /** 快照里每一层有什么落脚:顶面的小数部分、落进去不摔的液体与可攀爬的方块。 */
+    /**
+     * 快照里每一层有什么落脚:顶面的小数部分、落进去不摔的液体与可攀爬的方块。问到哪一层才读哪一层:按区段高度(16 层)一带一带读,
+     * 一带里的调色板只问一遍。第 {@code y} 层的落脚来自这一层的矮方块和下面一层顶面超过一格的栅栏、墙({@link Footing} 找脚下的托也只看
+     * 这两层),所以问第 {@code y} 层读它所在的一带,它是这一带最低的一层时再读下面那一带。
+     */
     private static final class Levels {
+        private final SearchView view;
+        private final BodyStats body;
         private final int base;
         /** 节点在这一层、脚踩在矮方块上,脚在格里最高的小数部分。 */
         private final double[] fraction;
         /** 这一层有液体或可攀爬的方块。 */
         private final boolean[] bypass;
+        /** 这一带读过了。 */
+        private final boolean[] bandRead;
+        private final Map<BlockState, Info> known = new IdentityHashMap<>();
 
-        private Levels(int base, int size) {
-            this.base = base;
-            this.fraction = new double[size];
-            this.bypass = new boolean[size];
+        private Levels(SearchView view, BodyStats body) {
+            this.view = view;
+            this.body = body;
+            this.base = view.getMinBuildHeight();
+            this.fraction = new double[view.getHeight()];
+            this.bypass = new boolean[view.getHeight()];
+            this.bandRead = new boolean[(view.getHeight() + 15) >> 4];
         }
 
         double fraction(int y) {
             int i = y - base;
-            return i >= 0 && i < fraction.length ? fraction[i] : 0;
+            if (i < 0 || i >= fraction.length) {
+                return 0;
+            }
+            read(i);
+            return fraction[i];
         }
 
         boolean bypass(int y) {
             int i = y - base;
-            return i >= 0 && i < bypass.length && bypass[i];
+            if (i < 0 || i >= bypass.length) {
+                return false;
+            }
+            read(i);
+            return bypass[i];
         }
 
         /** 从第 {@code y} 层的节点升到上一层不用跳:这一层有顶面离下一格底不到迈步高度的落脚。 */
-        boolean smoothRise(int y, BodyStats body) {
+        boolean smoothRise(int y) {
             return 1 - fraction(y) <= body.stepHeight() + Footing.EPSILON;
         }
 
-        static Levels of(SearchView view, BodyStats body) {
-            Levels levels = new Levels(view.getMinBuildHeight(), view.getHeight());
-            Map<BlockState, Info> known = new IdentityHashMap<>();
-            view.forEachBlock(state -> known.computeIfAbsent(state, s -> Info.of(body, s)).interesting(), (state, y) -> {
+        /** 第 {@code i} 层(从最低的一层数起)的落脚都读进来了。 */
+        private void read(int i) {
+            readBand(i >> 4);
+            if ((i & 15) == 0 && i > 0) {
+                readBand((i >> 4) - 1);
+            }
+        }
+
+        private void readBand(int band) {
+            if (bandRead[band]) {
+                return;
+            }
+            bandRead[band] = true;
+            int from = base + (band << 4);
+            view.forEachBlock(from, from + 16, state -> known.computeIfAbsent(state, s -> Info.of(body, s)).interesting(), (state, y) -> {
                 Info info = known.get(state);
-                int i = y - levels.base;
-                if (info.bypass() && i >= 0 && i < levels.bypass.length) {
-                    levels.bypass[i] = true;
+                int i = y - base;
+                if (info.bypass() && i >= 0 && i < bypass.length) {
+                    bypass[i] = true;
                 }
                 for (double top : info.tops()) {
-                    int at = y + (int) Math.floor(top + Footing.EPSILON) - levels.base;
-                    if (at >= 0 && at < levels.fraction.length) {
-                        levels.fraction[at] = Math.max(levels.fraction[at], top - Math.floor(top + Footing.EPSILON));
+                    int at = y + (int) Math.floor(top + Footing.EPSILON) - base;
+                    if (at >= 0 && at < fraction.length) {
+                        fraction[at] = Math.max(fraction[at], top - Math.floor(top + Footing.EPSILON));
                     }
                 }
             });
-            return levels;
         }
     }
 
