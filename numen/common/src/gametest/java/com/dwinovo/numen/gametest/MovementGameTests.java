@@ -264,6 +264,62 @@ public class MovementGameTests {
     }
 
     /**
+     * 跟的人封在一间基岩小屋里,小屋嵌在一大块实心的石头中间(挖得动,足够大):受理前的试搜在石头里一格一格往里挖,搜到预算用完也
+     * 没搜完——这只是没搜完,不能证明到不了。受理,开始走;不当场回一句"跟不上"。石头铺得比场地大,伸进邻居的场地里,所以自成一批,
+     * 收场时还成空气。
+     */
+    @GameTest(template = "floor16", timeoutTicks = 3000, batch = "numen_follow_budget")
+    public static void follow_is_accepted_when_the_probe_search_runs_out_of_budget(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos low = helper.absolutePos(new BlockPos(16, 1, -12));
+        BlockPos high = helper.absolutePos(new BlockPos(55, 40, 27));
+        for (int cx = low.getX() >> 4; cx <= high.getX() >> 4; cx++) {
+            for (int cz = low.getZ() >> 4; cz <= high.getZ() >> 4; cz++) {
+                level.setChunkForced(cx, cz, true);
+            }
+        }
+        for (BlockPos cell : BlockPos.betweenClosed(low, high)) {
+            level.setBlock(cell, Blocks.STONE.defaultBlockState(), 2);
+        }
+        BlockPos room = helper.absolutePos(new BlockPos(36, 20, 8));
+        for (BlockPos cell : BlockPos.betweenClosed(room.offset(-4, -4, -4), room.offset(4, 4, 4))) {
+            level.setBlock(cell, Blocks.BEDROCK.defaultBlockState(), 2);
+        }
+        level.setBlock(room, Blocks.AIR.defaultBlockState(), 2);
+        var stand = new net.minecraft.world.entity.decoration.ArmorStand(level, room.getX() + 0.5, room.getY(), room.getZ() + 0.5);
+        level.addFreshEntity(stand);
+        NumenPlayer companion = spawnAt(helper, "gametest_tailing", new BlockPos(3, 2, 8), false);
+        ToolRun follow = lua(companion, "numen.move.follow(" + stand.getId() + ", {distance = 3})");
+
+        steps(helper)
+                .thenWaitUntil(() -> {
+                    // 试搜在工作线程上按墙钟跑,测试服务器的刻不等它:每刻让出一点墙钟
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    helper.assertTrue(follow.reply() != null, "follow has not replied");
+                    helper.assertTrue(!follow.refused(),
+                            "follow was refused although the search only ran out of budget: " + follow.reply());
+                    helper.assertTrue(follow.task() != null, "follow was not accepted: " + follow.reply());
+                })
+                .thenExecute(() -> {
+                    CompanionFactory.despawn(level.getServer(), companion);
+                    stand.discard();
+                    for (BlockPos cell : BlockPos.betweenClosed(low, high)) {
+                        level.setBlock(cell, Blocks.AIR.defaultBlockState(), 2);
+                    }
+                    for (int cx = low.getX() >> 4; cx <= high.getX() >> 4; cx++) {
+                        for (int cz = low.getZ() >> 4; cz <= high.getZ() >> 4; cz++) {
+                            level.setChunkForced(cx, cz, false);
+                        }
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
      * 重启后接不回来的活不许让调度 tick 抛出去:记下的那一行 Lua 再跑时已经不成立(dig 点名的那块铁矿已经不在了,
      * 函数当场失败),新身体照样起来,她收到一条 task_finished 说清这件活没接回来,记录清掉。
      */

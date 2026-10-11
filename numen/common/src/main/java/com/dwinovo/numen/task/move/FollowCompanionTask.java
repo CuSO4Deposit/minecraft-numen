@@ -11,6 +11,7 @@ import com.dwinovo.numen.nav.Walked;
 import com.dwinovo.numen.nav.Walking;
 import com.dwinovo.numen.task.base.AbstractCompanionTask;
 import com.dwinovo.numen.task.base.Precondition;
+import com.dwinovo.numen.pathing.api.Outcome;
 import com.dwinovo.numen.pathing.search.Goal;
 import com.dwinovo.numen.pathing.search.Goals;
 import com.dwinovo.numen.pathing.search.Route;
@@ -101,8 +102,10 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
     }
 
     /**
-     * 受理之前:要跟的人此刻离她远到要起步时,一次只搜不走地规划过去的路——按同一份规格走不到,就是开工后第一趟会
-     * 报的那句"跟不上",当场回,不受理;走得到的那条路是第一趟的开头({@link Trip#prepared})。就在身边、主人不在线,当场就绪。
+     * 受理之前:要跟的人此刻离她远到要起步时,一次只搜不走地规划过去的路——按同一份规格确证走不到(没有路、要的料没有、权限层
+     * 不许……),就是开工后第一趟会报的那句"跟不上",当场回,不受理。预算用完、路伸进没加载的区块只是没搜完,不能证明到不了
+     * ({@link Outcome.OutOfBudget}、{@link Outcome.Unloaded}),照样受理:搜出的那条路,或朝他推进的那一截,是第一趟的开头
+     * ({@link Trip#prepared})。就在身边、主人不在线,当场就绪。
      */
     @Override
     protected Preparation preparation() {
@@ -121,8 +124,8 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
                     return null;
                 }
                 Survey.Found leg = found.get(0);
-                if (leg.reached()) {
-                    seed = leg.route();
+                if (leg.reached() || unfinished(leg.outcome())) {
+                    seed = leg.reached() ? leg.route() : leg.partial();
                     return Preparation.Readiness.READY;
                 }
                 return Preparation.Readiness.refused(TaskResult.fail(com.dwinovo.numen.api.agent.script.ErrorKind.NO_PATH,
@@ -136,6 +139,11 @@ public final class FollowCompanionTask extends AbstractCompanionTask<FollowTaskR
                 survey.cancel();
             }
         };
+    }
+
+    /** 这次规划没搜完:预算用完、路伸进了没加载的区块,没有证据说走不到。 */
+    private static boolean unfinished(Outcome outcome) {
+        return outcome instanceof Outcome.OutOfBudget || outcome instanceof Outcome.Unloaded;
     }
 
     @Override
