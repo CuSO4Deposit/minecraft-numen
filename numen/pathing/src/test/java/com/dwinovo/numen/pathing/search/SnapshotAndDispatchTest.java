@@ -5,6 +5,9 @@ import com.dwinovo.numen.pathing.TestWorld;
 import com.dwinovo.numen.pathing.Vanilla;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -80,6 +83,37 @@ class SnapshotAndDispatchTest {
         java.util.List<Integer> none = new java.util.ArrayList<>();
         snapshot.forEachBlock(state -> state.is(Blocks.WATER), (state, y) -> none.add(y));
         assertTrue(none.isEmpty());
+    }
+
+    /** 叫停时还在队里排着的搜索直接从队里拿走,它握着的世界快照不必等到有线程空出来才放掉。 */
+    @Test
+    void aCancelledSearchStillInTheQueueLetsGoOfItsInputs() throws InterruptedException {
+        // 把工作线程占满:池子大小不超过处理器数,这么多件不收手的活一定排满它
+        List<Pending<Object>> blockers = new ArrayList<>();
+        for (int i = 0; i < Runtime.getRuntime().availableProcessors() + 2; i++) {
+            blockers.add(Searches.submit(cancelled -> {
+                while (!cancelled.getAsBoolean()) {
+                    Thread.onSpinWait();
+                }
+                return null;
+            }));
+        }
+        try {
+            TestWorld world = new TestWorld().floor(-2, -2, 12, 2, Y - 1);
+            java.lang.ref.WeakReference<TestWorld> seen = new java.lang.ref.WeakReference<>(world);
+            Pending<SearchResult> waiting = Searches.submit(new Search(world, Fixtures.model(RouteSpec.defaults()), new BlockPos(0, Y, 0),
+                    Goals.at(new BlockPos(10, Y, 0)), Fixtures.BUDGET, Favoring.NONE));
+            waiting.cancel();
+            waiting = null;
+            world = null;
+            for (int i = 0; i < 100 && seen.get() != null; i++) {
+                System.gc();
+                Thread.sleep(20);
+            }
+            assertEquals(null, seen.get(), "叫停了的搜索不该还握着它的快照");
+        } finally {
+            blockers.forEach(Pending::cancel);
+        }
     }
 
     @Test
