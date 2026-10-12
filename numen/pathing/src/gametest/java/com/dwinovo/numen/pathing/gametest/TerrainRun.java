@@ -12,6 +12,10 @@ import com.dwinovo.numen.pathing.drive.Journal;
 import com.dwinovo.numen.pathing.plan.Threats;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import com.dwinovo.numen.pathing.plan.Permit;
+import com.dwinovo.numen.pathing.plan.TerrainPolicy;
 import net.minecraft.world.level.block.Blocks;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -109,6 +113,14 @@ final class TerrainRun {
                             level.setBlock(cell, Blocks.AIR.defaultBlockState(), 2);
                         }
                     }
+                    if (route.stage() != null) {
+                        for (TerrainRoutes.Fill fill : route.stage().fills()) {
+                            for (BlockPos cell : BlockPos.betweenClosed(fill.box().min(), fill.box().max())) {
+                                carved.putIfAbsent(cell.immutable(), level.getBlockState(cell));
+                                level.setBlock(cell, fill.block().defaultBlockState(), 2);
+                            }
+                        }
+                    }
                     if (route.buried() && !sealedInRock(route.to())) {
                         helper.fail("路线常量过期:终点 " + route.to().toShortString() + " 不是封闭在实心方块里的一格");
                         restore();
@@ -129,7 +141,7 @@ final class TerrainRun {
             case SPAWNED -> {
                 // 出生无敌期里摔落不掉血,等过了再走,记的最低血量才有意义
                 if (++waited > Trial.SPAWN_INVULNERABILITY) {
-                    Navigator navigator = Navigator.of(body, new Ports(Trial.ALLOW_ALL, Trial.NO_MATERIALS, Threats.NONE));
+                    Navigator navigator = Navigator.of(body, ports());
                     startedAt = body.position();
                     orderedNanos = System.nanoTime();
                     navigation = navigator.drive(NavRequest.to(route.goal(), WALKING));
@@ -174,6 +186,37 @@ final class TerrainRun {
         return true;
     }
 
+    /** 许可与垫路料:悬空场地的路线带自己的禁区与圆石,别的路线什么都放行、身上什么料都没有。 */
+    private Ports ports() {
+        TerrainRoutes.Stage stage = route.stage();
+        if (stage == null) {
+            return new Ports(Trial.ALLOW_ALL, Trial.NO_MATERIALS, Threats.NONE);
+        }
+        TerrainPolicy policy = stage.noEdit().isEmpty() ? Trial.ALLOW_ALL : (change, pos, state, view) -> {
+            for (TerrainRoutes.Box zone : stage.noEdit()) {
+                if (pos.getX() >= zone.min().getX() && pos.getX() <= zone.max().getX() && pos.getY() >= zone.min().getY()
+                        && pos.getY() <= zone.max().getY() && pos.getZ() >= zone.min().getZ() && pos.getZ() <= zone.max().getZ()) {
+                    return Permit.deny("forbidden zone");
+                }
+            }
+            return Permit.ALLOW;
+        };
+        if (stage.cobblestone() == 0) {
+            return new Ports(policy, Trial.NO_MATERIALS, Threats.NONE);
+        }
+        body.getInventory().add(new ItemStack(Items.COBBLESTONE, stage.cobblestone()));
+        return new Ports(policy, Trial.carried(body, Blocks.COBBLESTONE), Threats.NONE);
+    }
+
+    /** 到了才算过;悬空场地的硬挡路线,没到、收场的结局满足它自己写的预期才算过。 */
+    private boolean passed(NavStatus status) {
+        TerrainRoutes.Stage stage = route.stage();
+        if (stage == null) {
+            return status.state() == NavStatus.State.ARRIVED;
+        }
+        return status.state() == NavStatus.State.FAILED && stage.expected().test(status.outcome());
+    }
+
     private void walk() {
         NavStatus status = navigation.tick();
         while (navigation.waiting()) {
@@ -197,10 +240,10 @@ final class TerrainRun {
         body.leave();
         restore();
         summarize(record);
-        if (status.state() == NavStatus.State.ARRIVED) {
+        if (passed(status)) {
             helper.succeed();
         } else {
-            helper.fail((overdue ? "超时 " + route.limit() + " 刻没走到:" : "没走到:") + status.state() + " " + status.outcome()
+            helper.fail((overdue ? "超时 " + route.limit() + " 刻没收场:" : route.stage() != null ? "结局不是预期的:" : "没走到:") + status.state() + " " + status.outcome()
                     + ",身体在 " + body.blockPosition().toShortString());
         }
     }
