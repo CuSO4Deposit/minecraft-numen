@@ -54,7 +54,12 @@ final class OpenSet {
 
     private boolean before(int a, int b) {
         long[] key = nodes.key;
-        return key[a] < key[b] || (key[a] == key[b] && nodes.h[a] < nodes.h[b]);
+        if (key[a] != key[b]) {
+            return key[a] < key[b];
+        }
+        // 同总价先展开离目标近的;贪心那一遍总价就是估价,估价也平手时先展开已走得远的(沿着走下去,不在整片平台上铺开)
+        double[] h = nodes.h;
+        return h[a] != h[b] ? h[a] < h[b] : nodes.g[a] > nodes.g[b];
     }
 
     int pop() {

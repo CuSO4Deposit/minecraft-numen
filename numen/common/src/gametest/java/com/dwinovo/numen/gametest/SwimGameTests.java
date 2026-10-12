@@ -138,8 +138,9 @@ public class SwimGameTests {
     }
 
     /**
-     * 28 格长的封顶水道(一口气约 290 刻,满氧气安全地只憋得住 240 刻),是两边唯一的路:{@code numen.move.to} 不下水,回执说那一段
-     * 水下从哪儿到哪儿、要憋多久、能憋多久,有水下呼吸才走得了;她没进过水,一点血不掉。
+     * 28 格长的封顶水道(一口气约 290 刻,满氧气安全地只憋得住 240 刻),是两边唯一的路:{@code numen.move.to} 不走完这一段水下,
+     * 回执说那一段水下从哪儿到哪儿、要憋多久、能憋多久,有水下呼吸才走得了;她一点血不掉,氧气从没低过安全的底线(找路时一段一段
+     * 往边界试探,可以下水憋一小会儿,可得浮上来,不能憋到底线以下)。
      */
     @GameTest(template = "floor52", timeoutTicks = 100000, batch = BATCH)
     public static void goto_will_not_dive_a_sealed_channel_too_long_to_hold(GameTestHelper helper) {
@@ -148,15 +149,16 @@ public class SwimGameTests {
         NumenPlayer companion = spawnAt(helper, "gametest_breathless", new BlockPos(5, 2, Z), false);
         BlockPos there = helper.absolutePos(new BlockPos(39, 2, Z));
         ToolRun walk = lua(companion, "numen.move.to(" + xyz(there) + ")");
-        boolean[] wet = {false};
-        helper.onEachTick(() -> wet[0] |= companion.isInWater());
+        int[] lowestAir = {Integer.MAX_VALUE};
+        helper.onEachTick(() -> lowestAir[0] = Math.min(lowestAir[0], companion.getAirSupply()));
 
         succeedWhen(helper, () -> {
             helper.assertTrue(walk.done(), "numen.move.to has not finished");
             helper.assertTrue(!walk.succeeded() && walk.outcome().contains("swims under water from")
                             && walk.outcome().contains("without a breath") && walk.outcome().contains("water breathing"),
                     "the reply does not say the way is too long under water: " + walk.outcome());
-            helper.assertTrue(!wet[0], "she went into the water");
+            helper.assertTrue(lowestAir[0] >= com.dwinovo.numen.pathing.plan.Breath.RESERVE,
+                    "she held her breath past the safe reserve: " + lowestAir[0]);
             helper.assertTrue(companion.getHealth() >= companion.getMaxHealth(), "she got hurt");
             CompanionFactory.despawn(level.getServer(), companion);
         });

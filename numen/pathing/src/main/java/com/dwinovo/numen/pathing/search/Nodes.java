@@ -28,7 +28,7 @@ final class Nodes {
     int[] used = new int[INITIAL];
     /** 憋气的档({@link Breath#band})。 */
     int[] band = new int[INITIAL];
-    /** 估价。 */
+    /** 估价:到这次搜索要去的地方(这一段的终点,或目标)至少还要多少刻;到了就是 0。 */
     double[] h = new double[INITIAL];
     /** 已走的代价。 */
     double[] g = new double[INITIAL];
@@ -40,6 +40,12 @@ final class Nodes {
     int[] parent = new int[INITIAL];
     /** 在堆里的位置;不在堆里为 -1。 */
     int[] heapIndex = new int[INITIAL];
+    /** 展开过:往外的每一步都判过了。没展开过、又有了代价的节点是边界。 */
+    boolean[] expanded = new boolean[INITIAL];
+    /** 展开时有一步读到了没加载的列、没能判断:这个节点往外的路没有看全,算边界。 */
+    boolean[] holed = new boolean[INITIAL];
+    /** 到达价已经付过:目标要求停下还要付价的节点,按"走到加停下"的总价再出一次堆才收。 */
+    boolean[] paid = new boolean[INITIAL];
     /** 走到这里的那一步:走法在 {@code Moves.ALL} 里的下标,与方向在那个走法的 {@code headings()} 里的下标。 */
     byte[] move = new byte[INITIAL];
     byte[] heading = new byte[INITIAL];
@@ -115,6 +121,9 @@ final class Nodes {
         key = Arrays.copyOf(key, n);
         parent = Arrays.copyOf(parent, n);
         heapIndex = Arrays.copyOf(heapIndex, n);
+        expanded = Arrays.copyOf(expanded, n);
+        holed = Arrays.copyOf(holed, n);
+        paid = Arrays.copyOf(paid, n);
         move = Arrays.copyOf(move, n);
         heading = Arrays.copyOf(heading, n);
         viaCost = Arrays.copyOf(viaCost, n);

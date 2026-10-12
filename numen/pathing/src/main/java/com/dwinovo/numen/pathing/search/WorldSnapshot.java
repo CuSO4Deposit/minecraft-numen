@@ -118,8 +118,13 @@ public final class WorldSnapshot implements SearchView {
 
     /** 为从 {@code start} 出发的一次搜索拷贝快照:以它所在的区块为中心、{@link #SEARCH_RADIUS} 为半径。必须在世界所在的线程上调用。 */
     public static WorldSnapshot around(Level level, BlockPos start) {
+        return around(level, start, SEARCH_RADIUS);
+    }
+
+    /** 同上,半径是 {@code radius} 个区块:一段一段走时一段只看这一段那么远。 */
+    public static WorldSnapshot around(Level level, BlockPos start, int radius) {
         return capture(level, SectionPos.blockToSectionCoord(start.getX()), SectionPos.blockToSectionCoord(start.getZ()),
-                SEARCH_RADIUS);
+                radius);
     }
 
     /**

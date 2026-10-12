@@ -133,6 +133,11 @@ final class Course {
         return left;
     }
 
+    /** 第 {@code index} 步按成本模型算出的代价(含罚分)。 */
+    double costAt(int index) {
+        return legs.get(index).cost();
+    }
+
     /** 第 {@code index} 步几何上最短要几刻。 */
     double minimumAt(int index) {
         return minimum.get(index);

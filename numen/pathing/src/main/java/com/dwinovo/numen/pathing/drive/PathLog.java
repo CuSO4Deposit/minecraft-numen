@@ -12,6 +12,7 @@ import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
 import com.dwinovo.numen.pathing.search.Pending;
 import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.search.SearchResult;
 import com.dwinovo.numen.pathing.search.Searches;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
@@ -192,6 +193,11 @@ public final class PathLog {
     /** 一步:走法、起落点。 */
     public static String step(Maneuver m) {
         return m.kind() + " " + pos(m.from()) + "→" + pos(m.to());
+    }
+
+    /** 搜索里离目标最近的节点上朝目标的一步被拒:哪种走法、从哪个节点、卡在哪一格、哪条前提。 */
+    public static String blocking(SearchResult.Blocking b) {
+        return b.move() + " 从 " + pos(b.from()) + " 卡在 " + pos(b.fails().cell()) + " 前提=" + b.fails().reason();
     }
 
     /** 一步走不下去:哪种走法、哪一格、什么方块、哪条前提或执行里出的事。 */

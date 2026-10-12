@@ -76,17 +76,18 @@ public final class NavText {
             // 诊断在许挖许放、设想有料时也没搜出路才给这个结局:这条规格下从这里就是过不去
             case Outcome.NoRoute noRoute -> "found no path to target (" + where + "; every reachable cell was searched"
                     + (spec.changes() ? ", digging, bridging and pillaring included" : "")
-                    + "): there is no way there from here, pick another destination";
+                    + ")" + heldUp(noRoute.cause()) + ": there is no way there from here, pick another destination";
             case Outcome.OutOfBudget budget -> "found no path to target (" + where + "; the search used up its budget"
-                    + " before finding one, so this is not proof there is none; going to a nearer place in that"
-                    + " direction first gets further)";
+                    + " before finding one, so this is not proof there is none" + heldUp(budget.cause()) + "; going to a"
+                    + " nearer place in that direction first gets further)";
             case Outcome.Unloaded unloaded -> "found no path to target (" + where + "; the search reached chunks that"
                     + " are not loaded, so what lies past them is unknown; walk toward it and try again)";
             case Outcome.OverAlterBudget over -> "found no path to target (" + where + "; "
                     + overBudget(spec.alterBudget(), over.needed()) + ")";
             case Outcome.NeedsChanges needs -> needsChanges(needs, where);
             case Outcome.NoMaterials none -> "found no path to target (" + where + "; every way needs blocks to"
-                    + " pillar or bridge with)." + ThrowawayBlocks.shortageAdvice(player, materials);
+                    + " pillar or bridge with, about " + none.needed() + " in all)."
+                    + ThrowawayBlocks.shortageAdvice(player, materials);
             case Outcome.Denied denied -> "had to stop: changing " + Listing.coords(denied.cell()) + " is refused ("
                     + reason(denied.reason()) + ") and no way around it was found; pick another destination, or ask "
                     + "your owner to allow it";
@@ -146,6 +147,12 @@ public final class NavText {
     /** 一格改不得的原因:许可拒绝的({@code detail} 是它的裁决)说权限层自己的话,别的按 {@link Reason} 说。 */
     public static String refused(Reason reason, Object detail) {
         return reason == Reason.DENIED ? reason(detail) : reason(reason);
+    }
+
+    /** 搜索里离目标最近的地方,朝目标的一步被什么挡住了;没有是空串。 */
+    private static String heldUp(Blockage cause) {
+        return cause == null ? "" : "; nearest to the target, " + move(cause.move()) + " at " + Listing.coords(cause.cell())
+                + " (" + name(cause.block()) + ") was ruled out: " + reason(cause.reason());
     }
 
     /** 一步走不下去的那一句:哪一格、什么方块、哪种走法、为什么。 */

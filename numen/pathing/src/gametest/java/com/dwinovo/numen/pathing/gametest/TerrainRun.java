@@ -50,6 +50,10 @@ final class TerrainRun {
     private TestBody body;
     private Navigation navigation;
     private int waited;
+    /** 下令那一刻的墙钟,与身体头一次挪动那一刻的墙钟(下令到开始走用了多久)。 */
+    private long orderedNanos;
+    private long movedNanos;
+    private net.minecraft.world.phys.Vec3 startedAt;
     private float lowestHealth = Float.MAX_VALUE;
     /** 开跑前挖空的格子原来的样子。 */
     private final Map<BlockPos, BlockState> carved = new LinkedHashMap<>();
@@ -126,6 +130,8 @@ final class TerrainRun {
                 // 出生无敌期里摔落不掉血,等过了再走,记的最低血量才有意义
                 if (++waited > Trial.SPAWN_INVULNERABILITY) {
                     Navigator navigator = Navigator.of(body, new Ports(Trial.ALLOW_ALL, Trial.NO_MATERIALS, Threats.NONE));
+                    startedAt = body.position();
+                    orderedNanos = System.nanoTime();
                     navigation = navigator.drive(NavRequest.to(route.goal(), WALKING));
                     phase = Phase.WALKING;
                 }
@@ -175,6 +181,9 @@ final class TerrainRun {
             status = navigation.tick();
         }
         lowestHealth = Math.min(lowestHealth, body.getHealth());
+        if (movedNanos == 0 && body.position().distanceToSqr(startedAt) > 0.05 * 0.05) {
+            movedNanos = System.nanoTime();
+        }
         boolean overdue = status.running() && navigation.report().ticks() >= route.limit();
         if (status.running() && !overdue) {
             return;
@@ -222,7 +231,12 @@ final class TerrainRun {
         o.addProperty("ticks", report.ticks());
         o.addProperty("limit", route.limit());
         o.addProperty("searches", journal.searches());
-        o.addProperty("budgetStops", journal.budgetStops());
+        o.addProperty("learned", journal.learned());
+        o.addProperty("routeCost", Math.round(journal.routeCost() * 10) / 10.0);
+        JsonArray searchMs = new JsonArray();
+        journal.searchNanos().forEach(n -> searchMs.add(Math.round(n / 1e5) / 10.0));
+        o.add("searchMs", searchMs);
+        o.addProperty("startMs", movedNanos == 0 ? -1 : Math.round((movedNanos - orderedNanos) / 1e5) / 10.0);
         JsonArray expansions = new JsonArray();
         journal.expansions().forEach(expansions::add);
         o.add("expansions", expansions);
@@ -258,12 +272,12 @@ final class TerrainRun {
                 return;
             }
             LOG.info("[terrain-table] {}", String.format("%-14s %-8s %6s %5s %5s %6s %6s %6s %7s %7s %7s %6s %5s %5s", "route", "arrived",
-                    "dist", "rise", "limit", "ticks", "search", "budget", "expand", "replan", "blocked", "stuck", "steps", "hp"));
+                    "dist", "rise", "limit", "ticks", "search", "learned", "expand", "replan", "blocked", "stuck", "steps", "hp"));
             for (JsonObject o : DONE) {
                 LOG.info("[terrain-table] {}", String.format("%-14s %-8s %6.1f %5d %5d %6d %6d %6d %7d %7d %7d %6d %5d %5.1f",
                         o.get("route").getAsString(), o.get("state").getAsString(), o.get("distance").getAsDouble(),
                         o.get("rise").getAsInt(), o.get("limit").getAsInt(), o.get("ticks").getAsInt(),
-                        o.get("searches").getAsInt(), o.get("budgetStops").getAsInt(), o.get("expanded").getAsInt(), o.get("replans").getAsInt(), o.get("blocked").getAsInt(),
+                        o.get("searches").getAsInt(), o.get("learned").getAsInt(), o.get("expanded").getAsInt(), o.get("replans").getAsInt(), o.get("blocked").getAsInt(),
                         o.get("stuck").getAsInt(), o.get("steps").getAsInt(), o.get("lowestHealth").getAsFloat()));
             }
             DONE.clear();
