@@ -21,7 +21,6 @@ import com.dwinovo.numen.pathing.world.Bounds;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Recall;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,7 +31,8 @@ import net.minecraft.world.level.material.FluidState;
  * A*:从起点节点逐个展开 {@link Moves#ALL} 的每种走法、每个方向,前提成立的步子按它的代价(乘上旧路折扣)松弛。
  *
  * <ul>
- *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上"走到这个节点的那一步"做过的改动——刚挖开的格是空的,
+ *   <li><b>节点不建对象</b>({@link Nodes}):每个节点是一个下标,位置、代价、父节点、走法放在平行数组里,堆里存下标
+ *       ({@link OpenSet});</li> *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上"走到这个节点的那一步"做过的改动——刚挖开的格是空的,
  *       刚垫下的块托着脚。更早的步子做过的改动不叠:身体已经离开了那里;</li>
  *   <li><b>预算</b>按展开的节点数计,结论不随机器快慢漂移;</li>
  *   <li><b>停下的原因</b>随结论交出({@link SearchResult.Stop}):到了、搜完无路、预算用完、有路伸进快照外没加载的区块。
@@ -67,11 +67,6 @@ public final class AStar {
     private static final double[] COEFFICIENTS = {1.5, 2, 2.5, 3, 4, 5, 10, Double.POSITIVE_INFINITY};
     /** 小于这个改进不松弛:平地上斜走与直走组合出的浮点差不值得重排堆。 */
     private static final double MIN_IMPROVEMENT = 0.01;
-    /**
-     * 总价差在这以内算平手。平地上同一价钱的路线加的顺序不同,浮点和差在 1e-12 上下:用 f 直接比,平手大半被噪声拆开,
-     * 所以堆按取整到这个刻度的总价比({@link Node#key}),这一格里再比估价。
-     */
-    private static final double TIE = 1e-6;
 
     private final Search search;
     private final CostModel model;
@@ -81,9 +76,10 @@ public final class AStar {
     private final Breath breath;
     /** 有前提成立的步子因为憋不住气没走。 */
     private boolean breathless;
-    private final Long2ObjectOpenHashMap<Node> nodes = new Long2ObjectOpenHashMap<>();
-    private final Heap open = new Heap();
+    private final Nodes nodes = new Nodes();
+    private final OpenSet open = new OpenSet(nodes);
     private Estimate estimate;
+    private Probe probe;
 
     private AStar(Search search) {
         this.search = search;
@@ -110,36 +106,43 @@ public final class AStar {
             return result(SearchResult.Stop.STRANDED, null, 0);
         }
         estimate = Estimate.of(view, model, goal, startPos, search.budget());
-        Node start = node(startPos.getX(), startPos.getY(), startPos.getZ(), 0, breath.band(search.air()));
-        start.g = 0;
-        start.stance = startStance;
-        start.via = arrival;
-        start.air = search.air();
-        start.f = start.h;
+        probe = new Probe(view, new Recall(body));
+        int start = nodes.add(startPos.asLong(), 0, breath.band(search.air()), estimate.at(startPos));
+        nodes.g[start] = 0;
+        nodes.stance[start] = startStance;
+        nodes.via[start] = arrival;
+        nodes.air[start] = search.air();
+        nodes.f[start] = nodes.h[start];
         open.push(start);
-        Node[] best = new Node[COEFFICIENTS.length];
+        int[] best = new int[COEFFICIENTS.length];
         double[] bestScore = new double[COEFFICIENTS.length];
         Arrays.fill(best, start);
-        Arrays.fill(bestScore, start.h);
+        Arrays.fill(bestScore, nodes.h[start]);
 
         int expanded = 0;
         boolean skippedUnloaded = false;
-        Probe probe = new Probe(view, new Recall(body));
         while (!open.isEmpty()) {
             if (cancelled.getAsBoolean()) {
                 return result(SearchResult.Stop.CANCELLED, null, expanded);
             }
-            Node current = open.pop();
+            int current = open.pop();
+            long at = nodes.pos[current];
+            int cx = BlockPos.getX(at);
+            int cy = BlockPos.getY(at);
+            int cz = BlockPos.getZ(at);
+            Maneuver arrivedBy = nodes.via[current];
+            boolean edited = arrivedBy != null && !arrivedBy.edits().isEmpty();
+            Stance stance = nodes.stance[current];
             // 身体此刻面对的世界:快照,加上走到这个节点的那一步做过的改动
-            WorldView here = current.via == null ? probe : EditedView.after(probe, current.via.edits());
+            WorldView here = edited ? EditedView.after(probe, arrivedBy.edits()) : probe;
             // 到达价无穷的节点停下也办不成:不算到,照常往外展开
-            double stopping = goal.contains(current.x, current.y, current.z, current.stance)
-                    ? goal.arrival(here, current.x, current.y, current.z, current.stance) : Double.POSITIVE_INFINITY;
+            double stopping = goal.contains(cx, cy, cz, stance)
+                    ? goal.arrival(here, cx, cy, cz, stance) : Double.POSITIVE_INFINITY;
             if (Double.isFinite(stopping)) {
-                double total = current.g + stopping;
-                if (total > current.f + MIN_IMPROVEMENT) {
+                double total = nodes.g[current] + stopping;
+                if (total > nodes.f[current] + MIN_IMPROVEMENT) {
                     // 到达价还没付:按总价放回堆里,同时照常往外展开——起点在贵的成员里时要走得出去
-                    current.f = total;
+                    nodes.f[current] = total;
                     open.push(current);
                 } else {
                     return result(SearchResult.Stop.ARRIVED, route(start, current), expanded);
@@ -155,11 +158,14 @@ public final class AStar {
                 return result(SearchResult.Stop.BUDGET, partial(start, best), expanded);
             }
             expanded++;
-            BlockPos from = new BlockPos(current.x, current.y, current.z);
+            BlockPos from = null;
             for (Move move : Moves.ALL) {
                 for (Heading heading : move.headings()) {
+                    if (from == null) {
+                        from = new BlockPos(cx, cy, cz);
+                    }
                     probe.recall.clearUnloaded();
-                    Premise premise = move.premise(model, here, from, current.stance, heading);
+                    Premise premise = move.premise(model, here, from, stance, heading);
                     if (probe.recall.unloaded()) {
                         skippedUnloaded = true;
                         continue;
@@ -168,19 +174,19 @@ public final class AStar {
                         continue;
                     }
                     Maneuver m = holds.maneuver();
-                    BlockPos to = m.to();
-                    if (!Bounds.holdsBody(view.border(), body, to.getX(), to.getZ())) {
+                    BlockPos target = m.to();
+                    if (!Bounds.holdsBody(view.border(), body, target.getX(), target.getZ())) {
                         continue;
                     }
-                    int used = current.used + m.alterations();
+                    int used = nodes.used[current] + m.alterations();
                     if (budgeted && used > alterBudget) {
                         continue;
                     }
                     double cost = move.cost(model, m);
                     if (!(cost > 0) || Double.isInfinite(cost)) {
-                        throw new IllegalStateException(move.kind() + " 从 " + from + " 算出了非法的代价 " + cost);
+                        throw new IllegalStateException(move.kind() + " 从 " + new BlockPos(cx, cy, cz) + " 算出了非法的代价 " + cost);
                     }
-                    Breath.Air air = current.air;
+                    Breath.Air air = nodes.air[current];
                     if (m.submerged() || !breath.rested(air)) {
                         air = breath.after(air, m.submerged(), move.ticks(model, m));
                         if (!breath.lasts(air)) {
@@ -188,25 +194,30 @@ public final class AStar {
                             continue;
                         }
                     }
-                    Node next = node(to.getX(), to.getY(), to.getZ(), budgeted ? used : 0, breath.band(air));
-                    double g = current.g + cost * search.favoring().factor(to);
-                    if (next.g - g <= MIN_IMPROVEMENT) {
+                    long to = target.asLong();
+                    int band = breath.band(air);
+                    int next = nodes.find(to, budgeted ? used : 0, band);
+                    if (next < 0) {
+                        next = nodes.add(to, budgeted ? used : 0, band, estimate.at(target));
+                    }
+                    double g = nodes.g[current] + cost * search.favoring().factor(to);
+                    if (nodes.g[next] - g <= MIN_IMPROVEMENT) {
                         continue;
                     }
-                    next.g = g;
-                    next.f = g + next.h;
-                    next.parent = current;
-                    next.via = m;
-                    next.viaCost = cost;
-                    next.stance = m.landing();
-                    next.air = air;
+                    nodes.g[next] = g;
+                    nodes.f[next] = g + nodes.h[next];
+                    nodes.parent[next] = current;
+                    nodes.via[next] = m;
+                    nodes.viaCost[next] = cost;
+                    nodes.stance[next] = m.landing();
+                    nodes.air[next] = air;
                     open.pushOrUpdate(next);
                     if (air.held() > 0) {
                         // 憋着气的节点不当半程路线的终点:身体停在那里等下一段,下一段要是接不上,她就困在水下
                         continue;
                     }
                     for (int i = 0; i < COEFFICIENTS.length; i++) {
-                        double score = next.h + next.g / COEFFICIENTS[i];
+                        double score = nodes.h[next] + nodes.g[next] / COEFFICIENTS[i];
                         if (bestScore[i] - score > MIN_IMPROVEMENT) {
                             bestScore[i] = score;
                             best[i] = next;
@@ -298,158 +309,21 @@ public final class AStar {
         }
     }
 
-    private Node node(int x, int y, int z, int used, int band) {
-        long key = BlockPos.asLong(x, y, z);
-        Node head = nodes.get(key);
-        for (Node n = head; n != null; n = n.sibling) {
-            if (n.used == used && n.band == band) {
-                return n;
-            }
-        }
-        Node n = new Node(x, y, z, used, band, estimate.at(x, y, z));
-        n.sibling = head;
-        nodes.put(key, n);
-        return n;
-    }
-
     /** 按系数从紧到松各档最好节点的路线里,交出的那一截({@link HandOver#pick});没有可交的为 null。 */
-    private Route partial(Node start, Node[] best) {
+    private Route partial(int start, int[] best) {
         List<Route> candidates = new ArrayList<>(best.length);
-        for (Node n : best) {
+        for (int n : best) {
             candidates.add(route(start, n));
         }
         return HandOver.pick(candidates);
     }
 
-    private static Route route(Node start, Node end) {
+    private Route route(int start, int end) {
         List<Route.Leg> legs = new ArrayList<>();
-        for (Node n = end; n.parent != null; n = n.parent) {
-            legs.add(new Route.Leg(n.via, n.viaCost, n.air));
+        for (int n = end; nodes.parent[n] >= 0; n = nodes.parent[n]) {
+            legs.add(new Route.Leg(nodes.via[n], nodes.viaCost[n], nodes.air[n]));
         }
         Collections.reverse(legs);
-        return new Route(new BlockPos(start.x, start.y, start.z), start.stance, legs);
-    }
-
-    /** 一个搜索节点:位置,加上设了改动预算时到这儿已经改了几格、憋气的档。 */
-    private static final class Node {
-        final int x;
-        final int y;
-        final int z;
-        final int used;
-        final int band;
-        final double h;
-        double g = Double.POSITIVE_INFINITY;
-        double f;
-        /** 堆里排序用的总价:f 取整到 {@link #TIE};入堆、改键时由堆更新。 */
-        long key;
-        Stance stance;
-        Node parent;
-        Maneuver via;
-        double viaCost;
-        /** 走到这里时身体憋气的样子。 */
-        Breath.Air air;
-        /** 同一位置、已改格数或憋气的档不同的另一个节点。 */
-        Node sibling;
-        int heapIndex = -1;
-
-        Node(int x, int y, int z, int used, int band, double h) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.used = used;
-            this.band = band;
-            this.h = h;
-        }
-    }
-
-    /**
-     * 按总价排的二叉堆,支持原地降键。总价平手时估价小的在前(同总价里 g 更大的,离目标更近的先展开),
-     * 平地上一大片同总价的节点不再整片展开:总价低于最优路线的节点怎么排都得展开,顺序只影响总价恰等于最优价的那一层,
-     * 所以搜出的总价不变;最优路线有多条等价时,选到哪一条取决于这个顺序。
-     */
-    private static final class Heap {
-        private Node[] items = new Node[1024];
-        private int size;
-
-        boolean isEmpty() {
-            return size == 0;
-        }
-
-        void push(Node n) {
-            if (size == items.length) {
-                items = Arrays.copyOf(items, size * 2);
-            }
-            items[size] = n;
-            n.heapIndex = size;
-            n.key = key(n.f);
-            size++;
-            up(n.heapIndex);
-        }
-
-        void pushOrUpdate(Node n) {
-            if (n.heapIndex >= 0) {
-                n.key = key(n.f);
-                up(n.heapIndex);
-            } else {
-                push(n);
-            }
-        }
-
-        private static long key(double f) {
-            return Math.round(f / TIE);
-        }
-
-        private static boolean before(Node a, Node b) {
-            return a.key < b.key || (a.key == b.key && a.h < b.h);
-        }
-
-        Node pop() {
-            Node top = items[0];
-            size--;
-            items[0] = items[size];
-            items[0].heapIndex = 0;
-            items[size] = null;
-            if (size > 0) {
-                down(0);
-            }
-            top.heapIndex = -1;
-            return top;
-        }
-
-        private void up(int i) {
-            Node n = items[i];
-            while (i > 0) {
-                int parent = (i - 1) >>> 1;
-                if (!before(n, items[parent])) {
-                    break;
-                }
-                items[i] = items[parent];
-                items[i].heapIndex = i;
-                i = parent;
-            }
-            items[i] = n;
-            n.heapIndex = i;
-        }
-
-        private void down(int i) {
-            Node n = items[i];
-            while (true) {
-                int child = 2 * i + 1;
-                if (child >= size) {
-                    break;
-                }
-                if (child + 1 < size && before(items[child + 1], items[child])) {
-                    child++;
-                }
-                if (!before(items[child], n)) {
-                    break;
-                }
-                items[i] = items[child];
-                items[i].heapIndex = i;
-                i = child;
-            }
-            items[i] = n;
-            n.heapIndex = i;
-        }
+        return new Route(BlockPos.of(nodes.pos[start]), nodes.stance[start], legs);
     }
 }
