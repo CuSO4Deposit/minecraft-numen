@@ -7,6 +7,7 @@ import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Clearance;
 import com.dwinovo.numen.api.entity.Faces;
 import com.dwinovo.numen.api.entity.Reach;
+import com.dwinovo.numen.api.entity.Sight;
 import com.dwinovo.numen.pathing.world.Semantics;
 import com.dwinovo.numen.pathing.world.Stepping;
 
@@ -74,6 +75,26 @@ final class Draft extends EditedView {
      * @param grounded 挖的时候脚踏实地
      */
     boolean dig(BlockPos pos, int bx, double feetY, int bz, boolean grounded) {
+        return uncover(pos, bx, feetY, bz, grounded) && cut(pos, bx, feetY, bz, grounded);
+    }
+
+    /**
+     * 先清掉准星从眼睛到 {@code pos} 的路上挡着的软遮挡(脚下格里的草、花、单层雪……:没有碰撞、有轮廓,准星先碰上它,
+     * 原版玩家也得先打掉才点得到后面那一格,{@link Sight#cover}),按视线上的先后一格格挖,和执行时挖到的先后一致。
+     */
+    private boolean uncover(BlockPos pos, int bx, double feetY, int bz, boolean grounded) {
+        List<BlockPos> cover = Sight.cover(this, body.eye(bx, feetY, bz), body.blockReach(), pos);
+        if (cover != null) {
+            for (BlockPos cell : cover) {
+                if (!cut(cell, bx, feetY, bz, grounded)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean cut(BlockPos pos, int bx, double feetY, int bz, boolean grounded) {
         BlockState state = getBlockState(pos);
         CostModel.Admission admission = model.admitDig(this, pos, state);
         if (!admission.ok()) {
@@ -198,6 +219,9 @@ final class Draft extends EditedView {
             }
             BlockState state = getBlockState(cell);
             if (Semantics.openableByHand(state)) {
+                if (!uncover(cell, bx, feetY, bz, grounded)) {
+                    return false;
+                }
                 record(new Edit.Door(cell.immutable(), state));
                 toggle(cell);
             } else if (!mayDig) {
