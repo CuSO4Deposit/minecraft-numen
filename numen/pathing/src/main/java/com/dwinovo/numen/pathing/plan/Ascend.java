@@ -105,10 +105,15 @@ final class Ascend implements Move {
 
     /** 身体上去的刻数:一格的步速;跳上去的至少是起跳落到那一高度的工夫,从水里、梯子上够上去的另加爬一格。 */
     private static double movement(CostModel model, Maneuver m) {
-        double move = Strides.pace(model, m);
-        if (m.jump()) {
-            return Math.max(move, Strides.jump(model, Strides.rise(m)));
+        return movement(Strides.pace(model, m), m.jump(), m.jump() ? Strides.jump(model, Strides.rise(m)) : 0, m.start().grounded(),
+                !m.jump() && !m.start().grounded() ? Kinematics.climbUpTicksPerBlock(model.body().stats()) : 0);
+    }
+
+    /** 同上,步速、要不要跳、起跳落到那一高度的工夫({@code jump} 时才用)、起步时是不是站着、爬一格的工夫(攀着浮着起步时才用)已经给出。 */
+    static double movement(double pace, boolean jump, double jumpTicks, boolean grounded, double climbUp) {
+        if (jump) {
+            return Math.max(pace, jumpTicks);
         }
-        return m.start().grounded() ? move : move + Kinematics.climbUpTicksPerBlock(model.body().stats());
+        return grounded ? pace : pace + climbUp;
     }
 }

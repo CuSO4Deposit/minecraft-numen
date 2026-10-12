@@ -93,10 +93,16 @@ final class Diagonal implements Move {
 
     /** 身体斜着过去的刻数:斜走一格,要跳的至少是起跳上一格的工夫,落差过半格的加上落地。 */
     private static double movement(CostModel model, Maneuver m) {
-        double move = Strides.pace(model, m) * Math.sqrt(2);
-        if (m.jump()) {
-            move = Math.max(move, Strides.jump(model, Strides.rise(m)));
+        return movement(Strides.pace(model, m), m.jump(), m.jump() ? Strides.jump(model, Strides.rise(m)) : 0, m.drop(),
+                m.drop() > 0.5 ? Strides.landing(model, m) : 0);
+    }
+
+    /** 同上,步速、要不要跳、起跳落到那一高度的工夫({@code jump} 时才用)、落差、落地的工夫({@code drop} 过半格时才用)已经给出。 */
+    static double movement(double pace, boolean jump, double jumpTicks, double drop, double landing) {
+        double move = pace * Math.sqrt(2);
+        if (jump) {
+            move = Math.max(move, jumpTicks);
         }
-        return m.drop() > 0.5 ? move + Strides.landing(model, m) : move;
+        return drop > 0.5 ? move + landing : move;
     }
 }

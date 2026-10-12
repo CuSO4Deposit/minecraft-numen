@@ -131,7 +131,11 @@ final class Walk implements Move {
 
     /** 身体走过去的刻数:一格的步速,要跳的至少是起跳落到那一高度的工夫。 */
     private static double movement(CostModel model, Maneuver m) {
-        double move = Strides.pace(model, m);
-        return m.jump() ? Math.max(move, Strides.jump(model, Strides.rise(m))) : move;
+        return movement(Strides.pace(model, m), m.jump(), m.jump() ? Strides.jump(model, Strides.rise(m)) : 0);
+    }
+
+    /** 同上,步速、要不要跳、起跳落到那一高度的工夫({@code jump} 时才用)已经给出。 */
+    static double movement(double pace, boolean jump, double jumpTicks) {
+        return jump ? Math.max(pace, jumpTicks) : pace;
     }
 }

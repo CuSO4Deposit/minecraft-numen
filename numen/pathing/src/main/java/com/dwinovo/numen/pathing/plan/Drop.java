@@ -153,6 +153,11 @@ final class Drop implements Move {
 
     /** 身体下去的刻数:走出边沿,落下去,走回列中心。 */
     private static double movement(CostModel model, Maneuver m) {
-        return Kinematics.walkOffEdgeTicks(model.body().stats()) / m.speedFactor() + Strides.landing(model, m);
+        return movement(Kinematics.walkOffEdgeTicks(model.body().stats()), m.speedFactor(), Strides.landing(model, m));
+    }
+
+    /** 同上,走出边沿的工夫、脚下的步速系数与落地的工夫已经给出。 */
+    static double movement(double walkOff, double speedFactor, double landing) {
+        return walkOff / speedFactor + landing;
     }
 }

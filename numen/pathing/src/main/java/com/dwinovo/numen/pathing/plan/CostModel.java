@@ -346,14 +346,25 @@ public final class CostModel {
                 case Edit.Catch caught -> catchCost(caught);
             };
         }
-        for (long cell : m.cells()) {
-            cost += extra(Use.PASS, cell);
+        return passing(cost, m.cells(), m.cells().length, m.exposure(), m.support() != null, m.support() == null ? 0 : m.support().asLong(),
+                m.wading());
+    }
+
+    /**
+     * {@link #overhead} 里改动之后的那几项,接着 {@code cost} 往下加:身体新进入的前 {@code count} 格与落脚那一格的按位置加价、
+     * 紧挨着伤身的格走过的加价、落到水里的涉水罚分。没有改动的步子从 0 起加,次序同 {@link #overhead}。
+     */
+    double passing(double cost, long[] cells, int count, int exposure, boolean standing, long support, boolean wading) {
+        for (int i = 0; i < count; i++) {
+            cost += extra(Use.PASS, cells[i]);
         }
-        cost += m.exposure() * ActionCosts.EXPOSED_SIDE_BLOCKS * Kinematics.walkTicksPerBlock(body.stats());
-        if (m.support() != null) {
-            cost += extra(Use.STAND, m.support().asLong());
+        if (exposure != 0) {
+            cost += exposure * ActionCosts.EXPOSED_SIDE_BLOCKS * Kinematics.walkTicksPerBlock(body.stats());
         }
-        if (m.wading()) {
+        if (standing) {
+            cost += extra(Use.STAND, support);
+        }
+        if (wading) {
             cost += spec.wadePenalty();
         }
         return cost;
