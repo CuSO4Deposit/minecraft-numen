@@ -76,6 +76,37 @@ class SegmentSearchTest {
         assertEquals(0, more.route().alterations(), "绕缺口走,不挖");
     }
 
+    /** 四壁是基岩、里面是实心石头的竖井(边长 {@code size}),空手;起点是井底角上挖好的两格空间。 */
+    private static TestWorld shaft(int size, int height) {
+        return new TestWorld().fill(-3, Y - 3, -3, size + 2, Y + height + 3, size + 2, Blocks.BEDROCK.defaultBlockState())
+                .fill(0, Y - 1, 0, size - 1, Y + height + 1, size - 1, stone).fill(0, Y, 0, 0, Y + 1, 0, air);
+    }
+
+    /**
+     * 空手在三乘三的石柱里一级一级往上凿(身边没有垫路料,只能绕着柱子盘旋):下一级的脚下正是前几步刚挖开的格。交出的路线里每一步
+     * 的前提,在"前面所有的步子都做完了改动"的世界里都成立——只当上一步的改动做过了,盘旋回来的那一级会当脚下还是实心的,执行时脚下空了、
+     * 又没有料可垫。两乘两的柱子盘旋不起来,没有路。
+     */
+    @Test
+    void everyStepOfARouteHoldsInTheWorldMadeByAllTheEarlierSteps() {
+        CostModel model = Fixtures.model(Fixtures.natural());
+        TestWorld column = shaft(3, 7);
+        SearchResult result = Fixtures.search(column, model, START, Goals.at(new BlockPos(2, Y + 7, 2)));
+        assertTrue(result.arrived(), result.stop().toString());
+        java.util.List<com.dwinovo.numen.pathing.plan.Edit> done = new java.util.ArrayList<>();
+        for (Route.Leg leg : result.route().legs()) {
+            com.dwinovo.numen.pathing.plan.Maneuver m = leg.maneuver();
+            com.dwinovo.numen.pathing.plan.WorldView world = com.dwinovo.numen.pathing.plan.EditedView.after(column, done);
+            com.dwinovo.numen.pathing.plan.Premise premise = com.dwinovo.numen.pathing.plan.Moves.of(m.kind())
+                    .premise(model, world, m.from(), m.start(), m.heading());
+            assertTrue(premise instanceof com.dwinovo.numen.pathing.plan.Premise.Holds,
+                    m.kind() + " " + m.from() + "→" + m.to() + " 在前面步子做完改动的世界里不成立:" + premise);
+            done.addAll(m.edits());
+        }
+        assertEquals(SearchResult.Stop.EXHAUSTED,
+                Fixtures.search(shaft(2, 7), model, START, Goals.at(new BlockPos(1, Y + 7, 1))).stop());
+    }
+
     // ==================== 没搜到:学习、推进 ====================
 
     /**

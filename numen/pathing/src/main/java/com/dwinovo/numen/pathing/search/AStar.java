@@ -8,6 +8,7 @@ import java.util.function.BooleanSupplier;
 
 import com.dwinovo.numen.pathing.plan.Breath;
 import com.dwinovo.numen.pathing.plan.CostModel;
+import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.EditedView;
 import com.dwinovo.numen.pathing.plan.Heading;
 import com.dwinovo.numen.pathing.plan.Maneuver;
@@ -40,8 +41,8 @@ import net.minecraft.world.level.material.FluidState;
  *       前提必然不成立的当场丢掉,必然成立的直接得到落点与代价,什么也不建;四周有半砖、水、梯子这类标志字说不清的格,
  *       或要挖要放的步子,才走精确的 {@link Move#premise}。快判断得出的节点不带 {@link Maneuver}:只有交出的路线,才把路线上
  *       每一步按精确的前提重判一遍补出来({@link Pass#maneuver});</li>
- *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上"走到这个节点的那一步"做过的改动——刚挖开的格是空的,
- *       刚垫下的块托着脚。更早的步子做过的改动不叠:身体已经离开了那里;</li>
+ *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上走到这个节点的最近 {@value #HISTORY} 步做过的改动——刚挖开的格是空的,
+ *       刚垫下的块托着脚,斜着一级一级往山上凿台阶时,下一级脚下的格正是前几步自己挖开的。更早的步子已经离得远了,不叠;</li>
  *   <li><b>一段的终点</b>({@link Search#advance}):到了目标,或到了一个估价比起点低一段的节点(停的节点照现有规矩:站得住、没憋着气)。
  *       终止条件只在这里一处;估价是每种目标统一的"还差多少",不另造"离终点多远"。搜索用的估价是对着这个终点的:
  *       {@code max(0, h − (起点的 h − 一段))},仍是下界也仍一致;</li>
@@ -84,6 +85,8 @@ public final class AStar {
     static final double WEIGHT = 1.5;
     /** 小于这个改进不松弛:平地上斜走与直走组合出的浮点差不值得重排堆。 */
     private static final double MIN_IMPROVEMENT = 0.01;
+    /** 一个节点面对的世界叠几步之前的改动:走到它的最近这么多步。 */
+    static final int HISTORY = 8;
     /** 没搜到这一段的终点时,交出的半程路线最多试几个边界上的节点(第一步就回不了头的截不出来,换下一个)。 */
     private static final int ADVANCE_TRIES = 16;
 
@@ -251,11 +254,11 @@ public final class AStar {
                 int cx = BlockPos.getX(at);
                 int cy = BlockPos.getY(at);
                 int cz = BlockPos.getZ(at);
-                Maneuver arrivedBy = nodes.via[current];
-                boolean edited = arrivedBy != null && !arrivedBy.edits().isEmpty();
+                List<Edit> done = recentEdits(current);
+                boolean edited = !done.isEmpty();
                 Stance stance = nodes.stance[current];
-                // 身体此刻面对的世界:快照,加上走到这个节点的那一步做过的改动
-                WorldView here = edited ? EditedView.after(probe, arrivedBy.edits()) : probe;
+                // 身体此刻面对的世界:快照,加上走到这个节点的最近几步做过的改动
+                WorldView here = edited ? EditedView.after(probe, done) : probe;
                 // 到达价无穷的节点停下也办不成:不算到,照常往外展开
                 double stopping = goal.contains(cx, cy, cz, stance)
                         ? goal.arrival(here, cx, cy, cz, stance) : Double.POSITIVE_INFINITY;
@@ -288,7 +291,7 @@ public final class AStar {
                     closestH = nodes.h[current];
                     closest = current;
                 }
-                quick.begin(cx, cy, cz, stance, here, edited ? arrivedBy.edits() : List.of());
+                quick.begin(cx, cy, cz, stance, here, done);
                 BlockPos from = null;
                 for (int mi = 0; mi < moves.size(); mi++) {
                     Move move = moves.get(mi);
@@ -495,8 +498,8 @@ public final class AStar {
                 return null;
             }
             BlockPos from = BlockPos.of(nodes.pos[closest]);
-            Maneuver by = nodes.via[closest];
-            WorldView here = by == null || by.edits().isEmpty() ? probe : EditedView.after(probe, by.edits());
+            List<Edit> done = recentEdits(closest);
+            WorldView here = done.isEmpty() ? probe : EditedView.after(probe, done);
             double now = estimate.base(from.getX(), from.getY(), from.getZ());
             SearchResult.Blocking best = null;
             double bestEstimate = Double.POSITIVE_INFINITY;
@@ -518,6 +521,36 @@ public final class AStar {
         }
 
         // ==================== 路线 ====================
+
+        /**
+         * 走到节点 {@code n} 的最近 {@link AStar#HISTORY} 步做过的改动,按先后。前提读的只是身边几格,可它们可能是几步之前自己挖开的:
+         * 斜着一级一级往山上凿台阶,下一级的脚下正是上一级刚挖开的头顶。只叠最后一步的话,前提会当那一格还是实心的。
+         * 更早的步子离得远了(沿路折回来最多隔着几步),不叠。
+         */
+        private List<Edit> recentEdits(int n) {
+            Maneuver[] steps = null;
+            int count = 0;
+            for (int i = 0, node = n; i < HISTORY && node >= 0; i++, node = nodes.parent[node]) {
+                Maneuver m = nodes.via[node];
+                if (m != null && !m.edits().isEmpty()) {
+                    if (steps == null) {
+                        steps = new Maneuver[HISTORY];
+                    }
+                    steps[count++] = m;
+                }
+            }
+            if (count == 0) {
+                return List.of();
+            }
+            if (count == 1) {
+                return steps[0].edits();
+            }
+            List<Edit> out = new ArrayList<>();
+            for (int i = count - 1; i >= 0; i--) {
+                out.addAll(steps[i].edits());
+            }
+            return out;
+        }
 
         Route route(int end) {
             List<Route.Leg> legs = new ArrayList<>();
@@ -541,8 +574,8 @@ public final class AStar {
             int parent = nodes.parent[n];
             Move move = Moves.ALL.get(nodes.move[n]);
             Heading heading = move.headings().get(nodes.heading[n]);
-            Maneuver by = nodes.via[parent];
-            WorldView here = by == null || by.edits().isEmpty() ? probe : EditedView.after(probe, by.edits());
+            List<Edit> done = recentEdits(parent);
+            WorldView here = done.isEmpty() ? probe : EditedView.after(probe, done);
             Premise premise = move.premise(model, here, BlockPos.of(nodes.pos[parent]), nodes.stance[parent], heading);
             if (!(premise instanceof Premise.Holds holds)) {
                 throw new IllegalStateException(move.kind() + " " + heading + " 从 " + BlockPos.of(nodes.pos[parent]) + " 快判断成立,精确判断不成立:" + premise);
