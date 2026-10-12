@@ -160,7 +160,8 @@ class EstimateConsistencyTest {
         TestWorld ground = new TestWorld().ground(Y - 1, STONE);
         scenes.add(new Scene("向下挖", ground, digging, List.of(Goals.level(Y - 3), Goals.level(Y), Goals.level(Y + 3),
                 Goals.within(Goals.at(new BlockPos(0, Y - 6, 0)), 0, 2), Goals.within(Goals.at(new BlockPos(4, Y - 3, 1)), 0, 2),
-                Goals.within(Goals.at(new BlockPos(1, Y + 3, 0)), 1, 3))));
+                Goals.within(Goals.at(new BlockPos(1, Y + 3, 0)), 1, 3),
+                Goals.touch(new net.minecraft.world.phys.AABB(0.2, Y - 7, 0.2, 0.8, Y - 5.2, 0.8), SURVIVAL, 3))));
         return scenes;
     }
 

@@ -4,6 +4,9 @@ import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.search.Goal;
 import com.dwinovo.numen.pathing.world.Kinematics;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.AABB;
 
@@ -32,10 +35,38 @@ final class ItemReach implements Goal {
      */
     @Override
     public boolean contains(int x, int y, int z, Stance stance) {
-        double feet = stance.feetY();
+        return touches(x, z, stance.feetY(), stance.feetY());
+    }
+
+    /**
+     * 脚底在 {@code [feetLo, feetHi]} 之间时,{@code (x, z)} 这一列的格里捡不捡得到:{@link #contains} 与 {@link #endCells}
+     * 共用这一个判据,前者给确切的脚底,后者给"脚在一格里任何高度"。
+     */
+    private boolean touches(int x, int z, double feetLo, double feetHi) {
         return Math.abs(x + 0.5 - item.getCenter().x) + CELL_HALF <= reachX()
                 && Math.abs(z + 0.5 - item.getCenter().z) + CELL_HALF <= reachZ()
-                && feet - GROW_Y <= item.maxY && feet + EntityType.PLAYER.getHeight() + GROW_Y >= item.minY;
+                && feetLo - GROW_Y <= item.maxY && feetHi + EntityType.PLAYER.getHeight() + GROW_Y >= item.minY;
+    }
+
+    /** 脚在一格里任何高度时捡得到的格:水平、竖直各枚举到判据外一格为止,再逐格问 {@link #touches}。 */
+    @Override
+    public LongSet endCells() {
+        LongSet cells = new LongOpenHashSet();
+        for (int x = (int) Math.floor(item.getCenter().x - reachX()); x <= Math.ceil(item.getCenter().x + reachX()); x++) {
+            for (int z = (int) Math.floor(item.getCenter().z - reachZ()); z <= Math.ceil(item.getCenter().z + reachZ()); z++) {
+                for (int y = (int) Math.floor(item.minY - EntityType.PLAYER.getHeight() - GROW_Y) - 1; y <= Math.ceil(item.maxY + GROW_Y); y++) {
+                    if (touches(x, z, y, y + 1)) {
+                        cells.add(BlockPos.asLong(x, y, z));
+                    }
+                }
+            }
+        }
+        return cells;
+    }
+
+    @Override
+    public Heights heights() {
+        return Goal.heightsOf(endCells());
     }
 
     /** 水平底价:节点中心离"能算到了的那一圈"的水平距离乘疾跑一格;欧氏距离不超过任何走法的格数。 */

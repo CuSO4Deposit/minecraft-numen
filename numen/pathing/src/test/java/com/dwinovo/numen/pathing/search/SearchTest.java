@@ -182,6 +182,25 @@ class SearchTest {
         }
     }
 
+    /**
+     * 打一只困在正下方十五格石头里的小空腔里的怪("走到够得着那只实体"):够着一个碰撞箱的目标也交出终点格与高度范围,
+     * 估价才知道要往下挖,搜索从脚下直直往下挖,不在地面上铺开。
+     */
+    @Test
+    void reachingAMobDeepBelowIsDugStraightDownTo() {
+        TestWorld ground = new TestWorld().ground(Y - 1, STONE).loadedWithin(6)
+                .fill(0, Y - 16, 0, 0, Y - 15, 0, Blocks.AIR.defaultBlockState());
+        CostModel model = CostModel.of(natural(), Fixtures.carrying(0, new ItemStack(Items.IRON_PICKAXE)),
+                Fixtures.ALLOW_ALL, Fixtures.NO_MATERIALS, Threats.NONE);
+        net.minecraft.world.phys.AABB mob = new net.minecraft.world.phys.AABB(0.2, Y - 16, 0.2, 0.8, Y - 14.2, 0.8);
+        SearchResult result = search(ground, model, START, Goals.touch(mob, SURVIVAL, 3), NavRequest.DEFAULT_BUDGET);
+        assertTrue(result.arrived(), result.stop() + ",展开了 " + result.expanded());
+        assertTrue(result.expanded() < 1000, "展开了 " + result.expanded());
+        for (BlockPos node : result.route().nodes()) {
+            assertTrue(node.getX() == 0 && node.getZ() == 0, "没有直直往下挖:" + node);
+        }
+    }
+
     /** 两块台子之间隔着三十格、下面空着的空隙,身上有圆石:过去只能一路搭桥,搜索在空中四面铺开。 */
     private static TestWorld chasm() {
         return new TestWorld().floor(-4, -4, 2, 4, Y - 1).floor(33, -4, 40, 4, Y - 1);
@@ -607,6 +626,16 @@ class SearchTest {
             @Override
             public double estimate(int x, int y, int z, com.dwinovo.numen.pathing.world.Kinematics.Pace pace) {
                 return goal.estimate(x, y, z, pace);
+            }
+
+            @Override
+            public it.unimi.dsi.fastutil.longs.LongSet endCells() {
+                return goal.endCells();
+            }
+
+            @Override
+            public Heights heights() {
+                return goal.heights();
             }
         };
     }

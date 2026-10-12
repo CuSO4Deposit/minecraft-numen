@@ -276,6 +276,72 @@ public final class Goals {
         return pace.sprint() * Math.max(0, Math.hypot(dx, dz) - reach);
     }
 
+    /** 终点格往各个方向最多离碰撞箱这么远(格数)。 */
+    private static int span(double reach, double eye) {
+        return (int) Math.ceil(reach + eye) + 1;
+    }
+
+    /** 脚在 [y, y + 1) 里,眼睛在 [y + eye, y + 1 + eye) 里:取离 {@code box} 最近的高度,量竖直方向的距离。 */
+    private static double lift(AABB box, int y, double eye) {
+        return Math.max(0, Math.max(box.minY - (y + 1 + eye), y + eye - box.maxY));
+    }
+
+    /** 三个方向的距离合起来够得着:终点格与它所在的高度范围用的是同一个判据。 */
+    private static boolean near(double dx, double dy, double dz, double reach) {
+        return dx * dx + dy * dy + dz * dz < reach * reach;
+    }
+
+    /**
+     * 脚在一格里任何一个高度时,眼睛(在格的中心列)够得着 {@code box} 的那些格:挖一格、放一格、够着一个碰撞箱共用这一份几何,
+     * {@code reach} 是调用方按目标给的交互距离(方块或实体)。
+     */
+    private static LongSet cellsReaching(AABB box, double eye, double reach) {
+        int span = span(reach, eye);
+        int x0 = (int) Math.floor(box.minX) - span;
+        int y0 = (int) Math.floor(box.minY) - span;
+        int z0 = (int) Math.floor(box.minZ) - span;
+        // 每个方向上离碰撞箱的距离只和这一格的坐标有关:先各量一遍,三层循环里只相加比较
+        double[] dxs = new double[(int) Math.max(Math.floor(box.minX), Math.ceil(box.maxX) - 1) + span - x0 + 1];
+        double[] dys = new double[(int) Math.max(Math.floor(box.minY), Math.ceil(box.maxY) - 1) + span - y0 + 1];
+        double[] dzs = new double[(int) Math.max(Math.floor(box.minZ), Math.ceil(box.maxZ) - 1) + span - z0 + 1];
+        for (int i = 0; i < dxs.length; i++) {
+            dxs[i] = gap(x0 + i + 0.5, box.minX, box.maxX);
+        }
+        for (int i = 0; i < dys.length; i++) {
+            dys[i] = lift(box, y0 + i, eye);
+        }
+        for (int i = 0; i < dzs.length; i++) {
+            dzs[i] = gap(z0 + i + 0.5, box.minZ, box.maxZ);
+        }
+        // 先数出有几格再建表:一格格往空表里加,表要翻着倍地扩上七八回
+        long[] found = new long[dxs.length * dys.length * dzs.length];
+        int count = 0;
+        for (int i = 0; i < dxs.length; i++) {
+            for (int j = 0; j < dys.length; j++) {
+                for (int k = 0; k < dzs.length; k++) {
+                    if (near(dxs[i], dys[j], dzs[k], reach)) {
+                        found[count++] = BlockPos.asLong(x0 + i, y0 + j, z0 + k);
+                    }
+                }
+            }
+        }
+        return new LongOpenHashSet(found, 0, count);
+    }
+
+    /** {@link #cellsReaching} 里最低与最高的一层,不枚举格:水平上取最近的(为零),竖直上逐层问同一个判据。 */
+    private static Goal.Heights heightsReaching(AABB box, double eye, double reach) {
+        int span = span(reach, eye);
+        int lo = Integer.MAX_VALUE;
+        int hi = Integer.MIN_VALUE;
+        for (int y = (int) Math.floor(box.minY) - span; y <= Math.ceil(box.maxY) + span; y++) {
+            if (near(0, lift(box, y, eye), 0, reach)) {
+                lo = Math.min(lo, y);
+                hi = Math.max(hi, y);
+            }
+        }
+        return lo > hi ? null : new Goal.Heights(lo, hi);
+    }
+
     /**
      * 把 {@code more} 并进 {@code into}。逐个加:一次 {@code addAll} 会按两边个数之和扩表,几十个大半重叠的成员(挖放同一片里的几十格)
      * 并起来的表比并出的格数大几十倍。
@@ -284,11 +350,6 @@ public final class Goals {
         for (long cell : more) {
             into.add(cell);
         }
-    }
-
-    /** 坐标 {@code v} 离 {@code [cell, cell + 1]} 这一段有多远:在段里为 0。 */
-    private static double gap(double v, int cell) {
-        return gap(v, cell, cell + 1);
     }
 
     /** 坐标 {@code v} 离 {@code [min, max]} 这一段有多远:在段里为 0。 */
@@ -496,6 +557,11 @@ public final class Goals {
         }
 
         @Override
+        public Heights heights() {
+            return Goal.heightsOf(endCells());
+        }
+
+        @Override
         public double estimate(int x, int y, int z, Kinematics.Pace pace) {
             return beyondReach(target, x, z, body.blockReach(), pace);
         }
@@ -544,65 +610,13 @@ public final class Goals {
          */
         @Override
         public LongSet endCells() {
-            double reach = body.blockReach();
-            double eye = body.eyeHeight();
-            int span = span(reach, eye);
-            // 每个方向上离目标那一格的距离只和这一格的坐标有关:先各量一遍,三层循环里只相加比较
-            double[] dxs = new double[2 * span + 1];
-            double[] dys = new double[2 * span + 1];
-            double[] dzs = new double[2 * span + 1];
-            for (int i = 0; i < dxs.length; i++) {
-                dxs[i] = gap(target.getX() - span + i + 0.5, target.getX());
-                dys[i] = lift(target.getY() - span + i, eye);
-                dzs[i] = gap(target.getZ() - span + i + 0.5, target.getZ());
-            }
-            // 先数出有几格再建表:一格格往空表里加,表要翻着倍地扩上七八回
-            long[] found = new long[dxs.length * dys.length * dzs.length];
-            int count = 0;
-            for (int i = 0; i < dxs.length; i++) {
-                for (int j = 0; j < dys.length; j++) {
-                    for (int k = 0; k < dzs.length; k++) {
-                        if (near(dxs[i], dys[j], dzs[k], reach)) {
-                            found[count++] = BlockPos.asLong(target.getX() - span + i, target.getY() - span + j, target.getZ() - span + k);
-                        }
-                    }
-                }
-            }
-            return new LongOpenHashSet(found, 0, count);
+            return cellsReaching(new AABB(target), body.eyeHeight(), body.blockReach());
         }
 
-        /** 终点格所在的高度范围:{@link #endCells} 里最低与最高的一层。水平上取目标自己那一列,离它最近。 */
+        /** 终点格所在的高度范围:{@link #endCells} 里最低与最高的一层。 */
         @Override
         public Heights heights() {
-            double reach = body.blockReach();
-            double eye = body.eyeHeight();
-            int span = span(reach, eye);
-            double dx = gap(target.getX() + 0.5, target.getX());
-            double dz = gap(target.getZ() + 0.5, target.getZ());
-            int lo = Integer.MAX_VALUE;
-            int hi = Integer.MIN_VALUE;
-            for (int y = target.getY() - span; y <= target.getY() + span; y++) {
-                if (near(dx, lift(y, eye), dz, reach)) {
-                    lo = Math.min(lo, y);
-                    hi = Math.max(hi, y);
-                }
-            }
-            return lo > hi ? null : new Heights(lo, hi);
-        }
-
-        /** 终点格往各个方向最多离目标这么远(格数)。 */
-        private static int span(double reach, double eye) {
-            return (int) Math.ceil(reach + eye) + 1;
-        }
-
-        /** 脚在 [y, y + 1) 里,眼睛在 [y + eye, y + 1 + eye) 里:取离目标那一格最近的高度,量竖直方向的距离。 */
-        private double lift(int y, double eye) {
-            return Math.max(0, Math.max(target.getY() - (y + 1 + eye), y + eye - (target.getY() + 1)));
-        }
-
-        /** 三个方向的距离合起来够得着:终点格与它所在的高度范围用的是同一个判据。 */
-        private static boolean near(double dx, double dy, double dz, double reach) {
-            return dx * dx + dy * dy + dz * dz < reach * reach;
+            return heightsReaching(new AABB(target), body.eyeHeight(), body.blockReach());
         }
 
         /**
@@ -757,6 +771,17 @@ public final class Goals {
             return beyondReach(box, x, z, range, pace);
         }
 
+        /** 脚在一格里任何高度时眼睛够得着它的格(交互距离是这个目标自己的 {@code range}):与 {@link Dig} 同一份几何。 */
+        @Override
+        public LongSet endCells() {
+            return cellsReaching(box, body.eyeHeight(), range);
+        }
+
+        @Override
+        public Heights heights() {
+            return heightsReaching(box, body.eyeHeight(), range);
+        }
+
         @Override
         public String toString() {
             return String.format("touch(%.2f,%.2f,%.2f %.2f)", (box.minX + box.maxX) / 2, box.minY,
@@ -793,6 +818,17 @@ public final class Goals {
                 sum += 1 / Math.max(ratio, 1.0E-3);
             }
             return sum * ActionCosts.DANGER_BLOCKS * pace.walk();
+        }
+
+        /** 势场,没有固定的终点。 */
+        @Override
+        public LongSet endCells() {
+            return null;
+        }
+
+        @Override
+        public Heights heights() {
+            return null;
         }
 
         @Override

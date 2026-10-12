@@ -43,18 +43,19 @@ public interface Goal {
 
     /**
      * 到了时脚可能在哪些节点({@link BlockPos#asLong}):一个有限的超集,可以多、不能少。搜索拿它从目标往外算"至少还要挖开
-     * 多少"({@link Burial})。某一列、某一高度、距离范围、远离这些没有边的目标为 null。
+     * 多少"({@link Burial})。每个目标都要明确交代:没有固定终点(某一列、某一高度、离某处多远且范围无边、远离这些)交 null。
+     * 不给默认值:忘了交代,编译就过不去,估价不会悄悄少算埋深。
      */
-    default LongSet endCells() {
-        return null;
-    }
+    LongSet endCells();
 
     /**
-     * 到了时脚所在节点的高度范围,含两端;没有范围(离某处多远、远离这些)为 null。搜索靠它算竖直方向至少要升降几个节点
-     * ({@link Vertical})。默认从 {@link #endCells()} 取最低与最高的一层。
+     * 到了时脚所在节点的高度范围,含两端;没有范围(只到某一列、离某处多远且范围无边、远离这些)为 null。搜索靠它算竖直方向至少要
+     * 升降几个节点({@link Vertical})。同样不给默认值;范围就是终点格最低与最高的一层的,用 {@link #heightsOf} 取。
      */
-    default Heights heights() {
-        LongSet cells = endCells();
+    Heights heights();
+
+    /** 一组终点格({@link #endCells})所在的高度范围:最低与最高的一层;没有终点格(null 或空)为 null。 */
+    static Heights heightsOf(LongSet cells) {
         if (cells == null || cells.isEmpty()) {
             return null;
         }
