@@ -14,6 +14,7 @@ import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Move;
 import com.dwinovo.numen.pathing.plan.Moves;
 import com.dwinovo.numen.pathing.plan.Premise;
+import com.dwinovo.numen.pathing.plan.Quick;
 import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.plan.WorldView;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
@@ -21,7 +22,6 @@ import com.dwinovo.numen.pathing.world.Bounds;
 import com.dwinovo.numen.pathing.world.BodyStats;
 import com.dwinovo.numen.pathing.world.Recall;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,12 +32,18 @@ import net.minecraft.world.level.material.FluidState;
  * A*:从起点节点逐个展开 {@link Moves#ALL} 的每种走法、每个方向,前提成立的步子按它的代价(乘上旧路折扣)松弛。
  *
  * <ul>
+ *   <li><b>节点不建对象</b>({@link Nodes}):每个节点是一个下标,位置、代价、父节点、走法放在平行数组里,堆里存下标
+ *       ({@link OpenSet});</li>
+ *   <li><b>先快后精</b>:每种走法先问快判断({@link Move#quick}),只读节点四周的标志字({@link com.dwinovo.numen.pathing.world.CellFlags}),
+ *       前提必然不成立的当场丢掉,必然成立的直接得到落点与代价,什么也不建;四周有半砖、水、梯子这类标志字说不清的格,
+ *       或要挖要放的步子,才走精确的 {@link Move#premise}。快判断得出的节点不带 {@link Maneuver}:只有交出的路线,才把路线上
+ *       每一步按精确的前提重判一遍补出来({@link #maneuver});
  *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上"走到这个节点的那一步"做过的改动——刚挖开的格是空的,
  *       刚垫下的块托着脚。更早的步子做过的改动不叠:身体已经离开了那里;</li>
  *   <li><b>预算</b>按展开的节点数计,结论不随机器快慢漂移;</li>
  *   <li><b>停下的原因</b>随结论交出({@link SearchResult.Stop}):到了、搜完无路、预算用完、有路伸进快照外没加载的区块。
  *       一步的前提读到了没加载的列,它成不成立就不知道,这一步不走、结论记成"未加载";前提没读到那些列就定了的(规格没开这种
- *       走法、紧挨着的一列就挡住了),与那边是什么无关,不算;</li>
+ *       走法、紧挨着的一列就挡住了),与那边是什么无关,不算;快判断只在节点四周读全了才开口,读不全的交给精确判断去断;</li>
  *   <li><b>半程路线</b>:没到目标时,按几档"估价加已走代价的折算"各取最好的节点,交哪一截由 {@link HandOver#pick} 定
  *       (截到最后一个回得了头的节点,离起点不够远就不交)。最后一档只看估价(离目标多近):估价按疾跑算,挖隧道、搭桥时
  *       每一步的真实代价比它贵几十倍,前几档的折算都压不住已走的代价,最好的节点总在起点跟前。憋着气的节点不当终点:
@@ -67,11 +73,6 @@ public final class AStar {
     private static final double[] COEFFICIENTS = {1.5, 2, 2.5, 3, 4, 5, 10, Double.POSITIVE_INFINITY};
     /** 小于这个改进不松弛:平地上斜走与直走组合出的浮点差不值得重排堆。 */
     private static final double MIN_IMPROVEMENT = 0.01;
-    /**
-     * 总价差在这以内算平手。平地上同一价钱的路线加的顺序不同,浮点和差在 1e-12 上下:用 f 直接比,平手大半被噪声拆开,
-     * 所以堆按取整到这个刻度的总价比({@link Node#key}),这一格里再比估价。
-     */
-    private static final double TIE = 1e-6;
 
     private final Search search;
     private final CostModel model;
@@ -81,9 +82,10 @@ public final class AStar {
     private final Breath breath;
     /** 有前提成立的步子因为憋不住气没走。 */
     private boolean breathless;
-    private final Long2ObjectOpenHashMap<Node> nodes = new Long2ObjectOpenHashMap<>();
-    private final Heap open = new Heap();
+    private final Nodes nodes = new Nodes();
+    private final OpenSet open = new OpenSet(nodes);
     private Estimate estimate;
+    private Probe probe;
 
     private AStar(Search search) {
         this.search = search;
@@ -110,36 +112,45 @@ public final class AStar {
             return result(SearchResult.Stop.STRANDED, null, 0);
         }
         estimate = Estimate.of(view, model, goal, startPos, search.budget());
-        Node start = node(startPos.getX(), startPos.getY(), startPos.getZ(), 0, breath.band(search.air()));
-        start.g = 0;
-        start.stance = startStance;
-        start.via = arrival;
-        start.air = search.air();
-        start.f = start.h;
+        probe = new Probe(view, new Recall(body));
+        Quick quick = new Quick(model, view);
+        int start = nodes.add(startPos.asLong(), 0, breath.band(search.air()), estimate.at(startPos));
+        nodes.g[start] = 0;
+        nodes.stance[start] = startStance;
+        nodes.via[start] = arrival;
+        nodes.air[start] = search.air();
+        nodes.f[start] = nodes.h[start];
         open.push(start);
-        Node[] best = new Node[COEFFICIENTS.length];
+        int[] best = new int[COEFFICIENTS.length];
         double[] bestScore = new double[COEFFICIENTS.length];
         Arrays.fill(best, start);
-        Arrays.fill(bestScore, start.h);
+        Arrays.fill(bestScore, nodes.h[start]);
 
         int expanded = 0;
         boolean skippedUnloaded = false;
-        Probe probe = new Probe(view, new Recall(body));
+        List<Move> moves = Moves.ALL;
         while (!open.isEmpty()) {
             if (cancelled.getAsBoolean()) {
                 return result(SearchResult.Stop.CANCELLED, null, expanded);
             }
-            Node current = open.pop();
+            int current = open.pop();
+            long at = nodes.pos[current];
+            int cx = BlockPos.getX(at);
+            int cy = BlockPos.getY(at);
+            int cz = BlockPos.getZ(at);
+            Maneuver arrivedBy = nodes.via[current];
+            boolean edited = arrivedBy != null && !arrivedBy.edits().isEmpty();
+            Stance stance = nodes.stance[current];
             // 身体此刻面对的世界:快照,加上走到这个节点的那一步做过的改动
-            WorldView here = current.via == null ? probe : EditedView.after(probe, current.via.edits());
+            WorldView here = edited ? EditedView.after(probe, arrivedBy.edits()) : probe;
             // 到达价无穷的节点停下也办不成:不算到,照常往外展开
-            double stopping = goal.contains(current.x, current.y, current.z, current.stance)
-                    ? goal.arrival(here, current.x, current.y, current.z, current.stance) : Double.POSITIVE_INFINITY;
+            double stopping = goal.contains(cx, cy, cz, stance)
+                    ? goal.arrival(here, cx, cy, cz, stance) : Double.POSITIVE_INFINITY;
             if (Double.isFinite(stopping)) {
-                double total = current.g + stopping;
-                if (total > current.f + MIN_IMPROVEMENT) {
+                double total = nodes.g[current] + stopping;
+                if (total > nodes.f[current] + MIN_IMPROVEMENT) {
                     // 到达价还没付:按总价放回堆里,同时照常往外展开——起点在贵的成员里时要走得出去
-                    current.f = total;
+                    nodes.f[current] = total;
                     open.push(current);
                 } else {
                     return result(SearchResult.Stop.ARRIVED, route(start, current), expanded);
@@ -155,58 +166,105 @@ public final class AStar {
                 return result(SearchResult.Stop.BUDGET, partial(start, best), expanded);
             }
             expanded++;
-            BlockPos from = new BlockPos(current.x, current.y, current.z);
-            for (Move move : Moves.ALL) {
-                for (Heading heading : move.headings()) {
-                    probe.recall.clearUnloaded();
-                    Premise premise = move.premise(model, here, from, current.stance, heading);
-                    if (probe.recall.unloaded()) {
-                        skippedUnloaded = true;
+            quick.begin(cx, cy, cz, stance, here, edited ? arrivedBy.edits() : List.of());
+            BlockPos from = null;
+            for (int mi = 0; mi < moves.size(); mi++) {
+                Move move = moves.get(mi);
+                List<Heading> headings = move.headings();
+                for (int hi = 0; hi < headings.size(); hi++) {
+                    Heading heading = headings.get(hi);
+                    Maneuver m = null;
+                    int tx;
+                    int ty;
+                    int tz;
+                    int alterations;
+                    boolean submerged;
+                    double cost;
+                    double ticks = Double.NaN;
+                    Stance landing;
+                    int verdict = move.quick(quick, heading);
+                    if (verdict == Quick.REJECT) {
                         continue;
                     }
-                    if (!(premise instanceof Premise.Holds holds)) {
+                    if (verdict == Quick.HOLDS) {
+                        tx = quick.toX();
+                        ty = quick.toY();
+                        tz = quick.toZ();
+                        alterations = 0;
+                        submerged = false;
+                        cost = quick.cost();
+                        ticks = quick.ticks();
+                        landing = quick.ground(ty);
+                    } else {
+                        if (from == null) {
+                            from = new BlockPos(cx, cy, cz);
+                        }
+                        probe.recall.clearUnloaded();
+                        Premise premise = move.premise(model, here, from, stance, heading);
+                        if (probe.recall.unloaded()) {
+                            skippedUnloaded = true;
+                            continue;
+                        }
+                        if (!(premise instanceof Premise.Holds holds)) {
+                            continue;
+                        }
+                        m = holds.maneuver();
+                        BlockPos to = m.to();
+                        tx = to.getX();
+                        ty = to.getY();
+                        tz = to.getZ();
+                        alterations = m.alterations();
+                        submerged = m.submerged();
+                        cost = Double.NaN;
+                        landing = m.landing();
+                    }
+                    if (!Bounds.holdsBody(view.border(), body, tx, tz)) {
                         continue;
                     }
-                    Maneuver m = holds.maneuver();
-                    BlockPos to = m.to();
-                    if (!Bounds.holdsBody(view.border(), body, to.getX(), to.getZ())) {
-                        continue;
-                    }
-                    int used = current.used + m.alterations();
+                    int used = nodes.used[current] + alterations;
                     if (budgeted && used > alterBudget) {
                         continue;
                     }
-                    double cost = move.cost(model, m);
-                    if (!(cost > 0) || Double.isInfinite(cost)) {
-                        throw new IllegalStateException(move.kind() + " 从 " + from + " 算出了非法的代价 " + cost);
+                    if (m != null) {
+                        cost = move.cost(model, m);
                     }
-                    Breath.Air air = current.air;
-                    if (m.submerged() || !breath.rested(air)) {
-                        air = breath.after(air, m.submerged(), move.ticks(model, m));
+                    if (!(cost > 0) || Double.isInfinite(cost)) {
+                        throw new IllegalStateException(move.kind() + " 从 " + new BlockPos(cx, cy, cz) + " 算出了非法的代价 " + cost);
+                    }
+                    Breath.Air air = nodes.air[current];
+                    if (submerged || !breath.rested(air)) {
+                        air = breath.after(air, submerged, m != null ? move.ticks(model, m) : ticks);
                         if (!breath.lasts(air)) {
                             breathless = true;
                             continue;
                         }
                     }
-                    Node next = node(to.getX(), to.getY(), to.getZ(), budgeted ? used : 0, breath.band(air));
-                    double g = current.g + cost * search.favoring().factor(to);
-                    if (next.g - g <= MIN_IMPROVEMENT) {
+                    long to = BlockPos.asLong(tx, ty, tz);
+                    int band = breath.band(air);
+                    int next = nodes.find(to, budgeted ? used : 0, band);
+                    if (next < 0) {
+                        next = nodes.add(to, budgeted ? used : 0, band, estimate.at(tx, ty, tz));
+                    }
+                    double g = nodes.g[current] + cost * search.favoring().factor(to);
+                    if (nodes.g[next] - g <= MIN_IMPROVEMENT) {
                         continue;
                     }
-                    next.g = g;
-                    next.f = g + next.h;
-                    next.parent = current;
-                    next.via = m;
-                    next.viaCost = cost;
-                    next.stance = m.landing();
-                    next.air = air;
+                    nodes.g[next] = g;
+                    nodes.f[next] = g + nodes.h[next];
+                    nodes.parent[next] = current;
+                    nodes.via[next] = m;
+                    nodes.viaCost[next] = cost;
+                    nodes.stance[next] = landing;
+                    nodes.air[next] = air;
+                    nodes.move[next] = (byte) mi;
+                    nodes.heading[next] = (byte) hi;
                     open.pushOrUpdate(next);
                     if (air.held() > 0) {
                         // 憋着气的节点不当半程路线的终点:身体停在那里等下一段,下一段要是接不上,她就困在水下
                         continue;
                     }
                     for (int i = 0; i < COEFFICIENTS.length; i++) {
-                        double score = next.h + next.g / COEFFICIENTS[i];
+                        double score = nodes.h[next] + nodes.g[next] / COEFFICIENTS[i];
                         if (bestScore[i] - score > MIN_IMPROVEMENT) {
                             bestScore[i] = score;
                             best[i] = next;
@@ -298,158 +356,44 @@ public final class AStar {
         }
     }
 
-    private Node node(int x, int y, int z, int used, int band) {
-        long key = BlockPos.asLong(x, y, z);
-        Node head = nodes.get(key);
-        for (Node n = head; n != null; n = n.sibling) {
-            if (n.used == used && n.band == band) {
-                return n;
-            }
-        }
-        Node n = new Node(x, y, z, used, band, estimate.at(x, y, z));
-        n.sibling = head;
-        nodes.put(key, n);
-        return n;
-    }
-
     /** 按系数从紧到松各档最好节点的路线里,交出的那一截({@link HandOver#pick});没有可交的为 null。 */
-    private Route partial(Node start, Node[] best) {
+    private Route partial(int start, int[] best) {
         List<Route> candidates = new ArrayList<>(best.length);
-        for (Node n : best) {
+        for (int n : best) {
             candidates.add(route(start, n));
         }
         return HandOver.pick(candidates);
     }
 
-    private static Route route(Node start, Node end) {
+    private Route route(int start, int end) {
         List<Route.Leg> legs = new ArrayList<>();
-        for (Node n = end; n.parent != null; n = n.parent) {
-            legs.add(new Route.Leg(n.via, n.viaCost, n.air));
+        for (int n = end; nodes.parent[n] >= 0; n = nodes.parent[n]) {
+            legs.add(new Route.Leg(maneuver(n), nodes.viaCost[n], nodes.air[n]));
         }
         Collections.reverse(legs);
-        return new Route(new BlockPos(start.x, start.y, start.z), start.stance, legs);
-    }
-
-    /** 一个搜索节点:位置,加上设了改动预算时到这儿已经改了几格、憋气的档。 */
-    private static final class Node {
-        final int x;
-        final int y;
-        final int z;
-        final int used;
-        final int band;
-        final double h;
-        double g = Double.POSITIVE_INFINITY;
-        double f;
-        /** 堆里排序用的总价:f 取整到 {@link #TIE};入堆、改键时由堆更新。 */
-        long key;
-        Stance stance;
-        Node parent;
-        Maneuver via;
-        double viaCost;
-        /** 走到这里时身体憋气的样子。 */
-        Breath.Air air;
-        /** 同一位置、已改格数或憋气的档不同的另一个节点。 */
-        Node sibling;
-        int heapIndex = -1;
-
-        Node(int x, int y, int z, int used, int band, double h) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.used = used;
-            this.band = band;
-            this.h = h;
-        }
+        return new Route(BlockPos.of(nodes.pos[start]), nodes.stance[start], legs);
     }
 
     /**
-     * 按总价排的二叉堆,支持原地降键。总价平手时估价小的在前(同总价里 g 更大的,离目标更近的先展开),
-     * 平地上一大片同总价的节点不再整片展开:总价低于最优路线的节点怎么排都得展开,顺序只影响总价恰等于最优价的那一层,
-     * 所以搜出的总价不变;最优路线有多条等价时,选到哪一条取决于这个顺序。
+     * 走到节点 {@code n} 的那一步的全套事实。精确判断算出来的节点带着;快判断算出来的,按同一个走法、方向,在上一个节点
+     * 此刻面对的世界上用精确的前提判一遍补出来(快判断答"成立"的步子,精确判断一定成立),补出来的留在节点上。
      */
-    private static final class Heap {
-        private Node[] items = new Node[1024];
-        private int size;
-
-        boolean isEmpty() {
-            return size == 0;
+    private Maneuver maneuver(int n) {
+        Maneuver m = nodes.via[n];
+        if (m != null) {
+            return m;
         }
-
-        void push(Node n) {
-            if (size == items.length) {
-                items = Arrays.copyOf(items, size * 2);
-            }
-            items[size] = n;
-            n.heapIndex = size;
-            n.key = key(n.f);
-            size++;
-            up(n.heapIndex);
+        int parent = nodes.parent[n];
+        Move move = Moves.ALL.get(nodes.move[n]);
+        Heading heading = move.headings().get(nodes.heading[n]);
+        Maneuver by = nodes.via[parent];
+        WorldView here = by == null || by.edits().isEmpty() ? probe : EditedView.after(probe, by.edits());
+        Premise premise = move.premise(model, here, BlockPos.of(nodes.pos[parent]), nodes.stance[parent], heading);
+        if (!(premise instanceof Premise.Holds holds)) {
+            throw new IllegalStateException(move.kind() + " " + heading + " 从 " + BlockPos.of(nodes.pos[parent]) + " 快判断成立,精确判断不成立:" + premise);
         }
-
-        void pushOrUpdate(Node n) {
-            if (n.heapIndex >= 0) {
-                n.key = key(n.f);
-                up(n.heapIndex);
-            } else {
-                push(n);
-            }
-        }
-
-        private static long key(double f) {
-            return Math.round(f / TIE);
-        }
-
-        private static boolean before(Node a, Node b) {
-            return a.key < b.key || (a.key == b.key && a.h < b.h);
-        }
-
-        Node pop() {
-            Node top = items[0];
-            size--;
-            items[0] = items[size];
-            items[0].heapIndex = 0;
-            items[size] = null;
-            if (size > 0) {
-                down(0);
-            }
-            top.heapIndex = -1;
-            return top;
-        }
-
-        private void up(int i) {
-            Node n = items[i];
-            while (i > 0) {
-                int parent = (i - 1) >>> 1;
-                if (!before(n, items[parent])) {
-                    break;
-                }
-                items[i] = items[parent];
-                items[i].heapIndex = i;
-                i = parent;
-            }
-            items[i] = n;
-            n.heapIndex = i;
-        }
-
-        private void down(int i) {
-            Node n = items[i];
-            while (true) {
-                int child = 2 * i + 1;
-                if (child >= size) {
-                    break;
-                }
-                if (child + 1 < size && before(items[child + 1], items[child])) {
-                    child++;
-                }
-                if (!before(items[child], n)) {
-                    break;
-                }
-                items[i] = items[child];
-                items[i].heapIndex = i;
-                i = child;
-            }
-            items[i] = n;
-            n.heapIndex = i;
-        }
+        m = holds.maneuver();
+        nodes.via[n] = m;
+        return m;
     }
 }

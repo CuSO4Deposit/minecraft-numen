@@ -31,8 +31,8 @@ public final class Favoring {
         return new Favoring(cells);
     }
 
-    /** 落到 {@code to} 的一步的价钱乘多少。 */
-    double factor(BlockPos to) {
-        return cells.contains(to.asLong()) ? DISCOUNT : 1;
+    /** 落到 {@code to}({@link BlockPos#asLong} 编码)的一步的价钱乘多少。 */
+    double factor(long to) {
+        return cells.contains(to) ? DISCOUNT : 1;
     }
 }

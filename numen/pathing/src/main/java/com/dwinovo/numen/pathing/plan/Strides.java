@@ -69,13 +69,18 @@ final class Strides {
      * 每一步按它物理上能达到的最快步态定价,步态({@code Gait})只要能跑就跑,两者只在起步、收脚处有偏差;其余平走;再按脚下的步速系数放慢。
      */
     static double pace(CostModel model, Maneuver m) {
-        if (m.wading()) {
+        return pace(model, m.wading(), m.sneak(), m.runnable(), m.speedFactor());
+    }
+
+    /** 同上,这一步的事实已经拆开给出,用不着 {@link Maneuver}。 */
+    static double pace(CostModel model, boolean wading, boolean sneak, boolean runnable, double speedFactor) {
+        if (wading) {
             return model.waterStep();
         }
         BodyStats body = model.body().stats();
-        double pace = m.sneak() ? Kinematics.sneakTicksPerBlock(body)
-                : model.maySprint() && m.runnable() ? Kinematics.sprintTicksPerBlock(body) : Kinematics.walkTicksPerBlock(body);
-        return pace / m.speedFactor();
+        double pace = sneak ? Kinematics.sneakTicksPerBlock(body)
+                : model.maySprint() && runnable ? Kinematics.sprintTicksPerBlock(body) : Kinematics.walkTicksPerBlock(body);
+        return pace / speedFactor;
     }
 
     /**
@@ -142,12 +147,22 @@ final class Strides {
 
     /** 从 {@code drop} 高处落到这个落点的耗时:下落,至少要走回列中心那一截。 */
     static double landing(CostModel model, Maneuver m) {
-        return Kinematics.fallLandingTicks(model.body().stats(), m.drop());
+        return landing(model, m.drop());
+    }
+
+    /** 同上,落差已经给出。 */
+    static double landing(CostModel model, double drop) {
+        return Kinematics.fallLandingTicks(model.body().stats(), drop);
     }
 
     /** 落地摔疼的折价:掉的血按 {@link ActionCosts#FALL_DAMAGE_PER_POINT} 折成刻。 */
     static double bruise(Maneuver m) {
-        return m.fallDamage() * ActionCosts.FALL_DAMAGE_PER_POINT;
+        return bruise(m.fallDamage());
+    }
+
+    /** 同上,摔掉的血已经给出。 */
+    static double bruise(int damage) {
+        return damage * ActionCosts.FALL_DAMAGE_PER_POINT;
     }
 
     /**

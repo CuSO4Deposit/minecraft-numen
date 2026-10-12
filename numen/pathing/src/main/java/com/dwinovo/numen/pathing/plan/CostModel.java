@@ -120,7 +120,12 @@ public final class CostModel {
         if (!landing.grounded() || wading || support == null) {
             return 0;
         }
-        return body.fallDamage(drop, level.getBlockState(support));
+        return fallDamage(drop, level.getBlockState(support));
+    }
+
+    /** 站着落地、没落进水里,从 {@code drop} 高处落到 {@code onto} 上摔掉几点血:搜索的快判断已经读出了脚踩的方块状态。 */
+    int fallDamage(double drop, BlockState onto) {
+        return body.fallDamage(drop, onto);
     }
 
     /**
@@ -142,7 +147,28 @@ public final class CostModel {
         return Kinematics.wadeTicksPerBlock(body.stats(), Mth.clamp(body.waterMovementEfficiency(), 0, 1));
     }
 
+    /**
+     * 这一趟有没有可能往任何一格放方块:规格许放、身上有料、游戏模式放得了。答否,{@link #admitPlace} 对每一格都拒绝;
+     * 答是只说明前几关过了,具体哪一格放不放得下还要它自己判。
+     */
+    boolean mayPlace() {
+        return spec.place() && placing != null && body.mayEdit();
+    }
+
+    /**
+     * 摔不起时有没有可能倒水接住:背包里有水桶、这个维度倒得出水、规格许放、游戏模式放得了。答否,{@link #admitCatch}
+     * 对每一格都拒绝。
+     */
+    boolean mayCatch(WorldView view) {
+        return body.carriesWaterBucket() && !view.ultraWarm() && spec.place() && body.mayEdit();
+    }
+
     // ==================== 按种类与按位置 ====================
+
+    /** 有没有按位置的禁令或加价(规格的与生物危险的):没有,{@link #forbids}、{@link #extra} 对每一格都答否、答 0。 */
+    boolean positional() {
+        return !spec.positions().isEmpty() || danger != PositionCosts.EMPTY;
+    }
 
     /** 种类掩码是 {@code kinds} 的格,这条路线排除它吗:任何一种被排除,整格就排除。 */
     public boolean excludes(int kinds) {
@@ -346,14 +372,25 @@ public final class CostModel {
                 case Edit.Catch caught -> catchCost(caught);
             };
         }
-        for (long cell : m.cells()) {
-            cost += extra(Use.PASS, cell);
+        return passing(cost, m.cells(), m.cells().length, m.exposure(), m.support() != null, m.support() == null ? 0 : m.support().asLong(),
+                m.wading());
+    }
+
+    /**
+     * {@link #overhead} 里改动之后的那几项,接着 {@code cost} 往下加:身体新进入的前 {@code count} 格与落脚那一格的按位置加价、
+     * 紧挨着伤身的格走过的加价、落到水里的涉水罚分。没有改动的步子从 0 起加,次序同 {@link #overhead}。
+     */
+    double passing(double cost, long[] cells, int count, int exposure, boolean standing, long support, boolean wading) {
+        for (int i = 0; i < count; i++) {
+            cost += extra(Use.PASS, cells[i]);
         }
-        cost += m.exposure() * ActionCosts.EXPOSED_SIDE_BLOCKS * Kinematics.walkTicksPerBlock(body.stats());
-        if (m.support() != null) {
-            cost += extra(Use.STAND, m.support().asLong());
+        if (exposure != 0) {
+            cost += exposure * ActionCosts.EXPOSED_SIDE_BLOCKS * Kinematics.walkTicksPerBlock(body.stats());
         }
-        if (m.wading()) {
+        if (standing) {
+            cost += extra(Use.STAND, support);
+        }
+        if (wading) {
             cost += spec.wadePenalty();
         }
         return cost;
