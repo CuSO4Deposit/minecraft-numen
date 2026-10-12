@@ -18,6 +18,7 @@ public final class Journal {
     private int searches;
     private final List<Integer> expansions = new ArrayList<>();
     private final List<Long> searchNanos = new ArrayList<>();
+    private final List<Double> gaps = new ArrayList<>();
     private int learned;
     private double routeCost;
     private int replans;
@@ -37,12 +38,13 @@ public final class Journal {
 
     /**
      * 一次搜索有了结论;{@code expanded} 是它展开了几个节点,{@code nanos} 是它在工作线程上跑了多久,{@code learned} 是它没搜到这一段的终点、
-     * 展开过的格子的估价抬高了。
+     * 展开过的格子的估价抬高了,{@code gap} 是交出的路线证到的界({@link com.dwinovo.numen.pathing.search.SearchResult#gap})。
      */
-    void searched(int expanded, long nanos, boolean learned) {
+    void searched(int expanded, long nanos, boolean learned, double gap) {
         searches++;
         expansions.add(expanded);
         searchNanos.add(nanos);
+        gaps.add(gap);
         if (learned) {
             this.learned++;
         }
@@ -92,6 +94,11 @@ public final class Journal {
     /** 每次搜索在工作线程上跑了多少纳秒,按先后。 */
     public List<Long> searchNanos() {
         return Collections.unmodifiableList(searchNanos);
+    }
+
+    /** 每次搜索证到的界(路线的价钱 ÷ 这一段最优价的下界;没交出整段为 NaN),按先后。 */
+    public List<Double> gaps() {
+        return Collections.unmodifiableList(gaps);
     }
 
     /** 实际走完的各步按规划算的代价之和:这条路线值多少钱。 */

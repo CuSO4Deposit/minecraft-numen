@@ -279,6 +279,9 @@ final class TerrainRun {
         JsonArray searchMs = new JsonArray();
         journal.searchNanos().forEach(n -> searchMs.add(Math.round(n / 1e5) / 10.0));
         o.add("searchMs", searchMs);
+        JsonArray gaps = new JsonArray();
+        journal.gaps().forEach(g -> gaps.add(Double.isNaN(g) ? -1 : Math.round(g * 100) / 100.0));
+        o.add("gaps", gaps);
         o.addProperty("startMs", movedNanos == 0 ? -1 : Math.round((movedNanos - orderedNanos) / 1e5) / 10.0);
         JsonArray expansions = new JsonArray();
         journal.expansions().forEach(expansions::add);

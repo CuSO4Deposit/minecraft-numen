@@ -26,6 +26,16 @@ final class OpenSet {
         return size == 0;
     }
 
+    /** 堆里所有节点的 g + h 里最小的:开放集里"总价加估价"的下界,最优路线上总有一个节点在里面,它至多是最优价。堆空时无穷大。 */
+    double lowerBound() {
+        double lowest = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < size; i++) {
+            int n = items[i];
+            lowest = Math.min(lowest, nodes.g[n] + nodes.h[n]);
+        }
+        return lowest;
+    }
+
     /** 放进来(不在堆里的节点)。 */
     void push(int id) {
         if (size == items.length) {

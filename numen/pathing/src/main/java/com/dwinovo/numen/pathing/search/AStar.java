@@ -46,12 +46,15 @@ import net.minecraft.world.level.material.FluidState;
  *   <li><b>一段的终点</b>({@link Search#advance}):到了目标,或到了一个估价比起点低一段的节点(停的节点照现有规矩:站得住、没憋着气)。
  *       终止条件只在这里一处;估价是每种目标统一的"还差多少",不另造"离终点多远"。搜索用的估价是对着这个终点的:
  *       {@code max(0, h − (起点的 h − 一段))},仍是下界也仍一致;</li>
- *   <li><b>先贪心拿一个解,再在它的价钱以内加权搜</b>:同一个搜索跑两遍。第一遍只按估价排(权重无穷大,贪心),预算
+ *   <li><b>先贪心拿一个解,再加权搜到证明够好为止</b>:同一个搜索跑两遍。第一遍只按估价排(权重无穷大,贪心),预算
  *       {@link #GREEDY_NODES},拿到的第一个解的价钱是上限 UB;第二遍按总价加估价的 {@link #WEIGHT} 倍排,总价加估价不低于 UB 的节点
- *       剪掉(估价是下界,剪掉的分支里不可能有比 UB 便宜的路),找到更便宜的就换上。交出手里最好的。依据是 LAMA 规划器用的
+ *       剪掉(估价是下界,剪掉的分支里不可能有比 UB 便宜的路),找到更便宜的就换上。交出手里最好的。
+ *       <b>什么时候停</b>:开放集里总价加估价的最小值是这一段最优价的下界,UB 不高过它的 {@link #WEIGHT} 倍时,手里的解已证明
+ *       不差于最优的这么多倍,立刻停——贪心解已经够好的不再搜,贪心解很差(绕不开的挖)证不出界的,一直搜到预算上限找别的路。
+ *       证到的界(解的价钱 ÷ 下界)随结论交出({@link SearchResult#gap})。依据是 LAMA 规划器用的
  *       "先贪心、再加权、以已有解的价钱剪枝"(Restarting Weighted A*,Richter、Thayer &amp; Ruml 2010),属于随时可交的启发式搜索
- *       [Hansen &amp; Zhou 2007;ARA*,Likhachev、Gordon &amp; Thrun 2003]。贪心那一遍在实心岩石里就是朝终点直挖,在地表就是朝终点直走、
- *       挡了就挖或垫——走法、前提、许可全是同一套;</li>
+ *       [Hansen &amp; Zhou 2007;ARA*,Likhachev、Gordon &amp; Thrun 2003,同样以解的价钱与下界的比停]。贪心那一遍在实心岩石里就是朝终点直挖,
+ *       在地表就是朝终点直走、挡了就挖或垫——走法、前提、许可全是同一套;</li>
  *   <li><b>没搜到这一段的终点</b>(预算用完、走得到的都搜过了、有路伸进没加载的区块):LSS-LRTA* [Koenig &amp; Sun 2009]。展开过的节点的
  *       估价抬高({@link Learning},交给宿主记进 {@link TripMemory}),交出的半程路线通到边界上总价最小的节点、截到回得了头的地方
  *       ({@link HandOver#cut});另记离目标最近的节点上朝目标的步子为什么被拒({@link SearchResult.Blocking}),收场时说缺什么;</li>
@@ -83,6 +86,8 @@ public final class AStar {
     static final int GREEDY_NODES = 1_000;
     /** 加权那一遍的权重:交出的路线至多比这一段的最优贵这么多倍。 */
     static final double WEIGHT = 1.5;
+    /** 加权那一遍每展开几个节点重算一次开放集的下界(扫一遍堆,比展开一个节点便宜得多)。 */
+    private static final int PROOF_EVERY = 32;
     /** 小于这个改进不松弛:平地上斜走与直走组合出的浮点差不值得重排堆。 */
     private static final double MIN_IMPROVEMENT = 0.01;
     /** 一个节点面对的世界叠几步之前的改动:走到它的最近这么多步。 */
@@ -143,18 +148,23 @@ public final class AStar {
         probe = new Probe(view, new Recall(body));
         quick = new Quick(model, view);
 
-        Pass greedy = new Pass(Double.POSITIVE_INFINITY, Math.min(GREEDY_NODES, search.budget()), Double.POSITIVE_INFINITY);
+        // 这一段最优价的下界:先是起点的估价,加权搜索里随开放集的下界往上抬
+        double lower = toSegment(startEstimate);
+        Pass greedy = new Pass(Double.POSITIVE_INFINITY, Math.min(GREEDY_NODES, search.budget()), Double.POSITIVE_INFINITY, lower);
         greedy.run(startStance, cancelled);
         Pass found = greedy.terminal >= 0 ? greedy : null;
         Pass last = greedy;
         int expanded = greedy.expanded;
         // 贪心那一遍把能走到的地方都搜空了还没有解,加权再搜也是同一张图:不再搜
         boolean emptied = found == null && greedy.stop == null;
-        if (greedy.stop != SearchResult.Stop.CANCELLED && !emptied && search.budget() > expanded) {
-            Pass weighted = new Pass(WEIGHT, search.budget() - expanded, found != null ? greedy.total : Double.POSITIVE_INFINITY);
+        boolean proven = found != null && found.total <= WEIGHT * lower;
+        if (greedy.stop != SearchResult.Stop.CANCELLED && !emptied && !proven && search.budget() > expanded) {
+            Pass weighted = new Pass(WEIGHT, search.budget() - expanded,
+                    found != null ? greedy.total : Double.POSITIVE_INFINITY, lower);
             weighted.run(startStance, cancelled);
             expanded += weighted.expanded;
             last = weighted;
+            lower = weighted.lower;
             if (weighted.terminal >= 0) {
                 found = weighted;
             }
@@ -164,7 +174,8 @@ public final class AStar {
         }
         if (found != null) {
             SearchResult.Stop stop = found.reachedGoal ? SearchResult.Stop.ARRIVED : SearchResult.Stop.SEGMENT;
-            return new SearchResult(stop, found.route(found.terminal), expanded, breathless, startEstimate, null, null);
+            return new SearchResult(stop, found.route(found.terminal), expanded, breathless, startEstimate, null, null,
+                    lower > 0 ? Math.max(1, found.total / lower) : Double.POSITIVE_INFINITY);
         }
         SearchResult.Stop stop = last.stop != null ? last.stop
                 : skippedUnloaded ? SearchResult.Stop.UNLOADED : SearchResult.Stop.EXHAUSTED;
@@ -174,9 +185,10 @@ public final class AStar {
     /** 没搜到的结论:交出的半程路线、展开过的格子该抬高多少估价、离目标最近的节点上朝目标的步子为什么被拒。 */
     private SearchResult failed(SearchResult.Stop stop, double startEstimate, int expanded, Pass pass) {
         if (pass == null || stop == SearchResult.Stop.CANCELLED) {
-            return new SearchResult(stop, null, expanded, breathless, startEstimate, null, null);
+            return new SearchResult(stop, null, expanded, breathless, startEstimate, null, null, Double.NaN);
         }
-        return new SearchResult(stop, pass.advance(), expanded, breathless, startEstimate, pass.learned(), pass.blocking());
+        return new SearchResult(stop, pass.advance(), expanded, breathless, startEstimate, pass.learned(), pass.blocking(),
+                Double.NaN);
     }
 
     /** 搜索的估价到这一段的终点:不高过终点的位置时是 0。 */
@@ -190,6 +202,8 @@ public final class AStar {
         final double weight;
         final int budget;
         final double ub;
+        /** 这一段最优价的下界:进来时的,加权搜索里随开放集往上抬(解的价钱不低于它也不高过 UB)。 */
+        double lower;
         final Nodes nodes = new Nodes();
         final OpenSet open = new OpenSet(nodes);
         int start;
@@ -210,10 +224,11 @@ public final class AStar {
         double[] edgeCost = new double[256];
         int edges;
 
-        Pass(double weight, int budget, double ub) {
+        Pass(double weight, int budget, double ub, double lower) {
             this.weight = weight;
             this.budget = budget;
             this.ub = ub;
+            this.lower = lower;
         }
 
         /** 总价的排序键:贪心只看估价,加权看总价加估价的 {@link #WEIGHT} 倍。 */
@@ -222,12 +237,11 @@ public final class AStar {
         }
 
         /**
-         * 剪枝:总价加估价的 {@link #WEIGHT} 倍不低于已有的解的价钱 UB。估价是下界,所以最优路线上总有一个节点在开放集里,它的
-         * 总价加估价至多是最优价;它被剪掉,说明 UB 已经不高过最优价的 {@link #WEIGHT} 倍——再搜下去最多换来一点点改进。
-         * 剪枝与权重用同一个倍数,交出的路线至多比这一段的最优贵 {@link #WEIGHT} 倍,搜空了也一样。
+         * 剪枝:总价加估价不低于已有的解的价钱 UB。估价是下界,这样的节点下面不可能有比 UB 便宜的路。
+         * 剪枝不乘权重:乘了会把真正更便宜、但估价大的绕路分支先剪掉;{@link #WEIGHT} 倍的保证靠"证明够好就停"拿。
          */
         private boolean pruned(double g, double toSegment) {
-            return ub != Double.POSITIVE_INFINITY && g + WEIGHT * toSegment >= ub;
+            return ub != Double.POSITIVE_INFINITY && g + toSegment >= ub;
         }
 
         void run(Stance startStance, BooleanSupplier cancelled) {
@@ -248,6 +262,13 @@ public final class AStar {
                 if (cancelled.getAsBoolean()) {
                     stop = SearchResult.Stop.CANCELLED;
                     return;
+                }
+                if (ub != Double.POSITIVE_INFINITY && expanded > 0 && expanded % PROOF_EVERY == 0) {
+                    // 开放集的下界抬了:手里的解(价钱 UB)已不差于最优的 WEIGHT 倍就停,留着贪心那一遍的解
+                    lower = Math.max(lower, Math.min(open.lowerBound(), ub));
+                    if (ub <= WEIGHT * lower) {
+                        return;
+                    }
                 }
                 int current = open.pop();
                 long at = nodes.pos[current];
@@ -272,6 +293,7 @@ public final class AStar {
                         terminal = current;
                         total = nodes.g[current] + stopping;
                         reachedGoal = true;
+                        bound();
                         return;
                     }
                 } else if (nodes.h[current] == 0 && shift > 0 && current != start && nodes.air[current].held() <= 0) {
@@ -279,6 +301,7 @@ public final class AStar {
                     // 下一段接不上就困在那里)
                     terminal = current;
                     total = nodes.g[current];
+                    bound();
                     return;
                 }
                 if (expanded >= budget) {
@@ -398,6 +421,20 @@ public final class AStar {
                         open.pushOrUpdate(next);
                     }
                 }
+            }
+            if (ub != Double.POSITIVE_INFINITY) {
+                // 开放集搜空了:总价加估价低于 UB 的节点都展开过,没有比 UB 更便宜的路
+                lower = ub;
+            }
+        }
+
+        /**
+         * 加权搜索按总价加权估价的顺序弹出了终点:开放集里别的节点的"总价加 {@link #WEIGHT} 倍估价"都不低于它的总价,
+         * 所以最优价至少是它的总价的 1/{@link #WEIGHT}。
+         */
+        private void bound() {
+            if (weight != Double.POSITIVE_INFINITY) {
+                lower = Math.max(lower, total / weight);
             }
         }
 

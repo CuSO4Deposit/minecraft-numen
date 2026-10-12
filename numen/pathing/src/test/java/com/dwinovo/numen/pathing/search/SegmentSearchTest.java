@@ -74,6 +74,20 @@ class SegmentSearchTest {
         assertTrue(more.route().cost() < greedy.route().cost() * 0.6,
                 "加权那一遍找到的路便宜得多:" + more.route().cost() + " 对 " + greedy.route().cost());
         assertEquals(0, more.route().alterations(), "绕缺口走,不挖");
+        assertTrue(greedy.gap() > AStar.WEIGHT, "挖墙的解证不出界:" + greedy.gap());
+        assertTrue(more.gap() <= AStar.WEIGHT, "绕缺口的解证到了界:" + more.gap());
+    }
+
+    /** 平地上贪心那一遍的解已经证明不差于最优的加权倍数:不再开加权那一遍,多给预算也不多展开一个节点。 */
+    @Test
+    void aGreedySolutionProvedGoodEnoughEndsTheSearch() {
+        CostModel model = Fixtures.model(Fixtures.natural());
+        Goal goal = Goals.at(new BlockPos(20, Y, 0));
+        SearchResult small = Fixtures.search(field(), model, START, goal, 200);
+        SearchResult large = Fixtures.search(field(), model, START, goal, 3000);
+        assertTrue(large.arrived());
+        assertTrue(large.gap() <= AStar.WEIGHT, "证到的界:" + large.gap());
+        assertEquals(small.expanded(), large.expanded());
     }
 
     /** 四壁是基岩、里面是实心石头的竖井(边长 {@code size}),空手;起点是井底角上挖好的两格空间。 */

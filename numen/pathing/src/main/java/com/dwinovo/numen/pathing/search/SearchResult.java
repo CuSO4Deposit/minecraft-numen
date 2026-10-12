@@ -21,9 +21,11 @@ import net.minecraft.core.BlockPos;
  *                      搜到了或没有可学的为空
  * @param blocking      没搜到时,离目标最近的那个节点上朝目标的步子被拒的头一条(哪种走法、从哪个节点、哪一格、哪一条前提),
  *                      收场说"缺什么"取它;没有为 null
+ * @param gap           交出的路线的价钱 ÷ 这一段最优价的下界:证到的界(1 是最优,不超过加权的倍数是证明够好,更大是没证出来就用完了预算);
+ *                      没交出整段为 NaN
  */
 public record SearchResult(Stop stop, Route route, int expanded, boolean breathless, double startEstimate,
-                           Long2DoubleMap raised, Blocking blocking) {
+                           Long2DoubleMap raised, Blocking blocking, double gap) {
 
     /** 搜索为什么停。"没有路"只有 {@link #EXHAUSTED} 能说;预算用完、碰到没加载的区块只是没搜完。 */
     public enum Stop {

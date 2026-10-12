@@ -825,7 +825,8 @@ class SearchTest {
         assertEquals(new BlockPos(-1, Y, 0), dive.from(), "从踏进水里的那一步起");
         assertEquals(new BlockPos(11, Y, 0), dive.to(), "到走出水的那一步止");
         assertEquals(12, dive.steps());
-        assertTrue(dive.held() > 100 && dive.held() < 120, "十二步水里的工夫:" + dive.held());
+        double underwater = result.route().legs().stream().filter(l -> l.maneuver().submerged()).mapToDouble(Route.Leg::ticks).sum();
+        assertEquals(underwater, dive.held(), 1e-6, "一口气憋的就是水下各步的耗时之和");
         assertEquals(300, dive.held() + dive.left(), 1e-6);
         assertFalse(result.breathless());
     }

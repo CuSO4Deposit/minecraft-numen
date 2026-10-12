@@ -642,13 +642,14 @@ public final class Driver {
      */
     private void logSearch(Search search, SearchResult result, Pending<SearchResult> done) {
         Route route = result.route();
-        rig.journal.searched(result.expanded(), done.ranNanos(), !result.raised().isEmpty());
+        rig.journal.searched(result.expanded(), done.ranNanos(), !result.raised().isEmpty(), result.gap());
         String why = result.blocking() == null || result.reached() ? ""
                 : " 离目标最近处朝目标的步被拒:" + PathLog.blocking(result.blocking());
         String what = route == null ? "没交出路线"
                 : (result.arrived() ? "到目标 " : result.reached() ? "一段 " : "往边界推进 ") + PathLog.route(route);
-        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 用时 {}({}) 排队 {} 停因 {} {}{}", rig.who, purpose.label,
+        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 界 {} 用时 {}({}) 排队 {} 停因 {} {}{}", rig.who, purpose.label,
                 PathLog.pos(search.start()), search.goal(), PathLog.spec(search.model().spec()), result.expanded(),
+                Double.isNaN(result.gap()) ? "-" : String.format("%.2f", result.gap()),
                 PathLog.ms(done.ranNanos()), PathLog.load(done, result.expanded()), PathLog.ms(done.queuedNanos()), result.stop(),
                 what, result.raised().isEmpty() ? why : " 抬高了 " + result.raised().size() + " 格的估价" + why);
         if (route != null && PathLog.debugging()) {
