@@ -191,6 +191,7 @@ public final class NavText {
             case NEEDS_CONSENT -> "changing it needs the owner's consent, and this walk keeps out of such cells";
             case EDIT_RESTRICTED -> "my game mode can't change blocks";
             case UNBREAKABLE -> "it can't be broken";
+            case TOO_HARD -> "the best tool I carry would take over a minute to break it";
             case WOULD_FLOOD -> "breaking it would let liquid in";
             case WOULD_COLLAPSE -> "breaking it would bring loose blocks down";
             case MELTS -> "breaking the ice would leave water";
