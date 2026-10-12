@@ -39,6 +39,12 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class CostModel {
 
+    /**
+     * 挖一格手上最好的工具也要这么多刻(一分钟)以上,就算挖不动:不进路线,收场报告说挖不动({@link Reason#TOO_HARD})。原版没有
+     * "挖不动"一说,空手挖黑曜石要四分多钟、木镐也要两分多钟,谁也不会拿它当路;钻石镐十来秒、铁镐四十秒,仍是路。
+     */
+    public static final int MAX_DIG_TICKS = 20 * 60;
+
     private final RouteSpec spec;
     private final BodySnapshot body;
     private final TerrainPolicy terrain;
@@ -220,6 +226,9 @@ public final class CostModel {
         if (physical != null) {
             return Admission.refuse(physical);
         }
+        if (tooHard(state)) {
+            return Admission.refuse(Reason.TOO_HARD);
+        }
         return judge(TerrainPolicy.Change.DIG, pos, state, view);
     }
 
@@ -314,8 +323,12 @@ public final class CostModel {
      * 挖不动的(硬度为负)是无穷大。搜索的估价拿它给"绕不开的挖掘"定下界({@code search.Burial})。
      */
     public double digFloor(BlockState state) {
-        double ticks = tools.handTicks(state, false, true);
-        return ticks >= Integer.MAX_VALUE ? Double.POSITIVE_INFINITY : ticks + spec.breakPenalty();
+        return tooHard(state) ? Double.POSITIVE_INFINITY : tools.handTicks(state, false, true) + spec.breakPenalty();
+    }
+
+    /** 手上最好的工具挖掉 {@code state} 要几刻,超过 {@link #MAX_DIG_TICKS}:挖不动(挖不碎的基岩也在内)。 */
+    private boolean tooHard(BlockState state) {
+        return tools.ticks(state, false, true) > MAX_DIG_TICKS;
     }
 
     /**
