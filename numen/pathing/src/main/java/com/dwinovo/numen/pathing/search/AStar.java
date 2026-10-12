@@ -208,6 +208,8 @@ public final class AStar {
         final OpenSet open = new OpenSet(nodes);
         int start;
         int expanded;
+        /** 节点里出现过的最高一档憋气({@link #dominated} 往上找到这里为止)。 */
+        int topBand;
         /** 搜到的终点节点;没搜到为 -1。 */
         int terminal = -1;
         /** 搜到的终点的总价(走到加停下);没搜到为无穷大。 */
@@ -249,6 +251,7 @@ public final class AStar {
             BlockPos startPos = search.start();
             Maneuver arrival = search.arrival();
             start = nodes.add(startPos.asLong(), 0, breath.band(search.air()), toSegment(estimate.at(startPos)));
+            topBand = nodes.band[start];
             nodes.g[start] = 0;
             nodes.stance[start] = startStance;
             nodes.via[start] = arrival;
@@ -271,6 +274,11 @@ public final class AStar {
                     }
                 }
                 int current = open.pop();
+                if (dominated(current)) {
+                    // 同一格有憋气更宽裕、总价又不高的节点:它走得到的这一个都走得到,不展开;记作展开过,不当边界
+                    nodes.expanded[current] = true;
+                    continue;
+                }
                 long at = nodes.pos[current];
                 int cx = BlockPos.getX(at);
                 int cy = BlockPos.getY(at);
@@ -402,6 +410,7 @@ public final class AStar {
                                 continue;
                             }
                             next = nodes.add(to, budgeted ? used : 0, band, h);
+                            topBand = Math.max(topBand, band);
                         } else if (pruned(g, nodes.h[next])) {
                             continue;
                         }
@@ -436,6 +445,31 @@ public final class AStar {
             if (weight != Double.POSITIVE_INFINITY) {
                 lower = Math.max(lower, total / weight);
             }
+        }
+
+        /**
+         * 同一格(已改格数相同)里,有憋气更宽裕的一档({@link Breath#band} 0 档最宽裕,其余档越高越宽裕)、总价又不高于它的节点:
+         * 那一个走得到的这一个都走得到,多余的。水里来回浮沉几下就是一个新档的节点,不去重,搜索会在浮沉的各档上铺满预算。
+         */
+        private boolean dominated(int n) {
+            int band = nodes.band[n];
+            if (band == 0) {
+                return false;
+            }
+            long at = nodes.pos[n];
+            int used = nodes.used[n];
+            double g = nodes.g[n];
+            int better = nodes.find(at, used, 0);
+            if (better >= 0 && nodes.g[better] <= g) {
+                return true;
+            }
+            for (int b = band + 1; b <= topBand; b++) {
+                better = nodes.find(at, used, b);
+                if (better >= 0 && nodes.g[better] <= g) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void edge(int from, int to, double cost) {
