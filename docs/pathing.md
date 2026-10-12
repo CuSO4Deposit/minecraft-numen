@@ -731,7 +731,7 @@ goto 超时、跟随报没路,还有 17 次 "Can't keep up"。新模块一行日
   整刻超过 `PathLog.MAIN_THREAD_WARN_NANOS`(5 毫秒)记一行 WARN。依据:原版一刻 50 毫秒,这是它的十分之一;拷一次快照 0.1–1 毫秒、
   复核一步只判一次前提,平常远在它之下。按墙钟计,不随刻速变——刻速调高后服务器跟不上是刻速的事,这里只标出寻路自己做了重活的那几刻。
   规划时在主线程上拷快照、组成本模型也按同一个阈值判。搜索与诊断在工作线程上,用时随结论记:派发口 `Searches` 记下每件活排队与运行
-  的时长(`Pending.queuedNanos`/`ranNanos`),搜索结论带展开节点数(`SearchResult.expanded`)。目标的 `toString` 是 `at(x,y,z)`、
+  的时长(`Pending.queuedNanos`/`ranNanos`),搜索结论带展开节点数(`SearchResult.expanded`)。每次搜索那一行 INFO 日志(`Driver.logSearch`)再带 `PathLog.load` 的读数:线程 CPU 时间与墙钟之比、跑的期间 JIT 与回收停顿的毫秒、每节点微秒、池线程数与核数;JIT 与回收读 `search/JvmLoad`(`TickTally` 读同一份),CPU 时间由 `Pending` 在工作线程上取。目标的 `toString` 是 `at(x,y,z)`、
   `reach(x,y,z)`、`anyOf(… 共 n 个)` 这样短的一截。
 - **GameTest 全量跑一遍在日志里看到的**(测试服务器,20 刻/秒):战斗走位一次派搜索时组成本模型用了 12 毫秒(组模型时要问生物危险、
   把每只的危险半径逐格折成按位置的代价,是不是它没细查);一次复核 11 毫秒(同伴的端口,原因没查);搭桥放下第一块的那一刻整刻 125–209 毫秒,其中经宿主的手

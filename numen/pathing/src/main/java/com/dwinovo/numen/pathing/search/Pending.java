@@ -44,18 +44,45 @@ public final class Pending<T> {
         return clock.finished - clock.started;
     }
 
-    /** 一件活的三个时刻:派发、开跑、跑完。 */
+    /** 在工作线程上跑的这段时间里,这个线程用掉的 CPU 纳秒;和 {@link #ranNanos} 的比远小于 1,就是它在等锁或被别的线程挤掉了。JVM 不支持线程 CPU 计时为 -1。 */
+    public long cpuNanos() {
+        return clock.cpuStart < 0 || clock.cpuEnd < 0 ? -1 : clock.cpuEnd - clock.cpuStart;
+    }
+
+    /** 跑的这段时间里全进程 JIT 编译花的毫秒(冷启动时大);JVM 不报告为 -1。 */
+    public long jitMillis() {
+        return clock.jitStart < 0 ? -1 : clock.jitEnd - clock.jitStart;
+    }
+
+    /** 跑的这段时间里全进程垃圾回收停顿的毫秒。 */
+    public long gcMillis() {
+        return clock.gcEnd - clock.gcStart;
+    }
+
+    /** 一件活的三个时刻:派发、开跑、跑完,以及开跑与跑完时的线程 CPU、JIT、回收读数(都在工作线程上读)。 */
     static final class Clock {
         private final long submitted = System.nanoTime();
         private volatile long started;
         private volatile long finished;
+        private volatile long cpuStart;
+        private volatile long cpuEnd;
+        private volatile long jitStart;
+        private volatile long jitEnd;
+        private volatile long gcStart;
+        private volatile long gcEnd;
 
         <T> T time(Supplier<T> job) {
+            cpuStart = JvmLoad.threadCpuNanos();
+            jitStart = JvmLoad.jitMillis();
+            gcStart = JvmLoad.gcMillis();
             started = System.nanoTime();
             try {
                 return job.get();
             } finally {
                 finished = System.nanoTime();
+                cpuEnd = JvmLoad.threadCpuNanos();
+                jitEnd = JvmLoad.jitMillis();
+                gcEnd = JvmLoad.gcMillis();
             }
         }
     }

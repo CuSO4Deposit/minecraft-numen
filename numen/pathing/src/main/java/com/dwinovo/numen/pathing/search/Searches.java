@@ -24,6 +24,11 @@ public final class Searches {
 
     private Searches() {}
 
+    /** 工作线程池的大小。 */
+    public static int poolSize() {
+        return POOL_SIZE;
+    }
+
     private static ThreadPoolExecutor pool() {
         ThreadPoolExecutor pool = new ThreadPoolExecutor(POOL_SIZE, POOL_SIZE, 60, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(), task -> {

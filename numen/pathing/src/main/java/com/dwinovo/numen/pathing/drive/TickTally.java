@@ -1,7 +1,6 @@
 package com.dwinovo.numen.pathing.drive;
 
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
+import com.dwinovo.numen.pathing.search.JvmLoad;
 
 /**
  * 一刻里主线程上寻路做的活用了多久:段状态机每刻开头 {@link #begin}、结尾 {@link #end},中间把拷快照、组成本模型、
@@ -21,30 +20,9 @@ final class TickTally {
     private long gcMillis;
     private long gcCount;
 
-    /** 回收器的停顿 bean:并发阶段("Concurrent"、ZGC 的 "Cycles")不停任何线程,不算。 */
-    private static final GarbageCollectorMXBean[] PAUSING = ManagementFactory.getGarbageCollectorMXBeans().stream()
-            .filter(bean -> !bean.getName().contains("Concurrent") && !bean.getName().contains("Cycles"))
-            .toArray(GarbageCollectorMXBean[]::new);
-
-    private static long gcMillisNow() {
-        long sum = 0;
-        for (GarbageCollectorMXBean bean : PAUSING) {
-            sum += bean.getCollectionTime();
-        }
-        return sum;
-    }
-
-    private static long gcCountNow() {
-        long sum = 0;
-        for (GarbageCollectorMXBean bean : PAUSING) {
-            sum += bean.getCollectionCount();
-        }
-        return sum;
-    }
-
     void begin() {
-        gcMillis = gcMillisNow();
-        gcCount = gcCountNow();
+        gcMillis = JvmLoad.gcMillis();
+        gcCount = JvmLoad.gcCount();
         start = System.nanoTime();
         snapshot = 0;
         model = 0;
@@ -78,7 +56,7 @@ final class TickTally {
             PathLog.warn("{} 主线程这一刻寻路用了 {}(阈值 {}):派搜索 {} 次(拷快照 {} 组成本模型 {}) 复核 {} 次 {} 动手 {} 其余 {} 回收停顿 {} 次共 {} 毫秒",
                     who, PathLog.ms(total), PathLog.ms(PathLog.MAIN_THREAD_WARN_NANOS), searches, PathLog.ms(snapshot),
                     PathLog.ms(model), rechecks, PathLog.ms(recheck), PathLog.ms(acted),
-                    PathLog.ms(total - snapshot - model - recheck - acted), gcCountNow() - gcCount, gcMillisNow() - gcMillis);
+                    PathLog.ms(total - snapshot - model - recheck - acted), JvmLoad.gcCount() - gcCount, JvmLoad.gcMillis() - gcMillis);
         }
     }
 }

@@ -10,7 +10,9 @@ import com.dwinovo.numen.api.entity.Mouse;
 import com.dwinovo.numen.pathing.plan.Edit;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.MoveKind;
+import com.dwinovo.numen.pathing.search.Pending;
 import com.dwinovo.numen.pathing.search.Route;
+import com.dwinovo.numen.pathing.search.Searches;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
 
 import org.slf4j.Logger;
@@ -107,6 +109,19 @@ public final class PathLog {
     /** 纳秒写成毫秒,一位小数。 */
     public static String ms(long nanos) {
         return String.format(Locale.ROOT, "%.1fms", nanos / 1.0e6);
+    }
+
+    /**
+     * 一次搜索慢在哪的几个读数,分得清是谁:线程 CPU 时间与墙钟之比(远小于 100% 是抢 CPU 或等锁)、跑的期间 JIT 编译与回收停顿的毫秒
+     * (JIT 大是冷启动)、每节点微秒;两者都正常而每节点仍慢,是地形或实现。池线程数与机器核数一并写出。
+     */
+    public static String load(Pending<?> done, int expanded) {
+        String cpu = done.cpuNanos() < 0 ? "不可用"
+                : String.format(Locale.ROOT, "%.0f%%", 100.0 * done.cpuNanos() / Math.max(1, done.ranNanos()));
+        String jit = done.jitMillis() < 0 ? "不可用" : "+" + done.jitMillis() + "ms";
+        String perNode = expanded <= 0 ? "-" : String.format(Locale.ROOT, "%.0fμs", done.ranNanos() / 1.0e3 / expanded);
+        return String.format(Locale.ROOT, "CPU/墙钟 %s JIT %s GC +%dms 每节点 %s 池 %d 线程/%d 核", cpu, jit, done.gcMillis(), perNode,
+                Searches.poolSize(), Runtime.getRuntime().availableProcessors());
     }
 
     /** 纳秒写成秒,一位小数。 */

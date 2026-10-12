@@ -574,15 +574,15 @@ public final class Driver {
     }
 
     /**
-     * 一次搜索的结论记一行:谁、为什么搜、从哪到哪、规格要点、展开几个节点、在工作线程上跑了多久与排队多久、为什么停、
+     * 一次搜索的结论记一行:谁、为什么搜、从哪到哪、规格要点、展开几个节点、在工作线程上跑了多久(连同 CPU、JIT、回收、每节点的读数,见 {@link PathLog#load})与排队多久、为什么停、
      * 交出的路线;DEBUG 再记一行路线上的每一步。
      */
     private void logSearch(Search search, SearchResult result, Pending<SearchResult> done) {
         Route route = result.route();
         rig.journal.searched(result.stop() == SearchResult.Stop.BUDGET, result.expanded());
-        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 用时 {} 排队 {} 停因 {} {}", rig.who, purpose.label,
+        PathLog.info("{} 搜索 {} {} 去 {} {} 展开 {} 用时 {}({}) 排队 {} 停因 {} {}", rig.who, purpose.label,
                 PathLog.pos(search.start()), search.goal(), PathLog.spec(search.model().spec()), result.expanded(),
-                PathLog.ms(done.ranNanos()), PathLog.ms(done.queuedNanos()), result.stop(),
+                PathLog.ms(done.ranNanos()), PathLog.load(done, result.expanded()), PathLog.ms(done.queuedNanos()), result.stop(),
                 route == null ? "没交出路线" : (result.arrived() ? "到目标 " : "半程 ") + PathLog.route(route));
         if (route != null && PathLog.debugging()) {
             PathLog.debug("{} 路线 {}", rig.who, PathLog.legs(route));
