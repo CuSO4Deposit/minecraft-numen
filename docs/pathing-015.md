@@ -949,6 +949,64 @@
 
 她在地下和山里会更爱挖(许挖的地方;不许的由权限层管);搭桥垫柱更费方块;有时窗口里没看到一条稍远的现成路,会选择直挖,路线显得笨。
 
+### 7. 第 2、3 步细化(10-13,用户放权:"方案什么的我放权给你决定,但是每一个方案的选择都要有理有据,有引用有参考")
+
+排序按用户:**性能 ≈ 可靠 > 路线最优**。第 2、3 步一起做(中间态没有"推进不了怎么办",单做第 2 步会留一个临时收场,等于胶水)。
+
+**(a) 一段的目标:估价降下去 Δ。** 段的终止条件是"到了终点,或者到了一个估价比起点低 Δ 的节点"(Δ = D × 疾跑一格的价,D 由靶场在 24/32/48 里量定)。
+不另造"离终点多远"的距离——不同目标(某格、某列、够得着某块、远离威胁)的距离各不相同,而估价 h 已经是每种目标统一的"还差多少",
+推进就用它量,一个出处。这正是 LSS-LRTA* 的局部搜索:在有界的一块里展开,停在估价最好的边界上 [Koenig & Sun 2009]。
+终止条件放在搜索里一处(`AStar` 的"到没到"),不新造目标类型。停的节点照现有规矩:站得住、没憋着气。
+
+**(b) 一段的搜索:先贪心拿一个解,再在它的价钱以内加权搜。** 同一个 `AStar`,先以 w = ∞(只按 h 排,纯贪心)跑小预算 N₁ 拿到第一个解,
+它的价钱是上限 UB;再以 w = 1.5 跑预算 N₂,总价 g + h ≥ UB 的节点剪掉(h 是下界,剪掉的分支里不可能有比 UB 便宜的路),找到更便宜的就替换。
+交出时手里最好的那条。依据:这是 LAMA 规划器用的"先贪心、再加权、以已有解的价钱剪枝"(Restarting Weighted A*,[Richter, Thayer & Ruml 2010]),
+属于随时可交的启发式搜索 [Hansen & Zhou 2007;Likhachev, Gordon & Thrun 2003 ARA*]。贪心那一遍在实心岩石里就是"朝终点直挖",
+在地表就是"朝终点直走、挡了就挖/垫"——§2 的直线推进不另写一份,就是同一个搜索取 w = ∞ 的结果,走法、前提、权限全是同一套。
+w = 1.5 由加权实验定(`agent-a22b89853139e1b4d`,靶场 27 条:展开 −18%,w ≥ 2 起 `lake_cross` 回归、w = 3 价比到 1.98)。
+
+**(c) 回不了头的步。** 一段是搜到推进区域的完整路线,里面的坠落、往下挖穿都允许:落点之后的路已经找到了。`HandOver` 的"截到最后一个回得了头的节点"
+只用在 (d) 的局部前进里;`HandOver.NODES`/`due`/`pick`(为"搜不到终点先交半程"而设)删掉。rock_far 的竖井、ravine_floor 的落差由此不再是死结。
+
+**(d) 推进不了:LSS-LRTA* 式的局部前进 + 同趟学习。** 两遍都没搜到推进区域时:
+- 把这次展开过的节点的估价按 LSS-LRTA* 的学习规则抬高(从边界往里做一次 Dijkstra,h(s) ← min(c(s,s') + h(s'))),记进**这一趟的记忆**(`TripMemory`,按格存增量,
+  只活这一趟);以后所有段的 h 都是"原估价 + 记忆里的增量"。
+- 身体前进到边界上 g + h 最小的节点,用 `HandOver.cut` 截到回得了头的一截(局部前进可能走进死路,只能停在退得回来的地方)。
+- 依据:LRTA* 在有限、可安全探索的状态空间里保证到达 [Korf 1990];LSS-LRTA* 用 A* 展开一块局部空间再学习,同样保证,且每步计算有界 [Koenig & Sun 2009]。
+  学习让她绕进同一处死路不超过有限次——这就是"不来回"的保证,不靠"连续 3 段没更近"这类经验阈值。
+
+**(e) 执行闭环,共用同一份记忆。** 一步走不下去或卡住:这一步(走法、起点、落点)在 `TripMemory` 里记为不通,只重算当前这一段;世界在路线上被改,同样只重算当前段。
+依据:D* 一族的做法——按已知的世界规划,发现与世界不符就把那一处改掉、重规划 [Stentz 1994;Koenig & Likhachev 2002 D* Lite];
+ROS 导航栈里局部控制器失败交给恢复行为、再让全局规划重算 [Marder-Eppstein et al. 2010]。`Recovery` 的 `STRIKES`(同一步失败三次收场)与 `stalled`
+(连续 3 段没更近)由 (d)(e) 加 (f) 取代,删掉,不留两套放弃判据。
+
+**(f) 什么时候收场,说什么。** 只有一个判据:这一趟的搜索总预算(按节点数,与起点到终点的估价成正比,常数由靶场定)用完还没到。
+收场原因从搜索里拒掉的候选汇总:贪心那一遍被挡的那一步的前提失败原因(没开挖、没有料、挖不动、权限、基岩/不可破坏、岩浆),带位置;
+"没有料"带"这一段还差多少块"(贪心解要放的块数减身上的块数)。报告给模型,由模型决定(用户定:停下报告,不自己去收集)。
+真实世界有限但很大,LRTA* 的"保证到达"在这里要配一个总预算才有意义;总预算是性能约束,不是认输的经验阈值。
+
+**(g) 估价。** h = 疾跑底价 + `Vertical`(按层查,已经很便宜)+ `TripMemory` 增量。`Burial`(从终点往外的放宽 Dijkstra,为"终点在远处的实心里"而设,
+开搜几到几十毫秒)在段只有 D 格时是否还值,由靶场量:去掉后若 rock_far 一类的段展开没有明显变多,就删掉;留就整份留,不做"有时用"。
+
+**(h) 快照。** 一段只看 D 格,快照半径可以从 6 区块收小(主线程拷贝成正比变少);取多少由 D 定,靶场量主线程拷贝耗时。
+
+**验收**(在 §5 第 2、3 步的基础上):27 条全部走到(规格下有路的);`lake_cross` 的水里上岸卡住另查根因(加权实验记下的前提缺陷);
+每条报 刻数、搜索次数、各段展开、第一段交出耗时、价比;新增三条硬挡路线(禁区挡在中间、方块不够过河、没镐挖黑曜石)走到或照实收场且原因对;
+日常 GameTest 两加载器、tlm、单测全过,靶场三遍一致。
+
+**参考文献**
+- Korf, R. E. (1990). Real-time heuristic search. *Artificial Intelligence* 42(2–3).
+- Koenig, S. & Sun, X. (2009). Comparing real-time and incremental heuristic search for real-time situated agents. *Autonomous Agents and Multi-Agent Systems* 18(3).(LSS-LRTA*)
+- Stentz, A. (1994). Optimal and efficient path planning for partially-known environments. *ICRA*.(D*)
+- Koenig, S. & Likhachev, M. (2002). D* Lite. *AAAI*.
+- Likhachev, M., Gordon, G. & Thrun, S. (2003). ARA*: Anytime A* with provable bounds on sub-optimality. *NIPS*.
+- Hansen, E. A. & Zhou, R. (2007). Anytime heuristic search. *JAIR* 28.
+- Richter, S., Thayer, J. T. & Ruml, W. (2010). The joy of forgetting: faster anytime search via restarting. *ICAPS*.(LAMA 的 RWA*)
+- Pohl, I. (1970). Heuristic search viewed as path finding in a graph. *Artificial Intelligence* 1(3).(加权 A*)
+- Gat, E. (1998). On three-layer architectures. In *Artificial Intelligence and Mobile Robots*, MIT Press.
+- Marder-Eppstein, E. et al. (2010). The Office Marathon: robust navigation in an indoor office environment. *ICRA*.(ROS 导航栈:全局/局部规划与恢复行为)
+- Baritone `PrecomputedData`、`AStarPathFinder`(cabaletta/baritone);原版 `WalkNodeEvaluator`/`PathType`(格子分类,第 1 步查表的先例)。
+
 ## 五、验收
 
 - 靶场:到达率、总刻数、各走法实际/估价(都应接近 1)、每次搜索的展开节点、半程次数;两个加载器各三次逐刻一致。
