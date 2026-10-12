@@ -1223,6 +1223,47 @@ ravine_floor 头一段 114 ms 里 JIT 109 ms)。其余 113 次:p50 2.4,p90 13.0,
 改了断言的:`GaitTest` 一格宽一格深的台阶"疾跑、不收脚"改成"平走、不收脚"(第 8 处);`SearchTest.aSealedChannelShortEnoughIsSwumAndTheRouteTellsTheDive` 的"憋 100–120 刻"
 改成"憋的刻数 = 水下各步耗时之和"(路线现在可以比最优贵到 1.5 倍,原来断言的数是最优路线的)。靶场加三条硬挡路线,时限放宽三条(够挖通);靶场连跑三次,除墙钟字段外 30 行逐行一致。
 
+## 第 11 步:粗层给段目标(设计稿,10-13)
+
+### 1. 为什么现在又要粗层
+
+第 10 步做完,靶场 30 条全部走到、硬挡照实收场、摔死隐患修掉;剩下的全是同一类:basin_descent 价比 22、ravine_floor 4.9、rock_far 3.2、
+cave_far ≥ 2.95。拆开看(第 2、3 步落地记录):最优路线都要先去一个"口"——山脊东头、峡谷头、竖井口——而最优价是估价的 2.9~25 倍;
+段规矩"估价降 Δ"不是挡路的,把每段预算从 4000 加到 32000 也没有一档四条同时变好(basin 始终 22)。
+
+这是实时搜索的已知局限——**启发式凹陷**(heuristic depression):估价在一片区域里系统性偏低,局部搜索无论学多久都要把凹陷填平才出得去
+[Ishida 1992;Bulitko et al. 2007]。主流的解是**抽象**:在粗一层的图上求方向,局部搜索只负责细化——PR-LRTS 正是"抽象 + 实时搜索"
+[Bulitko, Sturtevant, Lu & Yau 2007],HPA* / PRA* 是同一思路的离线版本 [Botea, Müller & Schaeffer 2004;Sturtevant & Buro 2005]。
+
+证据也已经有:第 9 步暂停前的粗层原型(权重 2、按段计价的估价,接的还是旧的细搜索)把 basin_descent 走成 1190 刻;
+现在没有粗层是 19215 刻。第 9 步当时的问题是**粗层自己慢、细搜索接不住岩石里的口子**,这两件第 10 步已经各有了着落:
+段搜索先贪心拿解(朝岩石里的口子直挖,一定有解),估价按段计价解决量纲。
+
+### 2. 做法
+
+- **粗层沿用第 9 步的部件**(worktree `agent-a8871ce814ecaed3f`,未合并):放宽体素模型 `Relaxed`、按交界面成片的口子 `GateSet`/`Section`、
+  段缓存 `SectionCache` 与失效(`ServerLevel.onBlockStateChange` 与 `BlockSearch` 共用一处、区块卸载丢缓存)、口子图上的 A* `Chart`。
+  口子图 A* 权重 2,估价沿直线按穿过的每段的每格最低价(`Relaxed.floorPrice`,WIP 提交 7af1d7de2 里已写)计——不当下界,只排先后。
+- **段的目标只有一个出处:粗路线上前方的口子。**取粗路线上第一个离身体至少 D 的口子(终点在 D 以内就是终点),以 `within(at(口子), 小半径)`
+  交给段搜索。没加载的段在口子图里按开阔地计,粗路线在空旷处退化为直线,所以不需要"估价降 Δ"这条规矩——它整份删掉,不留两种段目标。
+- **重排**只在三种情况:身体偏离粗路线、粗路线经过的段被标脏、一段失败(那条粗边在 `TripMemory` 里记为本趟不通——与执行闭环、学习共用同一份记忆)。
+  到了口子不重排。
+- **段搜索、学习、收场照第 10 步不变。**估价仍是疾跑底价 + `Vertical` + `TripMemory` 增量(加 `Burial`)。
+- **线程与开销**:主线程只拷段数据;口子与段内边在搜索线程上算;粗路线一趟算一次、缓存的段直接用。量冷缓存与热缓存两种耗时。
+
+### 3. 验收
+
+- 走得到(硬):30 条全到或照实收场,不来回。
+- 别太差:basin_descent、ravine_floor、rock_far、cave_far 价比 ≤ 2,做不到的逐条拆开说口子图哪里不对。其余路线不变差。
+- 快:"下令到开始走"中位数与 p90 不比第 10 步差;粗路线冷算、热算各多少毫秒,逐条列。
+- 回归:两加载器构建、单测、日常 GameTest 两加载器、tlm、靶场三遍一致。
+
+**参考文献**(第 10 步 §7 之外新增)
+- Ishida, T. (1992). Moving target search with intelligence. *AAAI*.(启发式凹陷)
+- Bulitko, V., Sturtevant, N., Lu, J. & Yau, T. (2007). Graph abstraction in real-time heuristic search. *JAIR* 30.(PR-LRTS)
+- Botea, A., Müller, M. & Schaeffer, J. (2004). Near optimal hierarchical path-finding. *Journal of Game Development* 1(1).(HPA*)
+- Sturtevant, N. & Buro, M. (2005). Partial pathfinding using map abstraction and refinement. *AAAI*.(PRA*)
+
 ## 五、验收
 
 - 靶场:到达率、总刻数、各走法实际/估价(都应接近 1)、每次搜索的展开节点、半程次数;两个加载器各三次逐刻一致。
