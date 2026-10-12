@@ -2,7 +2,6 @@ package com.dwinovo.numen.pathing.drive;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.ToDoubleFunction;
 
 import com.dwinovo.numen.pathing.body.Body;
 import com.dwinovo.numen.api.entity.BodyAction;
@@ -10,7 +9,6 @@ import com.dwinovo.numen.api.entity.Controls.Key;
 import com.dwinovo.numen.pathing.plan.CostModel;
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Materials;
-import com.dwinovo.numen.pathing.plan.Moves;
 import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.plan.TerrainPolicy;
 import com.dwinovo.numen.pathing.plan.Threats;
@@ -538,7 +536,7 @@ public final class Driver {
         logSearch(search, result, pending);
         pending = null;
         if (purpose == Purpose.NEXT) {
-            if (continuation.splice(course, result.route(), result.arrived(), minimum())) {
+            if (continuation.splice(course, result.route(), result.arrived())) {
                 partial(result, search);
             } else if (result.route() == null) {
                 continuation.unfound(result, search);
@@ -556,7 +554,7 @@ public final class Driver {
                 // 最后一步进了目标的同一刻,这次搜索没交出路:她已经到了
                 PathLog.debug("{} 搜索没交出路,可她已经站在目标里 {}", rig.who, PathLog.pos(node));
                 course.clear();
-                course.install(new Route(node, here, List.of()), true, minimum());
+                course.install(new Route(node, here, List.of()), true);
                 return;
             }
             giveUp(result, search);
@@ -601,16 +599,10 @@ public final class Driver {
     }
 
     private void install(Route route, boolean arrived) {
-        course.install(route, arrived, minimum());
+        course.install(route, arrived);
         continuation.reset();
         step = null;
         tracker.reset();
-    }
-
-    /** 一步几何上最短要几刻:运动学算的,加挖掘的刻数({@code Move.ticks});成本模型只组一份给一条路线的每一步。 */
-    private ToDoubleFunction<Maneuver> minimum() {
-        CostModel model = model();
-        return m -> Moves.of(m.kind()).ticks(model, m);
     }
 
     /** 路线快走完、又没到目标:从终点提前搜下一段。 */

@@ -1,7 +1,5 @@
 package com.dwinovo.numen.pathing.drive;
 
-import java.util.function.ToDoubleFunction;
-
 import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.search.Route;
@@ -66,9 +64,9 @@ final class Continuation {
      *
      * @return 拼上了
      */
-    boolean splice(Course course, Route found, boolean arrived, ToDoubleFunction<Maneuver> ticks) {
+    boolean splice(Course course, Route found, boolean arrived) {
         if (found != null && found.start().equals(course.end())) {
-            course.extend(found, arrived, ticks);
+            course.extend(found, arrived);
             return true;
         }
         failed = true;

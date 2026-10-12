@@ -368,7 +368,8 @@ public final class AStar {
     private Route route(int start, int end) {
         List<Route.Leg> legs = new ArrayList<>();
         for (int n = end; nodes.parent[n] >= 0; n = nodes.parent[n]) {
-            legs.add(new Route.Leg(maneuver(n), nodes.viaCost[n], nodes.air[n]));
+            Maneuver m = maneuver(n);
+            legs.add(new Route.Leg(m, nodes.viaCost[n], Moves.of(m.kind()).ticks(model, m), nodes.air[n]));
         }
         Collections.reverse(legs);
         return new Route(BlockPos.of(nodes.pos[start]), nodes.stance[start], legs);

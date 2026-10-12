@@ -47,7 +47,7 @@ class ContinuationTest {
         Route route = Fixtures.search(world, Fixtures.model(RouteSpec.defaults()), new BlockPos(0, Y, 0),
                 Goals.at(new BlockPos(3, Y + 7, 0))).route();
         Course course = new Course();
-        course.install(route, false, m -> 10);
+        course.install(TrackerTest.paced(route, 10), false);
         return course;
     }
 
@@ -95,7 +95,7 @@ class ContinuationTest {
         Continuation continuation = new Continuation();
         assertFalse(continuation.due(TrackerTest.straightCourse(true, 2)), "已到目标");
         Course course = TrackerTest.straightCourse(false, 2);
-        continuation.splice(course, null, false, m -> 2);
+        continuation.splice(course, null, false);
         assertFalse(continuation.due(course), "接不上之后不再提前搜");
         assertTrue(continuation.failed());
     }
@@ -122,7 +122,7 @@ class ContinuationTest {
         open.advanceTo(open.size() - 1);
         Continuation continuation = new Continuation();
         assertFalse(continuation.settled(open));
-        continuation.splice(open, null, false, m -> 10);
+        continuation.splice(open, null, false);
         assertTrue(continuation.settled(open), "确认接不上,末尾几步照走(到终点再从脚下搜)");
     }
 
@@ -134,7 +134,7 @@ class ContinuationTest {
         assertFalse(continuation.settled(course));
         Route next = nextSegment(course);
         int before = course.size();
-        assertTrue(continuation.splice(course, next, true, m -> 10));
+        assertTrue(continuation.splice(course, next, true));
         assertEquals(before + next.legs().size(), course.size());
         assertTrue(course.complete(), "接上的一段到了目标");
         assertEquals(next.end(), course.end());
@@ -149,7 +149,7 @@ class ContinuationTest {
         Route elsewhere = Fixtures.search(world, Fixtures.model(RouteSpec.defaults()), new BlockPos(0, Y, 2),
                 Goals.at(new BlockPos(6, Y, 2))).route();
         int before = course.size();
-        assertFalse(continuation.splice(course, elsewhere, true, m -> 10));
+        assertFalse(continuation.splice(course, elsewhere, true));
         assertEquals(before, course.size());
         assertTrue(continuation.failed());
         continuation.reset();
