@@ -67,6 +67,11 @@ public final class AStar {
     private static final double[] COEFFICIENTS = {1.5, 2, 2.5, 3, 4, 5, 10, Double.POSITIVE_INFINITY};
     /** 小于这个改进不松弛:平地上斜走与直走组合出的浮点差不值得重排堆。 */
     private static final double MIN_IMPROVEMENT = 0.01;
+    /**
+     * 总价差在这以内算平手。平地上同一价钱的路线加的顺序不同,浮点和差在 1e-12 上下:用 f 直接比,平手大半被噪声拆开,
+     * 所以堆按取整到这个刻度的总价比({@link Node#key}),这一格里再比估价。
+     */
+    private static final double TIE = 1e-6;
 
     private final Search search;
     private final CostModel model;
@@ -335,6 +340,8 @@ public final class AStar {
         final double h;
         double g = Double.POSITIVE_INFINITY;
         double f;
+        /** 堆里排序用的总价:f 取整到 {@link #TIE};入堆、改键时由堆更新。 */
+        long key;
         Stance stance;
         Node parent;
         Maneuver via;
@@ -355,7 +362,11 @@ public final class AStar {
         }
     }
 
-    /** 按 f 排的二叉堆,支持原地降键。 */
+    /**
+     * 按总价排的二叉堆,支持原地降键。总价平手时估价小的在前(同总价里 g 更大的,离目标更近的先展开),
+     * 平地上一大片同总价的节点不再整片展开:总价低于最优路线的节点怎么排都得展开,顺序只影响总价恰等于最优价的那一层,
+     * 所以搜出的总价不变;最优路线有多条等价时,选到哪一条取决于这个顺序。
+     */
     private static final class Heap {
         private Node[] items = new Node[1024];
         private int size;
@@ -370,16 +381,26 @@ public final class AStar {
             }
             items[size] = n;
             n.heapIndex = size;
+            n.key = key(n.f);
             size++;
             up(n.heapIndex);
         }
 
         void pushOrUpdate(Node n) {
             if (n.heapIndex >= 0) {
+                n.key = key(n.f);
                 up(n.heapIndex);
             } else {
                 push(n);
             }
+        }
+
+        private static long key(double f) {
+            return Math.round(f / TIE);
+        }
+
+        private static boolean before(Node a, Node b) {
+            return a.key < b.key || (a.key == b.key && a.h < b.h);
         }
 
         Node pop() {
@@ -399,7 +420,7 @@ public final class AStar {
             Node n = items[i];
             while (i > 0) {
                 int parent = (i - 1) >>> 1;
-                if (items[parent].f <= n.f) {
+                if (!before(n, items[parent])) {
                     break;
                 }
                 items[i] = items[parent];
@@ -417,10 +438,10 @@ public final class AStar {
                 if (child >= size) {
                     break;
                 }
-                if (child + 1 < size && items[child + 1].f < items[child].f) {
+                if (child + 1 < size && before(items[child + 1], items[child])) {
                     child++;
                 }
-                if (items[child].f >= n.f) {
+                if (!before(items[child], n)) {
                     break;
                 }
                 items[i] = items[child];

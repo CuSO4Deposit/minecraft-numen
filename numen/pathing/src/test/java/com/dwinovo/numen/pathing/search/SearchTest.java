@@ -87,6 +87,17 @@ class SearchTest {
         assertEquals(goal, result.route().end());
     }
 
+    /**
+     * 平地上斜走十二格再直走十二格,与先直走再斜走、穿插着走,总价相同:估价是准的,最优路线上每个节点的总价都等于最优价。
+     * 总价平手时先展开离目标近的,展开的节点数跟路线上的步数同量级,不会把这一整片同总价的节点都展开。
+     */
+    @Test
+    void aFlatWalkExpandsAboutAsManyNodesAsItHasSteps() {
+        SearchResult result = search(field(), defaults(), START, Goals.at(new BlockPos(24, Y, 12)));
+        assertTrue(result.arrived());
+        assertTrue(result.expanded() <= result.route().legs().size() * 3 / 2, "展开了 " + result.expanded() + ",路线 " + result.route().legs().size() + " 步");
+    }
+
     @Test
     void aSealedRoomIsSearchedOutAndThatIsToldApartFromRunningOutOfBudget() {
         TestWorld room = field().fill(-2, Y, -2, 2, Y + 2, 2, STONE).fill(-1, Y, -1, 1, Y + 1, 1, Blocks.AIR.defaultBlockState());
