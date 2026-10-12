@@ -40,13 +40,19 @@ final class Nodes {
     int[] parent = new int[INITIAL];
     /** 在堆里的位置;不在堆里为 -1。 */
     int[] heapIndex = new int[INITIAL];
+    /** 走到这里的那一步:走法在 {@code Moves.ALL} 里的下标,与方向在那个走法的 {@code headings()} 里的下标。 */
+    byte[] move = new byte[INITIAL];
+    byte[] heading = new byte[INITIAL];
     /** 走到这里那一步的代价(不含旧路折扣)。 */
     double[] viaCost = new double[INITIAL];
     /** 走到这里时身体怎么待着。 */
     Stance[] stance = new Stance[INITIAL];
     /** 走到这里时身体憋气的样子。 */
     Breath.Air[] air = new Breath.Air[INITIAL];
-    /** 走到这里的那一步的全套事实。 */
+    /**
+     * 走到这里的那一步的全套事实。精确判断算出来的节点当场带着;快判断算出来的节点没有它(也没有改动),交路线时才按同一步
+     * 重新判一遍补上。
+     */
     Maneuver[] via = new Maneuver[INITIAL];
 
     private int[] table = filled(2 * INITIAL);
@@ -109,6 +115,8 @@ final class Nodes {
         key = Arrays.copyOf(key, n);
         parent = Arrays.copyOf(parent, n);
         heapIndex = Arrays.copyOf(heapIndex, n);
+        move = Arrays.copyOf(move, n);
+        heading = Arrays.copyOf(heading, n);
         viaCost = Arrays.copyOf(viaCost, n);
         stance = Arrays.copyOf(stance, n);
         air = Arrays.copyOf(air, n);

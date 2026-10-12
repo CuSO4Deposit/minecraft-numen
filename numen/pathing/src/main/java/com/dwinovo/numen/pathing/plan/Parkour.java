@@ -3,6 +3,7 @@ package com.dwinovo.numen.pathing.plan;
 import java.util.List;
 
 import com.dwinovo.numen.pathing.world.BodyStats;
+import com.dwinovo.numen.pathing.world.CellFlags;
 import com.dwinovo.numen.pathing.world.Clearance;
 import com.dwinovo.numen.pathing.world.Footing;
 import com.dwinovo.numen.pathing.world.Semantics;
@@ -127,6 +128,15 @@ final class Parkour implements Move {
                 span, draft.edits(), contact.cells(), contact.exposure(), support,
                 // 跳回去的跨距与落差不比去时难:落点不比起点低
                 true));
+    }
+
+    /** 规格不许跑酷,一步也不成立;要站着、脚所在的格不泡在流体里;其余精确判断。 */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        if (!q.model().spec().parkour() || !q.stance().grounded() || (q.own() & CellFlags.FLUID) != 0) {
+            return Quick.REJECT;
+        }
+        return Quick.EXACT;
     }
 
     @Override

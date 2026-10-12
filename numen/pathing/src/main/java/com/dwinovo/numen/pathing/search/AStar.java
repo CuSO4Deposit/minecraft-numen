@@ -14,6 +14,7 @@ import com.dwinovo.numen.pathing.plan.Maneuver;
 import com.dwinovo.numen.pathing.plan.Move;
 import com.dwinovo.numen.pathing.plan.Moves;
 import com.dwinovo.numen.pathing.plan.Premise;
+import com.dwinovo.numen.pathing.plan.Quick;
 import com.dwinovo.numen.pathing.plan.Stance;
 import com.dwinovo.numen.pathing.plan.WorldView;
 import com.dwinovo.numen.pathing.spec.RouteSpec;
@@ -32,12 +33,17 @@ import net.minecraft.world.level.material.FluidState;
  *
  * <ul>
  *   <li><b>节点不建对象</b>({@link Nodes}):每个节点是一个下标,位置、代价、父节点、走法放在平行数组里,堆里存下标
- *       ({@link OpenSet});</li> *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上"走到这个节点的那一步"做过的改动——刚挖开的格是空的,
+ *       ({@link OpenSet});</li>
+ *   <li><b>先快后精</b>:每种走法先问快判断({@link Move#quick}),只读节点四周的标志字({@link com.dwinovo.numen.pathing.world.CellFlags}),
+ *       前提必然不成立的当场丢掉,必然成立的直接得到落点与代价,什么也不建;四周有半砖、水、梯子这类标志字说不清的格,
+ *       或要挖要放的步子,才走精确的 {@link Move#premise}。快判断得出的节点不带 {@link Maneuver}:只有交出的路线,才把路线上
+ *       每一步按精确的前提重判一遍补出来({@link #maneuver});
+ *   <li><b>身体面对的世界</b>:展开一个节点时,前提读的是快照加上"走到这个节点的那一步"做过的改动——刚挖开的格是空的,
  *       刚垫下的块托着脚。更早的步子做过的改动不叠:身体已经离开了那里;</li>
  *   <li><b>预算</b>按展开的节点数计,结论不随机器快慢漂移;</li>
  *   <li><b>停下的原因</b>随结论交出({@link SearchResult.Stop}):到了、搜完无路、预算用完、有路伸进快照外没加载的区块。
  *       一步的前提读到了没加载的列,它成不成立就不知道,这一步不走、结论记成"未加载";前提没读到那些列就定了的(规格没开这种
- *       走法、紧挨着的一列就挡住了),与那边是什么无关,不算;</li>
+ *       走法、紧挨着的一列就挡住了),与那边是什么无关,不算;快判断只在节点四周读全了才开口,读不全的交给精确判断去断;</li>
  *   <li><b>半程路线</b>:没到目标时,按几档"估价加已走代价的折算"各取最好的节点,交哪一截由 {@link HandOver#pick} 定
  *       (截到最后一个回得了头的节点,离起点不够远就不交)。最后一档只看估价(离目标多近):估价按疾跑算,挖隧道、搭桥时
  *       每一步的真实代价比它贵几十倍,前几档的折算都压不住已走的代价,最好的节点总在起点跟前。憋着气的节点不当终点:
@@ -107,6 +113,7 @@ public final class AStar {
         }
         estimate = Estimate.of(view, model, goal, startPos, search.budget());
         probe = new Probe(view, new Recall(body));
+        Quick quick = new Quick(model, view);
         int start = nodes.add(startPos.asLong(), 0, breath.band(search.air()), estimate.at(startPos));
         nodes.g[start] = 0;
         nodes.stance[start] = startStance;
@@ -121,6 +128,7 @@ public final class AStar {
 
         int expanded = 0;
         boolean skippedUnloaded = false;
+        List<Move> moves = Moves.ALL;
         while (!open.isEmpty()) {
             if (cancelled.getAsBoolean()) {
                 return result(SearchResult.Stop.CANCELLED, null, expanded);
@@ -158,47 +166,84 @@ public final class AStar {
                 return result(SearchResult.Stop.BUDGET, partial(start, best), expanded);
             }
             expanded++;
+            quick.begin(cx, cy, cz, stance, here, edited ? arrivedBy.edits() : List.of());
             BlockPos from = null;
-            for (Move move : Moves.ALL) {
-                for (Heading heading : move.headings()) {
-                    if (from == null) {
-                        from = new BlockPos(cx, cy, cz);
-                    }
-                    probe.recall.clearUnloaded();
-                    Premise premise = move.premise(model, here, from, stance, heading);
-                    if (probe.recall.unloaded()) {
-                        skippedUnloaded = true;
+            for (int mi = 0; mi < moves.size(); mi++) {
+                Move move = moves.get(mi);
+                List<Heading> headings = move.headings();
+                for (int hi = 0; hi < headings.size(); hi++) {
+                    Heading heading = headings.get(hi);
+                    Maneuver m = null;
+                    int tx;
+                    int ty;
+                    int tz;
+                    int alterations;
+                    boolean submerged;
+                    double cost;
+                    double ticks = Double.NaN;
+                    Stance landing;
+                    int verdict = move.quick(quick, heading);
+                    if (verdict == Quick.REJECT) {
                         continue;
                     }
-                    if (!(premise instanceof Premise.Holds holds)) {
+                    if (verdict == Quick.HOLDS) {
+                        tx = quick.toX();
+                        ty = quick.toY();
+                        tz = quick.toZ();
+                        alterations = 0;
+                        submerged = false;
+                        cost = quick.cost();
+                        ticks = quick.ticks();
+                        landing = quick.ground(ty);
+                    } else {
+                        if (from == null) {
+                            from = new BlockPos(cx, cy, cz);
+                        }
+                        probe.recall.clearUnloaded();
+                        Premise premise = move.premise(model, here, from, stance, heading);
+                        if (probe.recall.unloaded()) {
+                            skippedUnloaded = true;
+                            continue;
+                        }
+                        if (!(premise instanceof Premise.Holds holds)) {
+                            continue;
+                        }
+                        m = holds.maneuver();
+                        BlockPos to = m.to();
+                        tx = to.getX();
+                        ty = to.getY();
+                        tz = to.getZ();
+                        alterations = m.alterations();
+                        submerged = m.submerged();
+                        cost = Double.NaN;
+                        landing = m.landing();
+                    }
+                    if (!Bounds.holdsBody(view.border(), body, tx, tz)) {
                         continue;
                     }
-                    Maneuver m = holds.maneuver();
-                    BlockPos target = m.to();
-                    if (!Bounds.holdsBody(view.border(), body, target.getX(), target.getZ())) {
-                        continue;
-                    }
-                    int used = nodes.used[current] + m.alterations();
+                    int used = nodes.used[current] + alterations;
                     if (budgeted && used > alterBudget) {
                         continue;
                     }
-                    double cost = move.cost(model, m);
+                    if (m != null) {
+                        cost = move.cost(model, m);
+                    }
                     if (!(cost > 0) || Double.isInfinite(cost)) {
                         throw new IllegalStateException(move.kind() + " 从 " + new BlockPos(cx, cy, cz) + " 算出了非法的代价 " + cost);
                     }
                     Breath.Air air = nodes.air[current];
-                    if (m.submerged() || !breath.rested(air)) {
-                        air = breath.after(air, m.submerged(), move.ticks(model, m));
+                    if (submerged || !breath.rested(air)) {
+                        air = breath.after(air, submerged, m != null ? move.ticks(model, m) : ticks);
                         if (!breath.lasts(air)) {
                             breathless = true;
                             continue;
                         }
                     }
-                    long to = target.asLong();
+                    long to = BlockPos.asLong(tx, ty, tz);
                     int band = breath.band(air);
                     int next = nodes.find(to, budgeted ? used : 0, band);
                     if (next < 0) {
-                        next = nodes.add(to, budgeted ? used : 0, band, estimate.at(target));
+                        next = nodes.add(to, budgeted ? used : 0, band, estimate.at(tx, ty, tz));
                     }
                     double g = nodes.g[current] + cost * search.favoring().factor(to);
                     if (nodes.g[next] - g <= MIN_IMPROVEMENT) {
@@ -209,8 +254,10 @@ public final class AStar {
                     nodes.parent[next] = current;
                     nodes.via[next] = m;
                     nodes.viaCost[next] = cost;
-                    nodes.stance[next] = m.landing();
+                    nodes.stance[next] = landing;
                     nodes.air[next] = air;
+                    nodes.move[next] = (byte) mi;
+                    nodes.heading[next] = (byte) hi;
                     open.pushOrUpdate(next);
                     if (air.held() > 0) {
                         // 憋着气的节点不当半程路线的终点:身体停在那里等下一段,下一段要是接不上,她就困在水下
@@ -321,9 +368,32 @@ public final class AStar {
     private Route route(int start, int end) {
         List<Route.Leg> legs = new ArrayList<>();
         for (int n = end; nodes.parent[n] >= 0; n = nodes.parent[n]) {
-            legs.add(new Route.Leg(nodes.via[n], nodes.viaCost[n], nodes.air[n]));
+            legs.add(new Route.Leg(maneuver(n), nodes.viaCost[n], nodes.air[n]));
         }
         Collections.reverse(legs);
         return new Route(BlockPos.of(nodes.pos[start]), nodes.stance[start], legs);
+    }
+
+    /**
+     * 走到节点 {@code n} 的那一步的全套事实。精确判断算出来的节点带着;快判断算出来的,按同一个走法、方向,在上一个节点
+     * 此刻面对的世界上用精确的前提判一遍补出来(快判断答"成立"的步子,精确判断一定成立),补出来的留在节点上。
+     */
+    private Maneuver maneuver(int n) {
+        Maneuver m = nodes.via[n];
+        if (m != null) {
+            return m;
+        }
+        int parent = nodes.parent[n];
+        Move move = Moves.ALL.get(nodes.move[n]);
+        Heading heading = move.headings().get(nodes.heading[n]);
+        Maneuver by = nodes.via[parent];
+        WorldView here = by == null || by.edits().isEmpty() ? probe : EditedView.after(probe, by.edits());
+        Premise premise = move.premise(model, here, BlockPos.of(nodes.pos[parent]), nodes.stance[parent], heading);
+        if (!(premise instanceof Premise.Holds holds)) {
+            throw new IllegalStateException(move.kind() + " " + heading + " 从 " + BlockPos.of(nodes.pos[parent]) + " 快判断成立,精确判断不成立:" + premise);
+        }
+        m = holds.maneuver();
+        nodes.via[n] = m;
+        return m;
     }
 }

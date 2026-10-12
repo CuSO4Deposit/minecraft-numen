@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.dwinovo.numen.pathing.world.BodyStats;
+import com.dwinovo.numen.pathing.world.CellFlags;
 import com.dwinovo.numen.pathing.world.Footing;
 
 import net.minecraft.core.BlockPos;
@@ -72,6 +73,12 @@ final class Swim implements Move {
         return new Premise.Holds(new Maneuver(MoveKind.SWIM, heading, from, stance, to, landing, false, false, false, true,
                 Strides.submerged(draft, body, from, stance, to, landing), 1, Math.max(0, f0 - landing.feetY()), 0, heading.horizontal() ? 1 : 0, draft.edits(), contact.cells(), contact.exposure(),
                 support, Strides.reversible(draft, body, from, stance, to, landing)));
+    }
+
+    /** 脚所在的格没有水,游不成立。 */
+    @Override
+    public int quick(Quick q, Heading heading) {
+        return (q.own() & CellFlags.WET) == 0 ? Quick.REJECT : Quick.EXACT;
     }
 
     @Override
