@@ -403,6 +403,9 @@ public final class Goals {
         }
     }
 
+    /** 距离范围的终点格最多枚举到这个半径(格):再大,枚举出的格比搜索要展开的节点还多。 */
+    private static final int ENUMERABLE = 16;
+
     private record Within(Position center, double min, double max) implements Goal {
         @Override
         public boolean contains(int x, int y, int z, Stance stance) {
@@ -423,6 +426,41 @@ public final class Goals {
                 return center.estimate(x, y, z, pace) * (d - max) / d;
             }
             return 0;
+        }
+
+        /**
+         * 范围里的格:中心是某一格、{@code max} 有限时,中心为心、边长 {@code 2·floor(max)+1} 的方块里满足 {@link #contains} 的每一格
+         * (到了时脚所在的节点只看这一个距离)。范围大到枚举出来比搜索本身还大({@link #ENUMERABLE} 格以外)、或没有边,
+         * 就和别的没有边的目标一样为 null,埋深不加。
+         */
+        @Override
+        public LongSet endCells() {
+            if (!center.cell() || !(max <= ENUMERABLE)) {
+                return null;
+            }
+            int r = (int) Math.floor(max);
+            LongOpenHashSet cells = new LongOpenHashSet();
+            for (int x = center.x() - r; x <= center.x() + r; x++) {
+                for (int y = center.y() - r; y <= center.y() + r; y++) {
+                    for (int z = center.z() - r; z <= center.z() + r; z++) {
+                        double d = center.distanceSqr(x, y, z);
+                        if (d >= min * min && d <= max * max) {
+                            cells.add(BlockPos.asLong(x, y, z));
+                        }
+                    }
+                }
+            }
+            return cells;
+        }
+
+        /** 中心给了高度(某一格、某一高度)、{@code max} 有限时,到了时脚所在的层不会比中心高低过 {@code floor(max)}:一个超集。 */
+        @Override
+        public Heights heights() {
+            if (center.y() == null || Double.isInfinite(max)) {
+                return null;
+            }
+            int r = (int) Math.floor(max);
+            return new Heights(center.y() - r, center.y() + r);
         }
 
         @Override

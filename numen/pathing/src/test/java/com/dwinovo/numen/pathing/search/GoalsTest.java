@@ -108,6 +108,33 @@ class GoalsTest {
         assertFalse(sphere.contains(4, 90, 0, null));
     }
 
+    /** 离一格的距离范围:终点格就是范围里的每一格,交出的高度范围盖得住它们;没有边或枚举不动的没有。 */
+    @Test
+    void aRangeAroundACellHandsOutItsEndCellsAndHeights() {
+        Goal ring = Goals.within(Goals.at(CENTER), 1, 2.5);
+        var ends = ring.endCells();
+        int count = 0;
+        for (int x = -4; x <= 4; x++) {
+            for (int y = 60; y <= 68; y++) {
+                for (int z = -4; z <= 4; z++) {
+                    boolean in = ring.contains(x, y, z, null);
+                    assertEquals(in, ends.contains(BlockPos.asLong(x, y, z)), x + "," + y + "," + z);
+                    count += in ? 1 : 0;
+                }
+            }
+        }
+        assertEquals(count, ends.size());
+        Goal.Heights heights = ring.heights();
+        for (long cell : ends) {
+            assertTrue(heights.lo() <= BlockPos.getY(cell) && BlockPos.getY(cell) <= heights.hi());
+        }
+        assertNull(Goals.within(Goals.at(CENTER), 0, Double.POSITIVE_INFINITY).endCells());
+        assertNull(Goals.within(Goals.at(CENTER), 0, Double.POSITIVE_INFINITY).heights());
+        assertNull(Goals.within(Goals.at(CENTER), 0, 200).endCells());
+        assertNull(Goals.within(COLUMN, 0, 3).endCells());
+        assertEquals(new Goal.Heights(61, 67), Goals.within(Goals.level(64), 0, 3).heights());
+    }
+
     @Test
     void aRangeWhoseMinimumExceedsItsMaximumIsRefused() {
         assertThrows(IllegalArgumentException.class, () -> Goals.within(COLUMN, 5, 3));

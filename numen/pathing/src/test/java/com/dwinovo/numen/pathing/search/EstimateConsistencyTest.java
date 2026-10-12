@@ -158,7 +158,9 @@ class EstimateConsistencyTest {
         // 向下挖:许挖许放,终点只给高度(挖的额外代价由埋深另算,这里只核对升降)
         CostModel digging = Fixtures.withCobble(Fixtures.natural());
         TestWorld ground = new TestWorld().ground(Y - 1, STONE);
-        scenes.add(new Scene("向下挖", ground, digging, List.of(Goals.level(Y - 3), Goals.level(Y), Goals.level(Y + 3))));
+        scenes.add(new Scene("向下挖", ground, digging, List.of(Goals.level(Y - 3), Goals.level(Y), Goals.level(Y + 3),
+                Goals.within(Goals.at(new BlockPos(0, Y - 6, 0)), 0, 2), Goals.within(Goals.at(new BlockPos(4, Y - 3, 1)), 0, 2),
+                Goals.within(Goals.at(new BlockPos(1, Y + 3, 0)), 1, 3))));
         return scenes;
     }
 
