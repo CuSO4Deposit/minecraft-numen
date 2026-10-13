@@ -148,7 +148,7 @@ public final class Sight {
     /** 一串瞄点,三个数一个点,先后就是 {@link #digPoints} 交出的先后。 */
     private static final class Points {
 
-        double[] xyz = new double[24];
+        double[] xyz = new double[12];
         int size;
 
         void add(double x, double y, double z) {
@@ -316,12 +316,20 @@ public final class Sight {
         private BlockHitResult visit(BlockPos pos) {
             BlockState state = level.getBlockState(pos);
             VoxelShape shape = state.getShape(level, pos);
-            BlockHitResult on = level.clipWithInteractionOverride(eye, through, pos, shape, state);
-            if (on == null) {
-                return null;
-            }
-            if (pos.equals(target)) {
-                return on;
+            boolean isTarget = pos.equals(target);
+            if (!isTarget && shape == Shapes.block()) {
+                // 路上整块的格:只问射线碰没碰上它(碰上的是哪一面不用知道),不为它建原版 clip 要的点、盒、坐标表
+                if (!crossesWholeBlock(pos.getX(), pos.getY(), pos.getZ())) {
+                    return null;
+                }
+            } else {
+                BlockHitResult on = level.clipWithInteractionOverride(eye, through, pos, shape, state);
+                if (on == null) {
+                    return null;
+                }
+                if (isTarget) {
+                    return on;
+                }
             }
             if (Sight.soft(state)) {
                 if (soft.isEmpty()) {
@@ -335,6 +343,44 @@ public final class Sight {
                 hard.add(pos.immutable());
             }
             return null;
+        }
+
+        /**
+         * 射线({@link #eye} 到 {@link #through})碰没碰上 {@code (px, py, pz)} 那一整格,口径逐步照 {@code VoxelShape.clip} 对整块的做法:
+         * 起点往前挪千分之一在格里就算碰上(射线从格里出发);否则看射线进格的那三个面里有没有一个的交点落在 {@code (0, 1)} 段上、
+         * 面内(各边外放 1e-7)。
+         */
+        private boolean crossesWholeBlock(int px, int py, int pz) {
+            double dx = through.x - eye.x;
+            double dy = through.y - eye.y;
+            double dz = through.z - eye.z;
+            if (dx * dx + dy * dy + dz * dz < 1.0E-7) {
+                return false;
+            }
+            if (within(eye.x + dx * 0.001 - px) && within(eye.y + dy * 0.001 - py) && within(eye.z + dz * 0.001 - pz)) {
+                return true;
+            }
+            return dx > 1.0E-7 && hitsPlane(px, eye.x, dx, eye.y, dy, py, eye.z, dz, pz)
+                    || dx < -1.0E-7 && hitsPlane(px + 1.0, eye.x, dx, eye.y, dy, py, eye.z, dz, pz)
+                    || dy > 1.0E-7 && hitsPlane(py, eye.y, dy, eye.z, dz, pz, eye.x, dx, px)
+                    || dy < -1.0E-7 && hitsPlane(py + 1.0, eye.y, dy, eye.z, dz, pz, eye.x, dx, px)
+                    || dz > 1.0E-7 && hitsPlane(pz, eye.z, dz, eye.x, dx, px, eye.y, dy, py)
+                    || dz < -1.0E-7 && hitsPlane(pz + 1.0, eye.z, dz, eye.x, dx, px, eye.y, dy, py);
+        }
+
+        /** 格内坐标在 [0, 1) 里:整块轮廓的体素只有一格。 */
+        private static boolean within(double local) {
+            return Mth.floor(local) == 0;
+        }
+
+        /** 射线穿过垂直于某根轴、在 {@code plane} 的那个面时,交点落在这一格那个面的范围里(两个另外的轴各是 {@code [min, min + 1]})。 */
+        private static boolean hitsPlane(double plane, double start, double delta, double startA, double deltaA, double minA,
+                                         double startB, double deltaB, double minB) {
+            double t = (plane - start) / delta;
+            double a = startA + t * deltaA;
+            double b = startB + t * deltaB;
+            return 0.0 < t && t < 1.0 && minA - 1.0E-7 < a && a < minA + 1.0 + 1.0E-7
+                    && minB - 1.0E-7 < b && b < minB + 1.0 + 1.0E-7;
         }
 
         /** 碰上了目标,路上没有硬遮挡。 */

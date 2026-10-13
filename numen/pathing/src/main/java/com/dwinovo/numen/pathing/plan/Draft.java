@@ -88,8 +88,8 @@ final class Draft extends EditedView {
         if (cover == null) {
             return fail(pos, Reason.OUT_OF_REACH);
         }
-        for (BlockPos cell : cover) {
-            if (!cut(cell, bx, feetY, bz, grounded)) {
+        for (int i = 0; i < cover.size(); i++) {
+            if (!cut(cover.get(i), bx, feetY, bz, grounded)) {
                 return false;
             }
         }
