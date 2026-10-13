@@ -220,6 +220,8 @@ public final class AStar {
         SearchResult.Stop stop;
         /** 离目标最近的展开过的节点(按这一段的估价)。 */
         int closest = -1;
+        /** {@link #recentEdits} 找到的步子,每次调用都从头写;一遍搜索在一个线程上跑完,共用这一块。 */
+        private final Maneuver[] steps = new Maneuver[HISTORY];
         // 边:从展开过的节点出去的每一步成立的走法,抬高估价时用
         int[] edgeFrom = new int[256];
         int[] edgeTo = new int[256];
@@ -599,15 +601,13 @@ public final class AStar {
          * 更早的步子离得远了(沿路折回来最多隔着几步),不叠。
          */
         private List<Edit> recentEdits(int n) {
-            Maneuver[] steps = null;
             int count = 0;
+            int total = 0;
             for (int i = 0, node = n; i < HISTORY && node >= 0; i++, node = nodes.parent[node]) {
                 Maneuver m = nodes.via[node];
                 if (m != null && !m.edits().isEmpty()) {
-                    if (steps == null) {
-                        steps = new Maneuver[HISTORY];
-                    }
                     steps[count++] = m;
+                    total += m.edits().size();
                 }
             }
             if (count == 0) {
@@ -616,7 +616,7 @@ public final class AStar {
             if (count == 1) {
                 return steps[0].edits();
             }
-            List<Edit> out = new ArrayList<>();
+            List<Edit> out = new ArrayList<>(total);
             for (int i = count - 1; i >= 0; i--) {
                 out.addAll(steps[i].edits());
             }
