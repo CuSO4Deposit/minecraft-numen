@@ -1,6 +1,6 @@
 # 0003 厂家目录是数据,只有行为不同才写代码
 
-- 状态:已接受;目录的来源计划由 [0012](0012-models-dev-upstream.md) 改为 models.dev
+- 状态:已被 [0012](0012-models-dev-upstream.md) 取代:目录改用 models.dev,`numen_providers.json` 与 DeepSeek/Moonshot 两个子类已删
 - 日期:2026-06-19 起;08-01 样板类数据化;08-02 改名、协议进数据
 - 提交:`f657a262e`、`979612291`、`d42580df6`、`4fa51ed87`、`53b308763`
 

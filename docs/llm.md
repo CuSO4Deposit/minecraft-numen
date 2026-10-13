@@ -1,6 +1,6 @@
 # 模型接入:目录、协议与兼容项
 
-状态:设计稿(10-14),用户 10-14 同意,第九节四项按建议定;开工。决策的来路见 `docs/adr/llm/`;这份写打算怎么改。
+状态:设计稿(10-14),用户 10-14 同意,第九节四项按建议定。第 1、2、5 步已落地(第十一节写现状与差异),第 3、4 步待做。决策的来路见 `docs/adr/llm/`;这份写打算怎么改。
 
 ## 一、要解决的问题
 
@@ -149,3 +149,25 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 5. **OpenRouter:** key 去空白、报错带主机与原话。
 
 每步:构建、单测、日常 GameTest;第 2、4 步要真接口跑一次(DeepSeek、OpenAI、Anthropic、OpenRouter 各一次,用你的 key,不跑 bench)。
+
+## 十一、落地情况(第 1、2、5 步)
+
+**目录**(`ai` 的 `agent.catalog`)
+- 随包快照 `ai/src/main/resources/numen_models_snapshot.json`:models.dev 全部 228 家的裁剪版(2.6 MB,一家一行),没有再按“常用”裁——
+  常用只是 `Catalog.popular()` 的一份标记,界面第 3 步用。手动更新:`./gradlew :ai:updateModelsSnapshot`(可 `-PmodelsProxy=host:port`),普通构建不联网。
+- 运行时缓存 `config/numen/cache/models-dev.json`:`ProviderLibrary.refreshCatalog()` 在客户端启动时后台刷新,一天最多一次,拉不到静默。
+- 来源是 `CatalogSource`(缓存 `DownloadCache`、快照 `BundledSnapshot`),只读自己那份;优先级只在 `Catalog` 的构造顺序里,整条记录取最高来源的。
+  厂家 `/models` 这一级还没做:以后作为一个 `CatalogSource` 插在缓存之前。玩家手填的值在档案里,由 `EndpointResolver` 盖在目录结果之上。
+- 档案 `ConnectionProfile` + 目录 → `LlmEndpoint`,只在 `EndpointResolver` 一处。请求、压缩阈值、界面都取这个结果。
+
+**协议与兼容项**(`agent.provider`)
+- 三个协议实现由 `LlmProvider.of(compat)` 组装;编请求只吃 `ModelSpec`(型号与档位表)、`RequestOptions`(档案里的温度、输出上限、思考档位)和各自的兼容项。
+- 兼容项缺省的认出与档案覆盖项只在 `Compats.resolve` 一处;思考档位表是 `ThinkingTable`,预算映射表只在那里。
+
+**与上文不一致的地方**
+- `adaptiveThinking` 的缺省取决于**型号**(只有 effort 取值、没有预算写法),所以 `Compats.resolve` 多收一个档位表。
+- Chat 的 `thinkingFormat`:Z.ai、智谱、Kimi、火山方舟同形(只写 `thinking.type`),都归 `zai`;不再为 xAI 特判,有没有档位由型号的档位表决定。
+- 回合出处戳改成 `协议/厂家/型号`(以前是适配器类名/型号,同一协议的不同厂家分不开)。老存档里的戳对不上,升级后老回合的私货会被脱掉一次。
+- OpenAI 官方暂按 Chat(`VendorDefaults.API_OVERRIDES` 一行,第 4 步删掉)。Responses 请求不再附带 `stream_options`。
+- 老档案迁移在 `ConfigMigrations`:档案库根上的 `models_dev_ids` 标记是“已迁过”的判据(`lmstudio` 既是老 id 又是 models.dev 的 id,只看 id 分不出)。
+- 密钥去首尾空白在 `LlmEndpoint` 的构造里,是全仓唯一一处;报错带主机与厂家原话在 `LlmHttpException` 与 `LlmErrorWords`。

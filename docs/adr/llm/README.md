@@ -6,16 +6,16 @@
 |---|---|---|---|
 | [0001](0001-zero-dependency-stack.md) | 05-15 | 不用官方 SDK,自己写一层零依赖的接入 | 已接受 |
 | [0002](0002-wire-format-adapter.md) | 05-15 | 一层线格式适配器,不认识的字段默认原样保留 | 已接受 |
-| [0003](0003-provider-catalog-as-data.md) | 06-19 | 厂家目录是数据,只有行为不同才写代码 | 已接受;来源计划由 0012 换掉 |
+| [0003](0003-provider-catalog-as-data.md) | 06-19 | 厂家目录是数据,只有行为不同才写代码 | 已被 0012 取代 |
 | [0004](0004-network-resilience.md) | 07-14 | 网络韧性照抄官方 SDK 的共识 | 已接受 |
 | [0005](0005-per-companion-profiles.md) | 07-14 | 每只同伴一份模型档案,空库起步、不兜底 | 已接受 |
 | [0006](0006-prompt-cache-first.md) | 07-16 | 前缀缓存是一等公民,用量按各家口径记 | 已接受 |
 | [0007](0007-pure-jvm-ai-module.md) | 08-02 | 模型接入独立成纯 JVM 模块 `ai` | 已接受 |
-| [0008](0008-thinking-dialects.md) | 08-02 | 思考的方言:出向按开关的形态分族,入向锁定字段 | 已接受;形态来源计划由 0012 换掉 |
+| [0008](0008-thinking-dialects.md) | 08-02 | 思考的方言:出向按开关的形态分族,入向锁定字段 | 已接受;形态改为兼容项,档位由 models.dev 给 |
 | [0009](0009-three-protocols.md) | 08-02 / 09-20 | 三种线协议:Chat Completions、Anthropic Messages、OpenAI Responses | 已接受;Responses 未接真端点 |
 | [0010](0010-turn-origin.md) | 09-20 | 回合记住出处,换模型后不回塞上一家的私货 | 已接受 |
 | [0011](0011-protocol-view.md) | 09 | 消息配对只在 ProtocolView 一处修 | 已接受 |
-| [0012](0012-models-dev-upstream.md) | 10-10 | 厂家与型号目录改用 models.dev 做上游 | 方向已接受,未落地 |
+| [0012](0012-models-dev-upstream.md) | 10-10 | 厂家与型号目录改用 models.dev 做上游 | 已接受;目录与兼容项已落地,界面待做 |
 
 ## 沿着一件事看
 
