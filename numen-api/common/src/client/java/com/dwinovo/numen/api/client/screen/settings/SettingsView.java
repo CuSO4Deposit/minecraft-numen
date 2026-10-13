@@ -1,12 +1,9 @@
 package com.dwinovo.numen.api.client.screen.settings;
 
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
-import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
 
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.api.client.agent.EntityAgentLoop;
 import com.dwinovo.numen.api.client.screen.Dropdown;
-import com.dwinovo.numen.api.client.screen.LlmProviders;
 import com.dwinovo.numen.api.client.screen.Nb;
 import com.dwinovo.numen.api.client.screen.UiTheme;
 import com.dwinovo.numen.api.data.ModLanguageData;
@@ -121,9 +118,10 @@ public final class SettingsView {
                     ModLanguageData.Keys.PROVIDER_EMPTY,
                     () -> com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().list(),
                     e -> {
-                        boolean hasKey = nb(e.apiKey());
-                        String meta = (nb(e.provider()) ? e.provider() : "?") + " · "
-                                + (nb(e.model()) ? e.model() : "?")
+                        var p = e.profile();
+                        boolean hasKey = nb(p.apiKey());
+                        String meta = (nb(p.provider()) ? p.provider() : "?") + " · "
+                                + (nb(p.model()) ? p.model() : "?")
                                 + (hasKey ? "" : " · " + I18n.get(ModLanguageData.Keys.PROVIDER_NO_KEY));
                         // 行尾勾 = 当前同伴走这份档案(召唤后也能换,即时生效)
                         Boolean marked = host.uuid() == null ? null : e.id().equals(
@@ -207,14 +205,11 @@ public final class SettingsView {
 
     private void onProfileSave(ProfileFormPanel.Draft d) {
         var lib = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance();
-        int ctx = parseCtx(d.ctx);
         if (providerEditId != null) {
             lib.update(new com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry(
-                    providerEditId, d.name.trim(), d.provider, d.model.trim(),
-                    d.apiKey.trim(), d.baseUrl.trim(), d.reasoningEffort, d.proxy.trim(), ctx));
+                    providerEditId, d.name.trim(), d.toProfile()));
         } else {
-            lib.create(d.name.trim(), d.provider, d.model.trim(),
-                    d.apiKey.trim(), d.baseUrl.trim(), d.reasoningEffort, d.proxy.trim(), ctx);
+            lib.create(d.name.trim(), d.toProfile());
         }
         addingProvider = false;
         providerEditId = null;
@@ -1163,26 +1158,8 @@ public final class SettingsView {
     private void beginEditProvider(com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry e) {
         addingProvider = true;
         providerEditId = e.id();
-        providerDraft = new ProfileFormPanel.Draft();
-        providerDraft.name = e.name() == null ? "" : e.name();
-        providerDraft.provider = e.provider() == null ? "" : e.provider();
-        providerDraft.model = e.model() == null ? "" : e.model();
-        providerDraft.apiKey = e.apiKey() == null ? "" : e.apiKey();
-        providerDraft.baseUrl = e.baseUrl() == null ? "" : e.baseUrl();
-        providerDraft.reasoningEffort = e.reasoningEffort() == null ? "" : e.reasoningEffort();
-        providerDraft.proxy = e.proxy() == null ? "" : e.proxy();
-        providerDraft.ctx = e.ctx() > 0 ? String.valueOf(e.ctx()) : "";
+        providerDraft = ProfileFormPanel.Draft.of(e.name(), e.profile());
         host.rebuild();
-    }
-
-    /** 档案的上下文长度输入:空/非数字/非正数一律 0(= 按模型表自动)。 */
-    private static int parseCtx(String raw) {
-        try {
-            int v = Integer.parseInt(raw == null ? "" : raw.trim());
-            return Math.max(0, v);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
     }
 
     // ---- MCP section: external server list with a live on/off switch per row ----

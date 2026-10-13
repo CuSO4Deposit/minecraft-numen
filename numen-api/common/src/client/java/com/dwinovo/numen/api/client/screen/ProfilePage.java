@@ -299,7 +299,8 @@ final class ProfilePage {
         if (loop != null && loop.providerEntryId() != null && !loop.providerEntryId().isBlank()) {
             var entry = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().get(loop.providerEntryId());
             model = entry == null ? I18n.get("numen.profile.model_deleted")
-                    : entry.model() == null || entry.model().isBlank() ? entry.name() : entry.model();
+                    : entry.profile().model() == null || entry.profile().model().isBlank()
+                            ? entry.name() : entry.profile().model();
         }
         cy = settingRow(g, t, I18n.get("numen.profile.model"), model, x, cy, w, mouseX, mouseY);
         var voice = com.dwinovo.numen.api.client.voice.VoiceLibrary.instance().resolve(who);

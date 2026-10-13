@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.agent.provider;
 
+import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,9 +13,8 @@ import java.util.Map;
 
 /**
  * Anthropic Messages 线协议的完整实现——与 {@link OpenAIProvider} 同级的
- * 第二协议。凡是暴露 Anthropic 兼容端点的站点(官方与兼容站)都由本类承载,
- * 站点差异照旧走数据({@code numen_providers.json} 的 baseUrl/headers/
- * thinkingFormat),不为兼容站开子类。
+ * 第二协议。凡是暴露 Anthropic 兼容端点的厂家(官方与兼容站)都由本类承载,
+ * 厂家差异走 {@link AnthropicCompat}(自适应思考还是预算、收不收温度),不为兼容站开子类。
  *
  * <h2>与 OpenAI 方言的关键分歧(逐条落在对应方法上)</h2>
  * <ul>
@@ -35,12 +35,11 @@ import java.util.Map;
  *       usage 分两截(message_start 进/message_delta 出),累积时归一成
  *       OpenAI 形字段名,client 与记账下游无感 → {@link #accumulateChunk}</li>
  *   <li><b>{@code max_tokens} 必填;</b>未知顶层字段会被严格拒收(所以
- *       {@link #applyStreaming} 只发 {@code stream:true})</li>
+ *       {@link #buildRequestBody} 流式只发 {@code stream:true})</li>
  * </ul>
  */
-public class AnthropicProvider implements LlmProvider {
+public final class AnthropicProvider implements LlmProvider {
 
-    public static final String DEFAULT_BASE_URL = "https://api.anthropic.com/v1";
     /** 思考块签名在 extras 里的落位(回传重建思考块时取用)。 */
     public static final String SIGNATURE_KEY = "anthropic_thinking_signature";
 
@@ -48,39 +47,18 @@ public class AnthropicProvider implements LlmProvider {
     private static final int BASE_MAX_TOKENS = 8192;
     private static final String API_VERSION = "2023-06-01";
 
-    private final String name;
-    private final String defaultBaseUrl;
-    private final String thinkingFormat;
+    private final AnthropicCompat compat;
 
-    public AnthropicProvider() {
-        this("anthropic", DEFAULT_BASE_URL, LlmProvider.THINKING_BUDGET);
+    public AnthropicProvider(AnthropicCompat compat) {
+        this.compat = compat;
     }
 
-    /** 兼容站参数化:站名/基址来自站点数据;方言只在 budget(缺省)与 none 之间选。 */
-    public AnthropicProvider(String name, String defaultBaseUrl, String thinkingFormat) {
-        this.name = name;
-        this.defaultBaseUrl = defaultBaseUrl;
-        this.thinkingFormat = thinkingFormat == null || thinkingFormat.isBlank()
-                ? LlmProvider.THINKING_BUDGET : thinkingFormat;
-    }
-
-    @Override public String name() { return name; }
-    @Override public String defaultBaseUrl() { return defaultBaseUrl; }
     @Override public String chatPath() { return "/messages"; }
-
-    /** 本站思考开关的方言家族(budget 或 none)。 */
-    public String thinkingFormat() { return thinkingFormat; }
 
     @Override
     public Map<String, String> authHeaders(String apiKey) {
         return Map.of("x-api-key", apiKey == null ? "" : apiKey,
                       "anthropic-version", API_VERSION);
-    }
-
-    /** 严格校验未知字段的协议:只发 {@code stream:true},没有 stream_options。 */
-    @Override
-    public void applyStreaming(JsonObject body) {
-        body.addProperty("stream", true);
     }
 
     // ---- 出向:消息构建 ----
@@ -178,11 +156,12 @@ public class AnthropicProvider implements LlmProvider {
      * </ul>
      */
     @Override
-    public JsonObject buildRequestBody(String model, String systemPrompt,
-                                        List<JsonObject> messages, JsonArray tools) {
+    public JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
+                                       JsonArray tools, RequestOptions options) {
         JsonObject body = new JsonObject();
-        body.addProperty("model", model);
-        body.addProperty("max_tokens", BASE_MAX_TOKENS);
+        body.addProperty("model", model.id());
+        // max_tokens 是本协议的必填项;玩家没设就用协议自己的缺省
+        int maxTokens = options.maxTokens() > 0 ? options.maxTokens() : BASE_MAX_TOKENS;
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             JsonObject text = new JsonObject();
             text.addProperty("type", "text");
@@ -200,6 +179,41 @@ public class AnthropicProvider implements LlmProvider {
             marked.get(marked.size() - 1).getAsJsonObject().add("cache_control", ephemeral());
             body.add("tools", marked);
         }
+
+        // 思考:自适应型号写 effort,老型号写预算——预算必须小于 max_tokens,所以加在玩家设的上限之上,
+        // 玩家的值仍然是"正文的上限"。
+        ThinkingLevel level = options.thinkingFor(model);
+        boolean thinking = false;
+        if (level != ThinkingLevel.AUTO && level != ThinkingLevel.OFF) {
+            JsonObject t = new JsonObject();
+            if (compat.adaptiveThinking()) {
+                String effort = model.thinking().effort(level);
+                if (effort != null) {
+                    t.addProperty("type", "adaptive");
+                    JsonObject output = new JsonObject();
+                    output.addProperty("effort", effort);
+                    body.add("output_config", output);
+                    body.add("thinking", t);
+                    thinking = true;
+                }
+            } else {
+                int budget = model.thinking().budgetTokens(level);
+                t.addProperty("type", "enabled");
+                t.addProperty("budget_tokens", budget);
+                body.add("thinking", t);
+                maxTokens += budget;
+                thinking = true;
+            }
+        }
+        body.addProperty("max_tokens", maxTokens);
+
+        // 开着思考时协议只允许默认温度,所以不发
+        Double temperature = options.temperatureFor(model);
+        if (temperature != null && compat.temperature() && !thinking) {
+            body.addProperty("temperature", temperature);
+        }
+        // 严格校验未知字段的协议:流式只发 stream:true,没有 stream_options
+        body.addProperty("stream", true);
         return body;
     }
 
@@ -264,28 +278,6 @@ public class AnthropicProvider implements LlmProvider {
         JsonArray arr = new JsonArray();
         arr.add(text);
         return arr;
-    }
-
-    /**
-     * 力度 → 预算的映射({@code budget} 族)。开思考时在当前 {@code max_tokens}
-     * (协议默认或玩家显式设置)之上加预算——协议要求预算必须小于输出上限,
-     * 加法保证玩家设的值仍然是"正文的上限"。{@code none} 族与 {@code off}
-     * 不发 thinking 参数(缺省即不思考,无需显式 disabled)。
-     */
-    @Override
-    public void applyReasoning(JsonObject body, String effort) {
-        if (LlmProvider.THINKING_NONE.equals(thinkingFormat) || "off".equals(effort)) return;
-        int budget = switch (effort) {
-            case "low" -> 2_048;
-            case "high" -> 16_384;
-            default -> 8_192;   // medium
-        };
-        JsonObject thinking = new JsonObject();
-        thinking.addProperty("type", "enabled");
-        thinking.addProperty("budget_tokens", budget);
-        body.add("thinking", thinking);
-        int current = body.has("max_tokens") ? body.get("max_tokens").getAsInt() : BASE_MAX_TOKENS;
-        body.addProperty("max_tokens", budget + current);
     }
 
     // ---- 入向:流式累积 ----

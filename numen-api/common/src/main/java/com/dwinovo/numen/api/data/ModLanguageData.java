@@ -44,8 +44,8 @@ public final class ModLanguageData {
         // 设置界面里服务商/表单那一片。运行时以前直接写字面量,键名散在六个文件里,
         // 数据生成看不见它们,于是那份语言文件只能靠手改 —— 常量收在这里,两边同源。
         public static final String GUI_INLINE_NEED_KEY              = "numen.gui.inline.need_key";
+        public static final String GUI_INLINE_NEED_URL              = "numen.gui.inline.need_url";
         public static final String GUI_INLINE_REQUIRED              = "numen.gui.inline.required";
-        public static final String GUI_PROVIDERS_BADGE_LOCAL        = "numen.gui.providers.badge.local";
         public static final String GUI_PROVIDERS_CHECK              = "numen.gui.providers.check";
         public static final String GUI_PROVIDERS_CHECK_BAD_REQUEST  = "numen.gui.providers.check.bad_request";
         public static final String GUI_PROVIDERS_CHECK_NETWORK      = "numen.gui.providers.check.network";
@@ -55,12 +55,13 @@ public final class ModLanguageData {
         public static final String GUI_PROVIDERS_CHECK_SERVER_ERROR = "numen.gui.providers.check.server_error";
         public static final String GUI_PROVIDERS_CHECK_UNAUTHORIZED = "numen.gui.providers.check.unauthorized";
         public static final String GUI_PROVIDERS_CHECKING           = "numen.gui.providers.checking";
+        public static final String GUI_PROVIDERS_CUSTOM             = "numen.gui.providers.custom";
         public static final String GUI_PROVIDERS_EFFORT             = "numen.gui.providers.effort";
         public static final String GUI_PROVIDERS_EFFORT_HIGH        = "numen.gui.providers.effort.high";
         public static final String GUI_PROVIDERS_EFFORT_LOW         = "numen.gui.providers.effort.low";
+        public static final String GUI_PROVIDERS_EFFORT_MAX         = "numen.gui.providers.effort.max";
         public static final String GUI_PROVIDERS_EFFORT_MEDIUM      = "numen.gui.providers.effort.medium";
         public static final String GUI_PROVIDERS_PROXY              = "numen.gui.providers.proxy";
-        public static final String GUI_PROVIDERS_PROXY_GLOBAL       = "numen.gui.providers.proxy.global";
         public static final String GUI_PROVIDERS_PROXY_HINT         = "numen.gui.providers.proxy.hint";
         public static final String GUI_PROVIDERS_CTX                = "numen.gui.providers.ctx";
         public static final String GUI_PROVIDERS_CTX_HINT           = "numen.gui.providers.ctx.hint";
@@ -207,6 +208,7 @@ public final class ModLanguageData {
         // Endpoint problems: the kernel holds BLOCKED with this text as the reason (EntityAgentLoop#endpointProblem).
         public static final String ENDPOINT_UNBOUND = "numen.endpoint.unbound";
         public static final String ENDPOINT_NO_KEY  = "numen.endpoint.no_key";
+        public static final String ENDPOINT_NO_URL  = "numen.endpoint.no_url";
 
         // Voice (TTS) section: nav label, global switch, entry list/form, preview, bindings.
         public static final String VOICE_TITLE          = "numen.voice.title";
@@ -491,7 +493,6 @@ public final class ModLanguageData {
         adder.add("numen.settings.site_name", "Site name");
         adder.add("numen.settings.saved", "✔ Saved");
         adder.add("numen.settings.custom_model", "Custom…");
-        adder.add("numen.settings.add_site", "＋ Add site");
         adder.add("numen.settings.reasoning", "Thinking: %s");
         adder.add("numen.settings.reasoning.auto", "Auto");
         adder.add("numen.settings.reasoning.low", "Low");
@@ -683,6 +684,7 @@ public final class ModLanguageData {
         // Endpoint problems (chat warn line)
         adder.add(Keys.ENDPOINT_UNBOUND, "This companion has no model config bound — pick or create one in Settings → Model Configs");
         adder.add(Keys.ENDPOINT_NO_KEY,  "Model config \"%s\" has no API Key yet — add it in Settings → Model Configs");
+        adder.add(Keys.ENDPOINT_NO_URL,  "Model config \"%s\" has no base URL — add it in Settings → Model Configs");
 
         // Voice (TTS) section
         adder.add(Keys.VOICE_TITLE,          "Voice");
@@ -733,8 +735,8 @@ public final class ModLanguageData {
         adder.add(Keys.VOICE_SUMMON_EMPTY,   " (empty — create one in Settings → Voice)");
     
         adder.add(Keys.GUI_INLINE_NEED_KEY,             "API key required");
+        adder.add(Keys.GUI_INLINE_NEED_URL,             "Base URL required");
         adder.add(Keys.GUI_INLINE_REQUIRED,             "Required");
-        adder.add(Keys.GUI_PROVIDERS_BADGE_LOCAL,       "Local");
         adder.add(Keys.GUI_PROVIDERS_CHECK,             "Check");
         adder.add(Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST, "Request rejected");
         adder.add(Keys.GUI_PROVIDERS_CHECK_NETWORK,     "Can't connect — check network, proxy, or base URL");
@@ -744,12 +746,13 @@ public final class ModLanguageData {
         adder.add(Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR, "Provider-side error — try again later");
         adder.add(Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED, "Invalid key — check it's complete and belongs to this provider");
         adder.add(Keys.GUI_PROVIDERS_CHECKING,          "Checking…");
+        adder.add(Keys.GUI_PROVIDERS_CUSTOM,            "Custom provider");
         adder.add(Keys.GUI_PROVIDERS_EFFORT,            "Reasoning effort");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_HIGH,       "High");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_LOW,        "Low");
+        adder.add(Keys.GUI_PROVIDERS_EFFORT_MAX,        "Max");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_MEDIUM,     "Medium");
         adder.add(Keys.GUI_PROVIDERS_PROXY,             "Proxy (optional)");
-        adder.add(Keys.GUI_PROVIDERS_PROXY_GLOBAL,      "Global proxy");
         adder.add(Keys.GUI_PROVIDERS_PROXY_HINT,        "host:port, blank = global");
         adder.add(Keys.GUI_PROVIDERS_CTX,               "Context length (optional)");
         adder.add(Keys.GUI_PROVIDERS_CTX_HINT,          "tokens; blank = auto by model");
@@ -1008,7 +1011,6 @@ public final class ModLanguageData {
         adder.add("numen.settings.site_name", "站点名称");
         adder.add("numen.settings.saved", "✔ 已保存");
         adder.add("numen.settings.custom_model", "自定义…");
-        adder.add("numen.settings.add_site", "＋ 添加站点");
         adder.add("numen.settings.reasoning", "深度思考：%s");
         adder.add("numen.settings.reasoning.auto", "自动");
         adder.add("numen.settings.reasoning.low", "低");
@@ -1200,6 +1202,7 @@ public final class ModLanguageData {
         // Endpoint problems (chat warn line)
         adder.add(Keys.ENDPOINT_UNBOUND, "这个同伴还没有绑定模型配置——到 设置 → 模型配置 新建/选择一条");
         adder.add(Keys.ENDPOINT_NO_KEY,  "模型配置「%s」还没填 API Key——到 设置 → 模型配置 补上");
+        adder.add(Keys.ENDPOINT_NO_URL,  "模型配置「%s」没有接口地址——到 设置 → 模型配置 补上");
 
         // Voice (TTS) section
         adder.add(Keys.VOICE_TITLE,          "语音");
@@ -1251,8 +1254,8 @@ public final class ModLanguageData {
     
         adder.add(Keys.KEY_CATEGORY_NUMEN,              "Numen");
         adder.add(Keys.GUI_INLINE_NEED_KEY,             "请先填写密钥");
+        adder.add(Keys.GUI_INLINE_NEED_URL,             "请先填写接口地址");
         adder.add(Keys.GUI_INLINE_REQUIRED,             "必填");
-        adder.add(Keys.GUI_PROVIDERS_BADGE_LOCAL,       "本地");
         adder.add(Keys.GUI_PROVIDERS_CHECK,             "检测");
         adder.add(Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST, "请求被拒");
         adder.add(Keys.GUI_PROVIDERS_CHECK_NETWORK,     "连不上——检查网络、代理或基址");
@@ -1262,12 +1265,13 @@ public final class ModLanguageData {
         adder.add(Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR, "服务商侧故障——稍后再试");
         adder.add(Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED, "密钥无效——检查 API Key 是否复制完整、是否属于这家服务商");
         adder.add(Keys.GUI_PROVIDERS_CHECKING,          "检测中…");
+        adder.add(Keys.GUI_PROVIDERS_CUSTOM,            "自定义厂家");
         adder.add(Keys.GUI_PROVIDERS_EFFORT,            "推理强度");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_HIGH,       "高强度");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_LOW,        "低强度");
+        adder.add(Keys.GUI_PROVIDERS_EFFORT_MAX,        "最高强度");
         adder.add(Keys.GUI_PROVIDERS_EFFORT_MEDIUM,     "中强度");
         adder.add(Keys.GUI_PROVIDERS_PROXY,             "代理（可选）");
-        adder.add(Keys.GUI_PROVIDERS_PROXY_GLOBAL,      "全局代理");
         adder.add(Keys.GUI_PROVIDERS_PROXY_HINT,        "host:port，留空跟随全局");
         adder.add(Keys.GUI_PROVIDERS_CTX,               "上下文长度（可选）");
         adder.add(Keys.GUI_PROVIDERS_CTX_HINT,          "tokens；留空按模型表自动");

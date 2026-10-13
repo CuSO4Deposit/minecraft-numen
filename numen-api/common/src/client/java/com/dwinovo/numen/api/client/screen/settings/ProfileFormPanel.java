@@ -1,10 +1,15 @@
 package com.dwinovo.numen.api.client.screen.settings;
 
+import com.dwinovo.numen.api.agent.catalog.Catalog;
+import com.dwinovo.numen.api.agent.catalog.ModelInfo;
+import com.dwinovo.numen.api.agent.catalog.ProviderInfo;
+import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
+import com.dwinovo.numen.api.agent.catalog.ThinkingTable;
+import com.dwinovo.numen.api.agent.llm.ConnectionProfile;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
-import com.dwinovo.numen.api.agent.provider.LlmProvider;
-import com.dwinovo.numen.api.agent.provider.ProviderRegistry;
+import com.dwinovo.numen.api.agent.llm.ProviderLibrary;
 import com.dwinovo.numen.api.client.agent.LlmErrorWords;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
@@ -16,7 +21,6 @@ import com.dwinovo.numen.api.client.ui.widget.Label;
 import com.dwinovo.numen.api.client.ui.widget.ScrollBox;
 import com.dwinovo.numen.api.client.ui.widget.TextField;
 import com.dwinovo.numen.api.client.ui.widget.UiRoot;
-import com.dwinovo.numen.api.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
@@ -34,7 +38,10 @@ import com.dwinovo.numen.api.data.ModLanguageData;
 
 public final class ProfileFormPanel {
 
-    /** 表单草稿:与 ProviderLibrary.Entry 的字段一一对应(id 由宿主管理)。 */
+    /**
+     * 表单草稿:与档案({@link ConnectionProfile})一一对应(id 由宿主管理)。界面还没有编辑入口的档案字段
+     * (协议、温度、输出上限、兼容项覆盖)原样带着走,保存不丢。
+     */
     public static final class Draft {
         public String name = "";
         public String provider = "";
@@ -42,9 +49,44 @@ public final class ProfileFormPanel {
         public String apiKey = "";
         public String baseUrl = "";
         public String reasoningEffort = "";
-        /** 上下文长度(tokens);空 = 按模型表自动。 */
+        /** 上下文长度(tokens);空 = 按型号目录自动。 */
         public String ctx = "";
         public String proxy = "";
+        private String protocol = "";
+        private Double temperature;
+        private int maxTokens;
+        private com.google.gson.JsonObject compat;
+
+        public static Draft of(String name, ConnectionProfile p) {
+            Draft d = new Draft();
+            d.name = nz(name);
+            d.provider = nz(p.provider());
+            d.model = nz(p.model());
+            d.apiKey = nz(p.apiKey());
+            d.baseUrl = nz(p.baseUrl());
+            d.reasoningEffort = nz(p.reasoningEffort());
+            d.ctx = p.ctx() > 0 ? String.valueOf(p.ctx()) : "";
+            d.proxy = nz(p.proxy());
+            d.protocol = nz(p.protocol());
+            d.temperature = p.temperature();
+            d.maxTokens = p.maxTokens();
+            d.compat = p.compat();
+            return d;
+        }
+
+        public ConnectionProfile toProfile() {
+            return new ConnectionProfile(provider, protocol, model, apiKey, baseUrl, proxy, reasoningEffort,
+                    parseCtx(ctx), temperature, maxTokens, compat);
+        }
+
+        /** 上下文长度输入:空/非数字/非正数一律 0(= 按型号目录自动)。 */
+        private static int parseCtx(String raw) {
+            try {
+                return Math.max(0, Integer.parseInt(raw == null ? "" : raw.trim()));
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
     }
 
     /** 滚动根:表单行(进裁剪区,可上下滚);固定根:结果胶囊/按钮行(不动)。 */
@@ -57,19 +99,22 @@ public final class ProfileFormPanel {
     private final ScrollBox scroll = new ScrollBox();
 
     private Draft draft = new Draft();
-    private List<ProviderRegistry.Provider> sites = List.of();
+    private List<Vendor> vendors = List.of();
 
     private TextField nameField, keyField, modelField, baseUrlField, proxyField, ctxField;
     private Dropdown sitePick, modelDropdown, thinkingPick;
     private Button modelBackBtn;
     private Label thinkingLabel;
-    private boolean thinkingToggleOnly;
+    private List<ThinkingLevel> thinkingLevels = List.of(ThinkingLevel.AUTO);
     private Button checkButton;
     private InlineAlert resultAlert;
     private volatile boolean checking;
     /** 模型行双态:预设下拉(含"自定义…") ↔ 自由输入(▾ 可回预设)。 */
     private boolean customModel;
     private List<String> siteModelIds = List.of();
+
+    /** 厂家下拉里的一项:目录里的厂家,或“自定义厂家”。 */
+    private record Vendor(String id, String name) {}
 
     public ProfileFormPanel(Consumer<Draft> onSave, Runnable onCancel) {
         this.onSave = onSave;
@@ -95,9 +140,9 @@ public final class ProfileFormPanel {
         fixedUi.clear();
         ui.setViewportHeight(viewportBottom);
 
-        sites = new ArrayList<>(ProviderRegistry.providers());
+        vendors = vendorChoices();
         if (draft.provider == null || draft.provider.isBlank()) {
-            if (!sites.isEmpty()) adaptToSite(sites.get(0), false);
+            adaptToVendor(vendors.get(0), false);
         }
 
         int ry = y;
@@ -109,8 +154,8 @@ public final class ProfileFormPanel {
 
         ry = label(x, ry, "numen.provider.form_provider");
         List<String> siteNames = new ArrayList<>();
-        for (ProviderRegistry.Provider p : sites) siteNames.add(p.name());
-        sitePick = ui.add(new Dropdown(siteNames, indexOfSite(draft.provider), this::onSitePicked));
+        for (Vendor v : vendors) siteNames.add(v.name());
+        sitePick = ui.add(new Dropdown(siteNames, indexOfVendor(draft.provider), this::onSitePicked));
         sitePick.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -126,7 +171,10 @@ public final class ProfileFormPanel {
         ry = label(x, ry, "numen.gui.settings.model");
         modelDropdown = ui.add(new Dropdown(List.of(), 0, this::onModelDropdownPicked));
         modelDropdown.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-        modelField = ui.add(new TextField(draft.model, v -> draft.model = v).underlined(true));
+        modelField = ui.add(new TextField(draft.model, v -> {
+            draft.model = v;
+            refreshThinking();
+        }).underlined(true));
         modelField.setBounds(x, ry, w - 17, NumenStyle.CONTROL_H);
         modelBackBtn = ui.add(new Button("▾", Button.Style.NORMAL, this::onModelBackToPresets));
         modelBackBtn.setBounds(x + w - 15, ry, 15, NumenStyle.CONTROL_H);
@@ -152,8 +200,7 @@ public final class ProfileFormPanel {
         proxyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        // 单一自适应思考控件(主流形态):力度型站点出 自动/关闭/低/中/高,
-        // 开关型出 自动/开启/关闭,常开型隐藏——后端两参数的复杂度不泄漏给用户。
+        // 单一自适应思考控件:档位随型号变(由型号目录的档位表给出),只有自动可选的型号隐藏它。
         thinkingLabel = ui.add(new Label(t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING), Label.Role.MUTED));
         thinkingLabel.setBounds(x, ry, 100, 9);
         ry += NumenStyle.LABEL_PITCH;
@@ -173,7 +220,7 @@ public final class ProfileFormPanel {
                 t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK), t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
         DialogButtons.cancelSave(fixedUi, x, y, w, h, onCancel, this::save);
 
-        refreshSiteDependent();
+        refreshVendorDependent();
     }
 
     // ---- 宿主转发面 ----
@@ -226,44 +273,71 @@ public final class ProfileFormPanel {
         return l;
     }
 
-    private int indexOfSite(String providerId) {
-        String canon = ProviderRegistry.canonicalId(providerId);
-        for (int i = 0; i < sites.size(); i++) {
-            if (sites.get(i).id().equals(canon)) return i;
-        }
-        return sites.isEmpty() ? -1 : 0;
+    private static Catalog catalog() {
+        return ProviderLibrary.instance().catalog();
     }
 
-    private ProviderRegistry.Provider selectedSite() {
-        int idx = sitePick == null ? indexOfSite(draft.provider) : sitePick.selectedIndex();
-        return idx >= 0 && idx < sites.size() ? sites.get(idx) : null;
+    /** 厂家下拉:先是常用厂家,档案里选了别的目录厂家就补在后面,最后一项是自定义厂家。 */
+    private List<Vendor> vendorChoices() {
+        List<Vendor> out = new ArrayList<>();
+        for (ProviderInfo p : catalog().popular()) out.add(new Vendor(p.id(), p.name()));
+        ProviderInfo current = catalog().provider(nz(draft.provider));
+        if (current != null && out.stream().noneMatch(v -> v.id().equals(current.id()))) {
+            out.add(new Vendor(current.id(), current.name()));
+        }
+        out.add(new Vendor(ConnectionProfile.CUSTOM, t(ModLanguageData.Keys.GUI_PROVIDERS_CUSTOM)));
+        return out;
+    }
+
+    /** 档案里的厂家在下拉里的位置;目录里没有的厂家按自定义处理(地址由档案给)。 */
+    private int indexOfVendor(String providerId) {
+        for (int i = 0; i < vendors.size(); i++) {
+            if (vendors.get(i).id().equals(nz(providerId))) return i;
+        }
+        return vendors.size() - 1;
     }
 
     private void onSitePicked(int index) {
-        if (index < 0 || index >= sites.size()) return;
-        adaptToSite(sites.get(index), true);
-        refreshSiteDependent();
+        if (index < 0 || index >= vendors.size()) return;
+        adaptToVendor(vendors.get(index), true);
+        refreshVendorDependent();
     }
 
-    /** 站点变了:档案跟着换成该站默认模型;基址清空回站点默认(占位符提示)。 */
-    private void adaptToSite(ProviderRegistry.Provider site, boolean resetModel) {
-        draft.provider = site.id();
+    /** 厂家变了:档案跟着换成该厂家的第一个能调工具的型号;地址与厂家专属的覆盖项清空回目录缺省。 */
+    private void adaptToVendor(Vendor vendor, boolean resetModel) {
+        draft.provider = vendor.id();
+        draft.protocol = ConnectionProfile.CUSTOM.equals(vendor.id()) ? "chat" : "";
+        draft.compat = null;
         if (resetModel || draft.model == null || draft.model.isBlank()) {
-            draft.model = site.models().isEmpty() ? "" : site.models().get(0).id();
+            draft.model = defaultModelId(vendor.id());
             if (modelField != null) modelField.setValue(draft.model);
         }
         draft.baseUrl = "";
         if (baseUrlField != null) baseUrlField.setValue("");
     }
 
-    /** 站点相关的联动刷新:模型候选、基址占位、思考控件按方言换形态。 */
-    private void refreshSiteDependent() {
-        ProviderRegistry.Provider site = selectedSite();
-        if (site == null) return;
+    private static String defaultModelId(String vendorId) {
+        ProviderInfo vendor = catalog().provider(vendorId);
+        if (vendor == null || vendor.models().isEmpty()) return "";
+        for (ModelInfo m : vendor.models()) {
+            if (m.toolCall()) return m.id();
+        }
+        return vendor.models().get(0).id();
+    }
 
+    /** 草稿现在对应的端点,不含地址覆盖:取目录给的缺省地址与型号能力来展示。 */
+    private LlmEndpoint preview() {
+        return ProviderLibrary.instance().resolve(draft.toProfile().withBaseUrl(""));
+    }
+
+    /** 厂家相关的联动刷新:型号候选、基址占位、思考控件。 */
+    private void refreshVendorDependent() {
+        ProviderInfo vendor = catalog().provider(vendors.get(indexOfVendor(draft.provider)).id());
         siteModelIds = new ArrayList<>();
-        for (ProviderRegistry.Model m : site.models()) siteModelIds.add(m.id());
-        // 编辑既有档案:存的模型不在预设里 → 以自定义态打开(旧表单同语义)。
+        if (vendor != null) {
+            for (ModelInfo m : vendor.models()) siteModelIds.add(m.id());
+        }
+        // 编辑既有档案:存的型号不在目录里 → 以自定义态打开。
         customModel = !siteModelIds.isEmpty() && draft.model != null
                 && !draft.model.isBlank() && !siteModelIds.contains(draft.model);
         List<String> items = new ArrayList<>(siteModelIds);
@@ -271,45 +345,38 @@ public final class ProfileFormPanel {
         int sel = Math.max(0, siteModelIds.indexOf(draft.model));
         modelDropdown.setItems(items, customModel ? items.size() - 1 : sel);
         refreshModelRow();
-        baseUrlField.placeholder(site.baseUrl());
-
-        String format = ProviderPanel.effectiveThinkingFormat(site);
-        boolean none = LlmProvider.THINKING_NONE.equals(format);
-        boolean toggleOnly = LlmProvider.THINKING_TYPE.equals(format)
-                || LlmProvider.THINKING_ENABLE_BOOL.equals(format);
-        thinkingLabel.setVisible(!none);
-        thinkingPick.setVisible(!none);
-        thinkingToggleOnly = toggleOnly;
-        if (!none) {
-            if (toggleOnly) {
-                thinkingPick.setItems(List.of(
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_ON),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF)),
-                        switch (nz(draft.reasoningEffort)) {
-                            case "off" -> 2;
-                            case "low", "medium", "high" -> 1;
-                            default -> 0;
-                        });
-            } else {
-                thinkingPick.setItems(List.of(
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_LOW),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MEDIUM),
-                        t(ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_HIGH)),
-                        switch (nz(draft.reasoningEffort)) {
-                            case "off" -> 1;
-                            case "low" -> 2;
-                            case "medium" -> 3;
-                            case "high" -> 4;
-                            default -> 0;
-                        });
-            }
-        }
+        baseUrlField.placeholder(preview().baseUrl());
+        refreshThinking();
     }
 
-    /** 双态显隐:预设态整宽下拉;自定义态输入框+回预设按钮;无预设站点纯输入框。 */
+    /** 思考下拉随型号变:列出型号档位表里的档位;只有自动可选就整个藏起来。 */
+    private void refreshThinking() {
+        if (thinkingPick == null) return;
+        ThinkingTable table = preview().model().thinking();
+        thinkingLevels = table.levels();
+        boolean hidden = thinkingLevels.size() == 1;
+        thinkingLabel.setVisible(!hidden);
+        thinkingPick.setVisible(!hidden);
+        if (hidden) return;
+        List<String> labels = new ArrayList<>();
+        for (ThinkingLevel l : thinkingLevels) labels.add(levelLabel(l, table));
+        thinkingPick.setItems(labels,
+                thinkingLevels.indexOf(table.effective(ThinkingLevel.byId(draft.reasoningEffort))));
+    }
+
+    private static String levelLabel(ThinkingLevel level, ThinkingTable table) {
+        return t(switch (level) {
+            case AUTO -> ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO;
+            case OFF -> ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF;
+            case LOW -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_LOW;
+            case MEDIUM -> table.toggle() ? ModLanguageData.Keys.GUI_PROVIDERS_THINKING_ON
+                    : ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MEDIUM;
+            case HIGH -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_HIGH;
+            case MAX -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MAX;
+        });
+    }
+
+    /** 双态显隐:预设态整宽下拉;自定义态输入框+回预设按钮;无预设厂家纯输入框。 */
     private void refreshModelRow() {
         boolean hasPresets = !siteModelIds.isEmpty();
         modelDropdown.setVisible(hasPresets && !customModel);
@@ -325,10 +392,12 @@ public final class ProfileFormPanel {
             draft.model = "";
             modelField.setValue("");
             refreshModelRow();
+            refreshThinking();
             return;
         }
         draft.model = siteModelIds.get(index);
         modelField.setValue(draft.model);
+        refreshThinking();
     }
 
     private void onModelBackToPresets() {
@@ -339,21 +408,13 @@ public final class ProfileFormPanel {
         items.add(t("numen.settings.custom_model"));
         modelDropdown.setItems(items, 0);
         refreshModelRow();
+        refreshThinking();
     }
 
     private void onThinkingPicked(int index) {
-        draft.reasoningEffort = thinkingValue(thinkingToggleOnly, index);
-    }
-
-    /** 单控件选项下标 → 存储值(开关型的"开启"取 medium 档)。 */
-    static String thinkingValue(boolean toggleOnly, int index) {
-        if (toggleOnly) {
-            return switch (index) { case 1 -> "medium"; case 2 -> "off"; default -> "auto"; };
+        if (index >= 0 && index < thinkingLevels.size()) {
+            draft.reasoningEffort = thinkingLevels.get(index).id();
         }
-        return switch (index) {
-            case 1 -> "off"; case 2 -> "low"; case 3 -> "medium"; case 4 -> "high";
-            default -> "auto";
-        };
     }
 
     private static String nz(String s) { return s == null ? "" : s; }
@@ -373,14 +434,16 @@ public final class ProfileFormPanel {
             keyField.setError(t(ModLanguageData.Keys.GUI_INLINE_NEED_KEY));
             return;
         }
+        // 检测用档案当前的设置,只是思考不发(检测只关心连得通、密钥对不对)
+        LlmEndpoint ep = ProviderLibrary.instance().resolve(draft.toProfile().withReasoningEffort("auto"));
+        if (!ep.hasUrl()) {
+            baseUrlField.setError(t(ModLanguageData.Keys.GUI_INLINE_NEED_URL));
+            return;
+        }
         checking = true;
         checkButton.setEnabled(false);
         checkButton.setLabel(t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
         resultAlert.show(InlineAlert.Severity.INFO, t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
-        String proxy = draft.proxy != null && !draft.proxy.isBlank()
-                ? draft.proxy : Services.CONFIG.getProxy();
-        LlmEndpoint ep = new LlmEndpoint(draft.provider, draft.model, draft.apiKey,
-                draft.baseUrl, proxy, "auto");
         NumenLlmClient.forEndpoint(ep)
                 .chatStreaming(List.of(new ConvoState.Msg.User("ping")), List.of(), "",
                         new com.dwinovo.numen.api.agent.http.CancelToken(), null)

@@ -7,8 +7,7 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 
 /**
- * A generic screen-driven dropdown (collapsed box → list on click), the data-agnostic sibling of
- * {@link ProviderDropdown}. Not a self-contained widget — the host renders it LAST (open list on top)
+ * A generic screen-driven dropdown (collapsed box → list on click). Not a self-contained widget — the host renders it LAST (open list on top)
  * and routes clicks FIRST. Used for the model picker in the Settings tab.
  */
 public final class Dropdown {

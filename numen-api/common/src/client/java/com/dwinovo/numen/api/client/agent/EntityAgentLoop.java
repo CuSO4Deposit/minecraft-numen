@@ -189,13 +189,12 @@ public final class EntityAgentLoop {
     }
 
     /**
-     * 与自动压缩闸门同一口径的模型上下文窗口,真源是<b>这只同伴绑定的档案</b>
-     * ({@link com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry#contextWindow()})。没绑档案就是不可用
+     * 与自动压缩闸门同一口径的模型上下文窗口,真源是<b>这只同伴绑定的档案解析出的端点</b>
+     * ({@link com.dwinovo.numen.api.agent.llm.LlmEndpoint#contextWindow()})。没绑档案就是不可用
      * (见 {@link #endpointProblem}),没有窗口可言,返回 0。
      */
     public int modelWindow() {
-        var entry = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().get(providerEntryId);
-        return entry == null ? 0 : entry.contextWindow();
+        return com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().resolve(providerEntryId).contextWindow();
     }
 
     /** 上下文水位百分比(见 {@link Compactor#contextPercent})。 */
@@ -641,8 +640,12 @@ public final class EntityAgentLoop {
         if (providerEntryId == null || lib.get(providerEntryId) == null) {
             return I18n.get(ModLanguageData.Keys.ENDPOINT_UNBOUND);
         }
-        if (!lib.resolve(providerEntryId).hasApiKey()) {
+        var endpoint = lib.resolve(providerEntryId);
+        if (!endpoint.hasApiKey()) {
             return I18n.get(ModLanguageData.Keys.ENDPOINT_NO_KEY, lib.get(providerEntryId).name());
+        }
+        if (!endpoint.hasUrl()) {
+            return I18n.get(ModLanguageData.Keys.ENDPOINT_NO_URL, lib.get(providerEntryId).name());
         }
         return null;
     }

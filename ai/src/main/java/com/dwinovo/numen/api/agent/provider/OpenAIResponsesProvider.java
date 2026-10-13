@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.agent.provider;
 
+import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -31,30 +32,16 @@ import java.util.List;
  */
 public final class OpenAIResponsesProvider implements LlmProvider {
 
-    public static final String NAME = "openai-responses";
-    public static final String DEFAULT_BASE_URL = "https://api.openai.com/v1";
-
     /** extras 里存思考 item 原文的键。 */
     public static final String REASONING_ITEMS = "numen_reasoning_items";
 
     private static final Gson GSON = new Gson();
 
-    private final String name;
-    private final String defaultBaseUrl;
+    private final ResponsesCompat compat;
 
-    public OpenAIResponsesProvider() {
-        this(NAME, DEFAULT_BASE_URL);
+    public OpenAIResponsesProvider(ResponsesCompat compat) {
+        this.compat = compat;
     }
-
-    public OpenAIResponsesProvider(String name, String defaultBaseUrl) {
-        this.name = name == null || name.isBlank() ? NAME : name;
-        this.defaultBaseUrl = defaultBaseUrl == null || defaultBaseUrl.isBlank()
-                ? DEFAULT_BASE_URL : defaultBaseUrl;
-    }
-
-    @Override public String name() { return name; }
-
-    @Override public String defaultBaseUrl() { return defaultBaseUrl; }
 
     @Override public String chatPath() { return "/responses"; }
 
@@ -65,10 +52,10 @@ public final class OpenAIResponsesProvider implements LlmProvider {
         return message("user", "input_text", content);
     }
 
-    /** 系统话走 developer 角色——Responses 上推理型号认的是它,老型号也接受,所以不按型号分叉。 */
+    /** 系统话的角色由兼容项定:推理型号认 {@code developer},不认它的端点用 {@code system}。 */
     @Override
     public JsonObject buildSystemMessage(String content) {
-        return message("developer", "input_text", content);
+        return message(compat.developerRole() ? "developer" : "system", "input_text", content);
     }
 
     @Override
@@ -119,10 +106,10 @@ public final class OpenAIResponsesProvider implements LlmProvider {
     }
 
     @Override
-    public JsonObject buildRequestBody(String model, String systemPrompt,
-                                       List<JsonObject> messages, JsonArray tools) {
+    public JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
+                                       JsonArray tools, RequestOptions options) {
         JsonObject body = new JsonObject();
-        body.addProperty("model", model);
+        body.addProperty("model", model.id());
         JsonArray input = new JsonArray();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             input.add(buildSystemMessage(systemPrompt));
@@ -135,34 +122,33 @@ public final class OpenAIResponsesProvider implements LlmProvider {
             body.add("tools", tools);
             body.addProperty("parallel_tool_calls", true);
         }
+        Double temperature = options.temperatureFor(model);
+        if (temperature != null && temperature > 0) {
+            body.addProperty("temperature", temperature);
+        }
+        if (options.maxTokens() > 0) {
+            body.addProperty("max_output_tokens", options.maxTokens());
+        }
+        applyReasoning(body, model, options.thinkingFor(model));
         // 不让服务端替我们存这次对话:历史是我们自己的账本,存一份在别人那儿就成了第二处真源。
         // 代价是思考 item 带加密内容回传,而那正是 extras 保管的东西。
         body.addProperty("store", false);
         JsonArray include = new JsonArray();
         include.add("reasoning.encrypted_content");
         body.add("include", include);
+        body.addProperty("stream", true);
         return body;
     }
 
-    /** 力度:Responses 只认嵌套写法。 */
-    @Override
-    public void applyReasoning(JsonObject body, String effort) {
-        if ("off".equals(effort)) {
+    /** 力度:Responses 只认嵌套写法,取值是型号档位表给的字。 */
+    private static void applyReasoning(JsonObject body, ModelSpec model, ThinkingLevel level) {
+        String effort = model.thinking().effort(level);
+        if (level == ThinkingLevel.AUTO || effort == null) {
             return;
         }
         JsonObject r = new JsonObject();
         r.addProperty("effort", effort);
         body.add("reasoning", r);
-    }
-
-    @Override
-    public void applyGenerationParams(JsonObject body, Double temperature, int maxTokens) {
-        if (temperature != null && temperature > 0) {
-            body.addProperty("temperature", temperature);
-        }
-        if (maxTokens > 0) {
-            body.addProperty("max_output_tokens", maxTokens);
-        }
     }
 
     // ==================== 响应侧:output 条目 → 一条回合 ====================

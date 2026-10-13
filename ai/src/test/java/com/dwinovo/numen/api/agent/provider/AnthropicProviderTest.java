@@ -18,7 +18,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AnthropicProviderTest {
 
-    private static final AnthropicProvider P = new AnthropicProvider();
+    private static final AnthropicProvider P = new AnthropicProvider(new AnthropicCompat(false, true));
+    private static final ModelSpec M = Wire.PLAIN;
+    private static final RequestOptions NONE = RequestOptions.NONE;
+
+    private static JsonObject build(String system, List<JsonObject> messages, JsonArray tools) {
+        return P.buildRequestBody(M, system, messages, tools, NONE);
+    }
 
     private static JsonObject j(String json) {
         return JsonParser.parseString(json).getAsJsonObject();
@@ -28,8 +34,7 @@ class AnthropicProviderTest {
 
     @Test
     void systemIsTopLevelNotAMessage() {
-        JsonObject body = P.buildRequestBody("claude-sonnet-4-5", "你是同伴",
-                List.of(P.buildUserMessage("你好")), new JsonArray());
+        JsonObject body = build("你是同伴", List.of(P.buildUserMessage("你好")), new JsonArray());
         JsonObject system = body.getAsJsonArray("system").get(0).getAsJsonObject();
         assertEquals("你是同伴", system.get("text").getAsString());
         JsonArray msgs = body.getAsJsonArray("messages");
@@ -50,7 +55,7 @@ class AnthropicProviderTest {
                         List.of(new LlmToolCall("tu1", "dig", "{}")), extras, "想一想")).get(0),
                 P.buildToolResultMessage("tu1", "挖到了"),
                 P.buildUserMessage("<runtime_state/>"));
-        JsonObject body = P.buildRequestBody("m", "你是同伴", messages, P.buildToolList(List.of(look, dig)));
+        JsonObject body = build("你是同伴", messages, P.buildToolList(List.of(look, dig)));
 
         assertTrue(body.getAsJsonArray("system").get(0).getAsJsonObject().has("cache_control"));
         JsonArray tools = body.getAsJsonArray("tools");
@@ -75,8 +80,7 @@ class AnthropicProviderTest {
         extras.addProperty(AnthropicProvider.SIGNATURE_KEY, "sig");
         JsonObject assistant = P.assistantToRequestItems(
                 new AssistantTurn("好", List.of(), extras, "想一想")).get(0);
-        JsonObject body = P.buildRequestBody("m", null,
-                List.of(P.buildUserMessage("你好"), assistant), new JsonArray());
+        JsonObject body = build(null, List.of(P.buildUserMessage("你好"), assistant), new JsonArray());
         JsonArray msgs = body.getAsJsonArray("messages");
         JsonArray blocks = msgs.get(1).getAsJsonObject().getAsJsonArray("content");
         assertFalse(blocks.get(0).getAsJsonObject().has("cache_control"));
@@ -89,7 +93,7 @@ class AnthropicProviderTest {
     void markingDoesNotTouchCallerObjects() {
         JsonArray tools = P.buildToolList(List.of(tool("look")));
         JsonObject user = P.buildToolResultMessage("t1", "结果");
-        P.buildRequestBody("m", null, List.of(user), tools);
+        build(null, List.of(user), tools);
         assertFalse(tools.get(0).getAsJsonObject().has("cache_control"));
         assertFalse(user.getAsJsonArray("content").get(0).getAsJsonObject().has("cache_control"));
     }
@@ -104,14 +108,14 @@ class AnthropicProviderTest {
 
     @Test
     void maxTokensAlwaysPresent() {
-        JsonObject body = P.buildRequestBody("m", null, List.of(), new JsonArray());
+        JsonObject body = build(null, List.of(), new JsonArray());
         assertTrue(body.get("max_tokens").getAsInt() > 0);
     }
 
     @Test
     void consecutiveUserMessagesMergeIntoOne() {
         // 并行工具结果 = 连续多条 user 消息,必须并成一条多块消息,否则 400。
-        JsonObject body = P.buildRequestBody("m", null, List.of(
+        JsonObject body = build(null, List.of(
                 P.buildToolResultMessage("t1", "结果一"),
                 P.buildToolResultMessage("t2", "结果二"),
                 P.buildUserMessage("继续")), new JsonArray());
@@ -166,32 +170,86 @@ class AnthropicProviderTest {
         assertEquals("text", blocks.get(0).getAsJsonObject().get("type").getAsString());
     }
 
-    // ---- 思考预算方言 ----
+    // ---- 思考:预算写法与自适应写法 ----
 
-    @Test
-    void budgetDialectMapsEffortAndRaisesMaxTokens() {
-        JsonObject body = P.buildRequestBody("m", null, List.of(), new JsonArray());
-        int base = body.get("max_tokens").getAsInt();
-        P.applyReasoning(body, "high");
-        JsonObject thinking = body.getAsJsonObject("thinking");
-        assertEquals("enabled", thinking.get("type").getAsString());
-        int budget = thinking.get("budget_tokens").getAsInt();
-        assertTrue(budget > 0);
-        // 预算必须小于输出上限:开思考后 max_tokens 抬到预算之上。
-        assertTrue(body.get("max_tokens").getAsInt() > budget);
-        assertTrue(body.get("max_tokens").getAsInt() >= base);
+    private static final String EFFORT_AND_BUDGET =
+            "[{\"type\":\"effort\",\"values\":[\"low\",\"medium\",\"high\"]},{\"type\":\"budget_tokens\",\"min\":1024}]";
+    private static final String EFFORT_ONLY =
+            "[{\"type\":\"effort\",\"values\":[\"low\",\"medium\",\"high\",\"xhigh\"]}]";
+
+    private static RequestOptions think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel level) {
+        return new RequestOptions(null, 0, level);
     }
 
     @Test
-    void offAndNoneSendNothing() {
-        JsonObject body = new JsonObject();
-        P.applyReasoning(body, "off");
-        assertEquals(0, body.size());
+    void budgetThinkingMapsTheLevelAndRaisesMaxTokens() {
+        ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
+        JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(),
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH));
+        JsonObject thinking = body.getAsJsonObject("thinking");
+        assertEquals("enabled", thinking.get("type").getAsString());
+        assertEquals(16_384, thinking.get("budget_tokens").getAsInt());
+        // 预算必须小于输出上限:开思考后 max_tokens 抬到预算之上。
+        assertEquals(8192 + 16_384, body.get("max_tokens").getAsInt());
+        assertFalse(body.has("output_config"));
+    }
 
-        AnthropicProvider none = new AnthropicProvider("site", "https://x/v1", LlmProvider.THINKING_NONE);
-        JsonObject body2 = new JsonObject();
-        none.applyReasoning(body2, "high");
-        assertEquals(0, body2.size());
+    @Test
+    void thinkingBudgetStacksOnTopOfThePlayersMaxTokens() {
+        ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
+        JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(),
+                new RequestOptions(null, 4096, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MEDIUM));
+        assertEquals(4096 + 8_192, body.get("max_tokens").getAsInt(), "玩家设的值仍然是正文的上限");
+    }
+
+    @Test
+    void adaptiveThinkingSendsEffortAndNoBudget() {
+        AnthropicProvider adaptive = new AnthropicProvider(new AnthropicCompat(true, true));
+        ModelSpec m = Wire.reasoning("claude-opus-5", EFFORT_ONLY);
+        JsonObject body = adaptive.buildRequestBody(m, null, List.of(), new JsonArray(),
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MAX));
+        assertEquals("adaptive", body.getAsJsonObject("thinking").get("type").getAsString());
+        assertFalse(body.getAsJsonObject("thinking").has("budget_tokens"));
+        assertEquals("xhigh", body.getAsJsonObject("output_config").get("effort").getAsString(),
+                "最高档在这个型号上写成它认的字");
+        assertEquals(8192, body.get("max_tokens").getAsInt());
+    }
+
+    @Test
+    void autoOffAndUnsupportedLevelsSendNoThinkingAtAll() {
+        ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
+        for (var level : new com.dwinovo.numen.api.agent.catalog.ThinkingLevel[]{
+                com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO,
+                com.dwinovo.numen.api.agent.catalog.ThinkingLevel.OFF,
+                com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MAX}) {   // 这个型号没有最高档
+            JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(), think(level));
+            assertFalse(body.has("thinking"), level.name());
+            assertFalse(body.has("output_config"), level.name());
+            assertEquals(8192, body.get("max_tokens").getAsInt(), level.name());
+        }
+        // 目录里查不到的型号:任何档位都不发
+        JsonObject unknown = P.buildRequestBody(M, null, List.of(), new JsonArray(),
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH));
+        assertFalse(unknown.has("thinking"));
+    }
+
+    @Test
+    void temperatureIsDroppedWhileThinkingOrWhenEitherSideRefusesIt() {
+        ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
+        var level = com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MEDIUM;
+        assertFalse(P.buildRequestBody(m, null, List.of(), new JsonArray(),
+                new RequestOptions(0.7, 0, level)).has("temperature"), "开思考时协议只允许默认温度");
+        assertEquals(0.7, P.buildRequestBody(m, null, List.of(), new JsonArray(),
+                new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO))
+                .get("temperature").getAsDouble());
+        // 端点不收温度(兼容项),或型号不收温度(目录)
+        assertFalse(new AnthropicProvider(new AnthropicCompat(false, false)).buildRequestBody(m, null, List.of(),
+                new JsonArray(), new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO))
+                .has("temperature"));
+        ModelSpec noTemp = new ModelSpec("m", m.thinking(), false);
+        assertFalse(P.buildRequestBody(noTemp, null, List.of(), new JsonArray(),
+                new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO))
+                .has("temperature"));
     }
 
     // ---- 鉴权/端点/流式开关 ----
@@ -211,8 +269,7 @@ class AnthropicProviderTest {
 
     @Test
     void streamingFlagHasNoStreamOptions() {
-        JsonObject body = new JsonObject();
-        P.applyStreaming(body);
+        JsonObject body = build(null, List.of(), new JsonArray());
         assertTrue(body.get("stream").getAsBoolean());
         assertFalse(body.has("stream_options"));
     }

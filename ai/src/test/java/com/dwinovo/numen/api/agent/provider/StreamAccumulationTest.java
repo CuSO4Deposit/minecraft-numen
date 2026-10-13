@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -20,7 +21,7 @@ class StreamAccumulationTest {
 
     @Test
     void contentFragmentsConcatenate() {
-        OpenAIProvider p = new OpenAIProvider();
+        OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"content\":\"你\"}}]}"), acc);
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"content\":\"好\"}}]}"), acc);
@@ -30,7 +31,7 @@ class StreamAccumulationTest {
 
     @Test
     void toolCallArgumentsAssembleAcrossChunks() {
-        OpenAIProvider p = new OpenAIProvider();
+        OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
                 + "\"id\":\"c1\",\"function\":{\"name\":\"move_to\",\"arguments\":\"{\\\"x\\\":\"}}]}}]}"), acc);
@@ -48,7 +49,7 @@ class StreamAccumulationTest {
     void aStreamThatDiesMidArgumentsStillYieldsAUsableTurn() {
         // 现场:模型把参数当 XML 写进了 content,tool_calls 只来了半截就没了下文。
         // 这一帧收下什么,就会进对话历史、每轮回传、并落盘——所以它必须是能解析的。
-        OpenAIProvider p = new OpenAIProvider();
+        OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
                 + "\"id\":\"c1\",\"function\":{\"name\":\"goto\",\"arguments\":\"{\\\"x\\\":\"}}]}}]}"), acc);
@@ -65,7 +66,7 @@ class StreamAccumulationTest {
     @Test
     void theAssistantMessageBuiltFromSuchATurnIsAcceptableToSendBack() {
         // 回传体里带着残缺 JSON 的话,上游每一轮都 400,而 400 不重试、历史又不回滚
-        OpenAIProvider p = new OpenAIProvider();
+        OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
                 + "\"id\":\"c1\",\"function\":{\"name\":\"goto\",\"arguments\":\"{\\\"x\\\":\"}}]}}]}"), acc);
@@ -79,7 +80,7 @@ class StreamAccumulationTest {
 
     @Test
     void usageAndFinishReasonCaptured() {
-        OpenAIProvider p = new OpenAIProvider();
+        OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}"), acc);
         p.accumulateChunk(chunk("{\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"total_tokens\":15}}"), acc);
@@ -88,10 +89,11 @@ class StreamAccumulationTest {
     }
 
     @Test
-    void moonshotBackstopInjectsReasoningContentOnToolCalls() {
-        // 带 tool_calls 却缺 reasoning_content 的 assistant 消息会被 Moonshot 拒收:
-        // 兜底注入单个空格;字段已在时不得覆盖。
-        MoonshotProvider p = new MoonshotProvider();
+    void replayCompatFillsReasoningContentOnToolCalls() {
+        // 带 tool_calls 却缺 reasoning_content 的 assistant 消息会被 Kimi、DeepSeek 拒收:
+        // 开了 replayReasoningContent 就补单个空格;字段已在时不得覆盖。
+        OpenAIProvider p = new OpenAIProvider(new ChatCompat(ChatCompat.ThinkingFormat.NONE,
+                ChatCompat.MaxTokensField.MAX_TOKENS, true, true));
         AssistantTurn bare = new AssistantTurn("", java.util.List.of(
                 new LlmToolCall("id1", "look", "{}")), null);
         assertEquals(" ", p.assistantToRequestItems(bare).get(0).get("reasoning_content").getAsString());
@@ -101,6 +103,11 @@ class StreamAccumulationTest {
         AssistantTurn kept = new AssistantTurn("", java.util.List.of(
                 new LlmToolCall("id1", "look", "{}")), extras);
         assertEquals("已有", p.assistantToRequestItems(kept).get(0).get("reasoning_content").getAsString());
+
+        // 没带工具调用的回合不补;兼容项关着(缺省)也不补
+        AssistantTurn talk = new AssistantTurn("好", java.util.List.of(), null);
+        assertFalse(p.assistantToRequestItems(talk).get(0).has("reasoning_content"));
+        assertFalse(Wire.chat().assistantToRequestItems(bare).get(0).has("reasoning_content"));
     }
 
     @Test

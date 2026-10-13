@@ -26,7 +26,7 @@ class OpenAIResponsesProviderTest {
         return GSON.fromJson(raw, JsonObject.class);
     }
 
-    private final OpenAIResponsesProvider p = new OpenAIResponsesProvider();
+    private final OpenAIResponsesProvider p = new OpenAIResponsesProvider(new ResponsesCompat(true));
 
     @Test
     void itPostsToTheResponsesEndpoint() {
@@ -97,8 +97,8 @@ class OpenAIResponsesProviderTest {
 
     @Test
     void theBodyCarriesInputAndAsksForEncryptedReasoningWithoutServerSideStorage() {
-        JsonObject body = p.buildRequestBody("gpt-6-astra", "你是同伴",
-                List.of(p.buildUserMessage("嗨")), new JsonArray());
+        JsonObject body = p.buildRequestBody(new ModelSpec("gpt-6-astra", com.dwinovo.numen.api.agent.catalog.ThinkingTable.AUTO_ONLY, true),
+                "你是同伴", List.of(p.buildUserMessage("嗨")), new JsonArray(), RequestOptions.NONE);
         assertEquals("gpt-6-astra", body.get("model").getAsString());
         JsonArray input = body.getAsJsonArray("input");
         assertEquals("developer", input.get(0).getAsJsonObject().get("role").getAsString(), "系统话走 developer");
