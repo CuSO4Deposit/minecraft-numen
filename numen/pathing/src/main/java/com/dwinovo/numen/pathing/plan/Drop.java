@@ -94,6 +94,10 @@ final class Drop implements Move {
             return Premise.fail(new BlockPos(tx, from.getY() - 1, tz),
                     kind == MoveKind.DESCEND ? Reason.WRONG_DROP : Reason.NO_FOOTING);
         }
+        if (landing.kind() == Stance.Kind.SWIMMING && Strides.inWater(draft, to.above())) {
+            // 落进水里的身体浮在水面上,够不到水面以下的节点(那要往下潜):落点只能是水面那一格
+            return Premise.fail(to, Reason.WRONG_DROP);
+        }
         int depth = from.getY() - to.getY();
         if (kind == MoveKind.FALL && depth < 2) {
             return Premise.fail(to, Reason.WRONG_DROP);
@@ -106,6 +110,9 @@ final class Drop implements Move {
             if (!walksOff(draft, body, from, f0, heading, landing)) {
                 return Premise.fail(to, Reason.NO_CLEARANCE);
             }
+        }
+        if (!Strides.roomyLanding(draft, body, to, landing, heading)) {
+            return Premise.fail(to, Reason.NO_CLEARANCE);
         }
         boolean wading = Strides.inWater(draft, to);
         double drop = f0 - landing.feetY();
