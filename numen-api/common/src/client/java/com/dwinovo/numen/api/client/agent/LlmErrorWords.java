@@ -21,13 +21,29 @@ public final class LlmErrorWords {
             cause = cause.getCause();
         }
         if (cause instanceof LlmHttpException http) {
-            if (http.isUnauthorized()) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED);
-            if (http.statusCode() == 404) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_NOT_FOUND);
-            if (http.isRateLimited()) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED);
-            if (http.statusCode() >= 500) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR);
-            return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST) + " (HTTP " + http.statusCode() + ")";
+            return withReply(http, category(http));
         }
         return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_NETWORK);
+    }
+
+    /** 状态码对应的分类话术。 */
+    private static String category(LlmHttpException http) {
+        if (http.isUnauthorized()) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED);
+        if (http.statusCode() == 404) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_NOT_FOUND);
+        if (http.isRateLimited()) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED);
+        if (http.statusCode() >= 500) return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR);
+        return t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_BAD_REQUEST) + " (HTTP " + http.statusCode() + ")";
+    }
+
+    /**
+     * 分类话术后面带上是谁回的、说了什么原话。同一个 401,key 发错了地方(回话来自另一家)和 key 本身不对
+     * (厂家说 “User not found”)是两回事,只说“密钥无效”玩家和我们都分不出。
+     */
+    private static String withReply(LlmHttpException http, String category) {
+        String reply = http.providerMessage();
+        if (reply.isEmpty()) return category;
+        return category + " · " + Component.translatable(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_REPLY,
+                http.host(), reply).getString();
     }
 
     private static String t(String key) {

@@ -52,6 +52,7 @@ public final class ModLanguageData {
         public static final String GUI_PROVIDERS_CHECK_NOT_FOUND    = "numen.gui.providers.check.not_found";
         public static final String GUI_PROVIDERS_CHECK_OK           = "numen.gui.providers.check.ok";
         public static final String GUI_PROVIDERS_CHECK_RATE_LIMITED = "numen.gui.providers.check.rate_limited";
+        public static final String GUI_PROVIDERS_CHECK_REPLY        = "numen.gui.providers.check.reply";
         public static final String GUI_PROVIDERS_CHECK_SERVER_ERROR = "numen.gui.providers.check.server_error";
         public static final String GUI_PROVIDERS_CHECK_UNAUTHORIZED = "numen.gui.providers.check.unauthorized";
         public static final String GUI_PROVIDERS_CHECKING           = "numen.gui.providers.checking";
@@ -743,6 +744,7 @@ public final class ModLanguageData {
         adder.add(Keys.GUI_PROVIDERS_CHECK_NOT_FOUND,   "Wrong base URL or model — check both");
         adder.add(Keys.GUI_PROVIDERS_CHECK_OK,          "Connected — the model responded");
         adder.add(Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED, "Rate limited — wait a bit or check your quota");
+        adder.add(Keys.GUI_PROVIDERS_CHECK_REPLY,       "%s replied: %s");
         adder.add(Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR, "Provider-side error — try again later");
         adder.add(Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED, "Invalid key — check it's complete and belongs to this provider");
         adder.add(Keys.GUI_PROVIDERS_CHECKING,          "Checking…");
@@ -1262,6 +1264,7 @@ public final class ModLanguageData {
         adder.add(Keys.GUI_PROVIDERS_CHECK_NOT_FOUND,   "基址或模型名不对——检查 Base URL 与模型 ID");
         adder.add(Keys.GUI_PROVIDERS_CHECK_OK,          "连接成功,模型响应正常");
         adder.add(Keys.GUI_PROVIDERS_CHECK_RATE_LIMITED, "被限流了——稍等再试,或检查账户额度");
+        adder.add(Keys.GUI_PROVIDERS_CHECK_REPLY,       "%s 回复:%s");
         adder.add(Keys.GUI_PROVIDERS_CHECK_SERVER_ERROR, "服务商侧故障——稍后再试");
         adder.add(Keys.GUI_PROVIDERS_CHECK_UNAUTHORIZED, "密钥无效——检查 API Key 是否复制完整、是否属于这家服务商");
         adder.add(Keys.GUI_PROVIDERS_CHECKING,          "检测中…");

@@ -270,7 +270,7 @@ public final class HttpLlmTransport {
                 return retryAfterDelay(url, apiKey, body, chunkHandler, cancel, attempt,
                         delay, requestId, "HTTP " + status);
             }
-            return CompletableFuture.<Void>failedFuture(new LlmHttpException(status, body2));
+            return CompletableFuture.<Void>failedFuture(new LlmHttpException(status, body2, resp.uri().getHost()));
         }).thenCompose(f -> f);
     }
 
@@ -385,7 +385,7 @@ public final class HttpLlmTransport {
         if (status / 100 != 2) {
             AiLog.LOG.warn("[numen-http][{}] ✗ {} in {}ms — body: {}",
                     requestId, status, elapsedMs, truncate(body, 500));
-            return CompletableFuture.failedFuture(new LlmHttpException(status, body));
+            return CompletableFuture.failedFuture(new LlmHttpException(status, body, resp.uri().getHost()));
         }
         AiLog.LOG.debug("[numen-http][{}] ✓ {} in {}ms ({} bytes)",
                 requestId, status, elapsedMs, body.length());
@@ -395,7 +395,7 @@ public final class HttpLlmTransport {
         } catch (RuntimeException ex) {
             return CompletableFuture.failedFuture(
                     new LlmHttpException(status, "response is not a JSON object: " + ex.getMessage()
-                            + "; body: " + body));
+                            + "; body: " + body, resp.uri().getHost()));
         }
     }
 
