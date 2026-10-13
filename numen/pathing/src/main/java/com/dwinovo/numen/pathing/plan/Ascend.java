@@ -51,6 +51,10 @@ final class Ascend implements Move {
                 return Premise.fail(to, Reason.NO_FOOTING);
             }
         }
+        if (stance.kind() == Stance.Kind.SWIMMING && f1 > Strides.exitCeiling(draft, body, from) + Footing.EPSILON) {
+            // 从水里出水:岸沿比水面高得多,蹿不上去
+            return Premise.fail(to, Reason.TOO_HIGH);
+        }
         Stepping.Step step = geometry(draft, body, from, f0, grounded, heading, f1);
         if (step == Stepping.Step.BLOCKED) {
             // 身体在落点的脚高上从起步那一列挪到落点:途中与落定后挡着的格,连同起跳时头顶那一格
@@ -90,7 +94,9 @@ final class Ascend implements Move {
                                           Heading heading, double f1) {
         return grounded
                 ? Stepping.between(draft, body, from.getX(), f0, from.getZ(), heading.dx(), heading.dz(), f1)
-                : Stepping.fromHold(draft, body, from.getX(), f0, from.getZ(), heading.dx(), heading.dz(), f1);
+                : Stepping.fromHold(draft, body, from.getX(), f0, from.getZ(), heading.dx(), heading.dz(), f1,
+                        // 从水里出水的身体靠冲劲蹿出岸沿,梯子上爬上去不用
+                        Strides.inWater(draft, from) ? Stepping.WATER_EXIT_LIFT : 0);
     }
 
     /**

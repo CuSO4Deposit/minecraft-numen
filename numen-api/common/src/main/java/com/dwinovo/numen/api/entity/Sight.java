@@ -160,6 +160,10 @@ public final class Sight {
             Trace trace = trace(level, eye, point, target);
             if (trace.clearable(null) && (best == null || trace.soft().size() < best.size())) {
                 best = trace.soft();
+                if (best.isEmpty()) {
+                    // 一格软遮挡也不隔着:后面的视线不可能比它隔得更少
+                    return best;
+                }
             }
         }
         return best;

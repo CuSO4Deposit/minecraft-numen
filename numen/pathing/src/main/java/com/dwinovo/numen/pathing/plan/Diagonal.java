@@ -59,11 +59,16 @@ final class Diagonal implements Move {
         if (landing == null || !landing.grounded()) {
             return Premise.fail(to, Reason.NO_CLEARANCE);
         }
+        if (Strides.pit(draft, body, to, landing)) {
+            return Premise.fail(to, Reason.NO_CLEARANCE);
+        }
         boolean jump = step == Stepping.Step.JUMP;
         Contact contact = new Contact(body, from, f0)
                 .column(to.getX(), to.getZ(), low, high)
                 .column(x + heading.dx(), z, low, high)
-                .column(x, z + heading.dz(), low, high);
+                .column(x, z + heading.dz(), low, high)
+                .over(x + heading.dx(), z, f0)
+                .over(x, z + heading.dz(), f0);
         BlockPos support = landing.support(to.getX(), to.getZ());
         boolean wading = Strides.inWater(draft, to);
         double drop = Math.max(0, f0 - f1);
@@ -118,6 +123,15 @@ final class Diagonal implements Move {
         int floor = q.cell(dx, -1, dz);
         if (!Quick.simple(floor)) {
             return Quick.EXACT;
+        }
+        // 擦过的两个拐角列,身体压在它们脚下那一格的上面:路线排除的种类,这一步就不成立
+        int cornerSide = q.cell(dx, -1, 0);
+        int cornerOther = q.cell(0, -1, dz);
+        if (!Quick.simple(cornerSide) || !Quick.simple(cornerOther)) {
+            return Quick.EXACT;
+        }
+        if (q.excluded(cornerSide) || q.excluded(cornerOther)) {
+            return Quick.REJECT;
         }
         if (Quick.pass(floor) || blocked || wall) {
             return Quick.REJECT;

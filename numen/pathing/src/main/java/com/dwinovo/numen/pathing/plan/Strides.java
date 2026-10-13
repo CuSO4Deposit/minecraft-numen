@@ -58,6 +58,47 @@ final class Strides {
         return Semantics.isAny(level, feet, WATERS);
     }
 
+    /**
+     * 泡在水里的身体从 {@code from} 这个节点出水,脚最高能上到多高:从 {@code from} 往上数到这一列水面(最上面一格水的液面),再加迈步高度。
+     * 依据原版 {@code LivingEntity.travel}:水里顶着岸沿、头上有空处时每刻往上蹿 0.3,蹿出水面后靠冲劲再升一小截,实测(顶着岸沿按住跳往前)
+     * 脚升到水面之上 0.7 格左右;迈步高度(0.6)是留了余量的取值。岸沿(落点脚高)更高的,游不上去。
+     */
+    static double exitCeiling(BlockGetter level, BodyStats body, BlockPos from) {
+        BlockPos.MutableBlockPos cell = new BlockPos.MutableBlockPos(from.getX(), from.getY(), from.getZ());
+        while (inWater(level, cell.setY(cell.getY() + 1))) {
+            // 往上数到最上面一格水
+        }
+        cell.setY(cell.getY() - 1);
+        return cell.getY() + level.getFluidState(cell).getHeight(level, cell) + body.stepHeight();
+    }
+
+    /**
+     * 从高处落下去的落点站得下:不是站着的(水、梯子)不看;站着的,落点那一列里沿前进方向的滑行余量({@link Stepping#slideRoom})不比
+     * {@link Stepping#MIN_LANDING_ROOM} 小——炼药锅、堆肥桶、漏斗里只比身体宽一点点,身子从上面落进去,冲劲收不住,弹出来。
+     * 平着走进去的不看这个:步态已经为窄落点收了脚({@code Gait})。
+     */
+    static boolean roomyLanding(BlockGetter level, BodyStats body, BlockPos to, Stance landing, Heading heading) {
+        return !landing.grounded() || Stepping.slideRoom(level, body, to.getX(), landing.feetY(), to.getZ(), heading.dx(), heading.dz())
+                >= Stepping.MIN_LANDING_ROOM;
+    }
+
+    /**
+     * 落点是个坑:某个水平轴向上,两头滑出去都不到 {@link Stepping#MIN_LANDING_ROOM} 就撞上(炼药锅、漏斗、堆肥桶)。直着走进去步态为它收脚
+     * ({@code Gait}),斜着进去两个轴向上都带着冲劲,停不稳。
+     */
+    static boolean pit(BlockGetter level, BodyStats body, BlockPos to, Stance landing) {
+        if (!landing.grounded()) {
+            return false;
+        }
+        for (int[] axis : new int[][] {{1, 0}, {0, 1}}) {
+            if (Stepping.slideRoom(level, body, to.getX(), landing.feetY(), to.getZ(), axis[0], axis[1]) < Stepping.MIN_LANDING_ROOM
+                    && Stepping.slideRoom(level, body, to.getX(), landing.feetY(), to.getZ(), -axis[0], -axis[1]) < Stepping.MIN_LANDING_ROOM) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 起步与落点两处脚下步速系数的平均:各管半程。 */
     static double speedFactor(BlockGetter level, BlockPos from, double fromFeet, BlockPos to, double toFeet) {
         return (Semantics.speedFactor(level, from.getX(), fromFeet, from.getZ())
