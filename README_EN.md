@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/branding/numen-lockup-dark.png">
-  <img src="assets/branding/numen-lockup-light.png" alt="Numen" width="360">
-</picture>
+# Numen
 
 [**English**](README_EN.md) · [简体中文](README.md)
 
