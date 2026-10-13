@@ -11,7 +11,7 @@
 ![Java](https://img.shields.io/badge/Java-007396?style=flat-square&logo=openjdk&logoColor=white)
 ![License](https://img.shields.io/badge/code-LGPL--3.0-A8731E?style=flat-square)
 ![QQ](https://img.shields.io/badge/QQ%20Group-1121662678-12B7F5?style=flat-square&logo=qq&logoColor=white)
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/MDsCKtemJ)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/FpDCV327vX)
 
 [**Website**](https://numen.dwinovo.cn) · [**Installation**](#installation) · [**Getting Started**](#getting-started) · [**Architecture**](#architecture) · [**Plugins**](#plugins) · [**FAQ**](#faq)
 
@@ -22,7 +22,7 @@
 Numen is an **embodied agent that runs inside Minecraft**. *It lives in the game as a mod*, continually explores the Minecraft world, **makes its own decisions, and takes action to get tasks done**.
 
 > [!TIP]
-> Join us on [Discord](https://discord.gg/MDsCKtemJ) or in QQ group **1121662678**. Learn more on the [website](https://numen.dwinovo.cn).
+> Join us on [Discord](https://discord.gg/FpDCV327vX) or in QQ group **1121662678**. Learn more on the [website](https://numen.dwinovo.cn).
 
 ## Installation
 
