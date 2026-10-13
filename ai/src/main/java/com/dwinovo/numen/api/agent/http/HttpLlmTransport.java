@@ -97,6 +97,14 @@ public final class HttpLlmTransport {
                             java.util.Map<String, String> authHeaders) {
         this.extraHeaders = extraHeaders == null ? java.util.Map.of() : extraHeaders;
         this.authHeaders = authHeaders;
+        this.client = newClient(proxy);
+    }
+
+    /**
+     * 与 LLM 请求同一套设置的 HTTP 客户端(HTTP/1.1、跟随重定向、可选代理)。型号目录的下载走同一个,
+     * 代理的写法与解析只有这一处。
+     */
+    public static HttpClient newClient(String proxy) {
         HttpClient.Builder b = HttpClient.newBuilder()
             // 明文 http 下 JDK 默认发 h2c 升级头,自建服务端(Uvicorn 等)刷警告;钉死 1.1。
             .version(HttpClient.Version.HTTP_1_1)
@@ -104,7 +112,7 @@ public final class HttpLlmTransport {
                 .followRedirects(HttpClient.Redirect.NORMAL);
         java.net.ProxySelector ps = proxySelector(proxy);
         if (ps != null) b.proxy(ps);
-        this.client = b.build();
+        return b.build();
     }
 
     /** Parse a {@code host:port} (scheme optional) proxy into a selector, or null if blank/invalid. */
