@@ -13,3 +13,4 @@
 | 身体 | [body/](body/README.md) | 她为什么是一个服务端玩家,怎么让她动 |
 | 操控 | [control/](control/README.md) | AI 怎么操控她:从注册工具、命令行到 Lua |
 | 寻路 | [pathing/](pathing/README.md) | 从第一版 A* 到 0.1.5 |
+| 模型接入 | [llm/](llm/README.md) | 怎么接各家模型:零依赖自写、线格式适配、三种协议、思考方言、档案 |
