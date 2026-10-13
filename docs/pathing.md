@@ -466,6 +466,8 @@ Numen 在适配层之外只 import 门面(`api`)、规格(`spec`)、目标族(�
 
 ## 十三、落地记录
 
+下文提到的 `cli.md`、`look-plan-act.md` 已删,原文用 `git show 8bc2fa7f9:docs/<文件名>` 查。
+
 ### 第一批(09-27,`pathing-rewrite` 上 505deb86..42067cdf)
 
 - **构建**:`pathing` 模块用 `numen-common` 加 neoForm 对着原版编译;类在 `numen-loader.gradle` 的 `jar` 里平铺进两个
@@ -818,7 +820,7 @@ goto 超时、跟随报没路,还有 17 次 "Can't keep up"。新模块一行日
   掉落物按服务器视距找(改成工作区里的,加上她自己敲出来弹出区外的)。
 - **失败按类型说**:挖矿收工时接上 `NavText.failure` 的原话,不另写话术;`NavText` 给没带下一步的几种结局补上下一步(真无路、
   被拒、起点待不住、执行受阻、看不见)。挖矿开导航时打开 `probing`:模型收紧成不许改地形而没有干净的路时,和 `move_goto` 一样
-  列出候选路线(09-30 探路删掉,结局改为点名要改的格,见 `look-plan-act.md` §十)。
+  列出候选路线(09-30 探路删掉,结局改为点名要改的格,见已删的 `look-plan-act.md` §十)。
 - **没动的,记着**:`build at` 去远处工地时按 `alter=natural` 走向外圈(不先整条规划,段与段接着搜),走不通或走满 30 秒就在原地
   开工,落位不靠走位、已加载的格隔多远都照放;走不通的原因没有进回执。
 
@@ -830,7 +832,7 @@ goto 超时、跟随报没路,还有 17 次 "Can't keep up"。新模块一行日
 重叠,`offBlocks` 是约束而不是去处。
 
 **"怎样算到达"的语义归本模块**(每种的定义与判定,连同"用"要的视线函数),**命令行归 Numen**(参数写法、帮助、写错时的提醒、把参数名
-对应到这里的目标,见 `cli.md` 附录 G"move goto:只收坐标");Numen 不另写判定,提醒要的判断经适配层 `Terrain` 问这里。
+对应到这里的目标,见已删的 `cli.md` 附录 G"move goto:只收坐标");Numen 不另写判定,提醒要的判断经适配层 `Terrain` 问这里。
 
 **五种**(都在 `search/Goals`):
 
@@ -889,7 +891,7 @@ goto 超时、跟随报没路,还有 17 次 "Can't keep up"。新模块一行日
 
 ### 规划与执行分开(09-30,`look-plan-act` 之上)
 
-`look-plan-act.md` 第七节第 2 步:路线成了存盘的名词,Numen 侧 `Trip` 收成规划(`Survey`)与执行两件事,失败后放宽规格探路
+已删的 `look-plan-act.md` 第七节第 2 步:路线成了存盘的名词,Numen 侧 `Trip` 收成规划(`Survey`)与执行两件事,失败后放宽规格探路
 (PROBING)、路线簿、`move route` 删掉。模块为它补了三处,都是门面或规格上的数据,没有新机器:
 
 - **只许**:`PositionCosts` 每一栏除了禁止的格与加价的格,多一样"只许这些格"(`Builder.confine`;`forbids` 对不在其中的格答禁止,
@@ -913,7 +915,7 @@ goto 超时、跟随报没路,还有 17 次 "Can't keep up"。新模块一行日
   `Builder.forbid(Use, Region)` 把整片交进某一栏;`forbids` 先查逐格的禁令,再逐片问,再看"只许";合并时整片的禁令接在一起
   (与逐格的一样取并集)。模块不认识区域怎么存,也不引用 Numen 的类型:宿主(`numen/nav/NamedAreas.region`)拿区域的小节位图实现它,
   一次查表加一次取位;区域是不可变值,搜索线程逐格问。实现要不可变或线程安全、问一格要快——这是接口的约定。
-- 去一块区域不加到达:Numen 侧用 `Goals.anyOf` 组合现成的 `at`/`use`/`within`(成员有界,见 `cli.md` 附录 G)。
+- 去一块区域不加到达:Numen 侧用 `Goals.anyOf` 组合现成的 `at`/`use`/`within`(成员有界,见已删的 `cli.md` 附录 G)。
 - 单测 `RouteSpecTest.aForbiddenRegionIsAskedCellByCellWithoutBeingSpelledOut`。
 
 ### 憋气(09-30,`look-plan-act` 之上)

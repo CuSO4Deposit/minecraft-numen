@@ -3,7 +3,7 @@
 - 状态:被 [0008](0008-lua-only-tool.md) 取代(命令行前端 10-04 删除;对象写法、帮助与报错的规矩进了 Lua API)
 - 日期:2026-09-24 – 09-26
 - 提交:`5f87fbfa1`、`57d7e8736`、`7cfef3e64`、`9f9d59bb5`、`2d52a861a`、`e960849c9`
-- 另见:`docs/cli.md`
+- 另见:设计稿 `docs/cli.md` 已删,原文 `git show 8bc2fa7f9:docs/cli.md`
 
 ## 背景
 
