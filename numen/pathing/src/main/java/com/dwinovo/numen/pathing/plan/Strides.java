@@ -69,17 +69,22 @@ final class Strides {
      * 每一步按它物理上能达到的最快步态定价,步态({@code Gait})只要能跑就跑,两者只在起步、收脚处有偏差;其余平走;再按脚下的步速系数放慢。
      */
     static double pace(CostModel model, Maneuver m) {
-        if (m.wading()) {
+        return pace(model, m.wading(), m.sneak(), m.runnable(), m.speedFactor());
+    }
+
+    /** 同上,这一步的事实已经拆开给出,用不着 {@link Maneuver}。 */
+    static double pace(CostModel model, boolean wading, boolean sneak, boolean runnable, double speedFactor) {
+        if (wading) {
             return model.waterStep();
         }
         BodyStats body = model.body().stats();
-        double pace = m.sneak() ? Kinematics.sneakTicksPerBlock(body)
-                : model.maySprint() && m.runnable() ? Kinematics.sprintTicksPerBlock(body) : Kinematics.walkTicksPerBlock(body);
-        return pace / m.speedFactor();
+        double pace = sneak ? Kinematics.sneakTicksPerBlock(body)
+                : model.maySprint() && runnable ? Kinematics.sprintTicksPerBlock(body) : Kinematics.walkTicksPerBlock(body);
+        return pace / speedFactor;
     }
 
     /**
-     * 不改地形,身体能不能从落点 {@code to} 回到起点 {@code from}(交出半程路线的一截只能停在回得了头的节点上)。判据全是运动学与第 0 层的几何:
+     * 不改地形,身体能不能从落点 {@code to} 回到起点 {@code from}(没搜到这一段的终点时,往边界推进的一截只能停在回得了头的节点上)。判据全是运动学与第 0 层的几何:
      * <ul>
      *   <li>起点不是站着的(攀着、浮着):回去是爬上去、游上去,都回得去;</li>
      *   <li>站着落在站着的地方,落差(起点的脚高减落点的)不超过迈步高度,回去只是走上去,回得去;更高就看回去那一步
@@ -142,12 +147,22 @@ final class Strides {
 
     /** 从 {@code drop} 高处落到这个落点的耗时:下落,至少要走回列中心那一截。 */
     static double landing(CostModel model, Maneuver m) {
-        return Kinematics.fallLandingTicks(model.body().stats(), m.drop());
+        return landing(model, m.drop());
+    }
+
+    /** 同上,落差已经给出。 */
+    static double landing(CostModel model, double drop) {
+        return Kinematics.fallLandingTicks(model.body().stats(), drop);
     }
 
     /** 落地摔疼的折价:掉的血按 {@link ActionCosts#FALL_DAMAGE_PER_POINT} 折成刻。 */
     static double bruise(Maneuver m) {
-        return m.fallDamage() * ActionCosts.FALL_DAMAGE_PER_POINT;
+        return bruise(m.fallDamage());
+    }
+
+    /** 同上,摔掉的血已经给出。 */
+    static double bruise(int damage) {
+        return damage * ActionCosts.FALL_DAMAGE_PER_POINT;
     }
 
     /**
