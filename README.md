@@ -1,6 +1,9 @@
 <div align="center">
 
-# 言出法随
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/branding/numen-lockup-dark.png">
+  <img src="assets/branding/numen-lockup-light.png" alt="Numen 言出法随" width="360">
+</picture>
 
 [English](README_EN.md) · [**简体中文**](README.md)
 
