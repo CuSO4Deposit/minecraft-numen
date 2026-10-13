@@ -196,7 +196,7 @@ EditLedger edits = run.stop();              // 叫停也交出实际账
 - 说给模型:结局、实际账、身体动作、路上被拒的格、不改地形的活要改的格渲染成英文、结局到 `FailureType` 的
   映射,只在 `NavText`;旅程账 `Journey`。
 - 给模型的寻路只有 `numen.move.to`、`away`、`follow`:去哪儿 `Where`、怎样算到 `Arrival`、编成目标 `Destination`,走路的任务
-  `MoveToCompanionTask`,没有计划、承诺、途经点(见 `adr/pathing/0017-model-says-where-only.md`)。
+  `MoveToCompanionTask`,没有计划、承诺、途经点(见 `adr/pathing/0016-model-says-where-only.md`)。
 - 第 0 层按她的身体在活世界上答:她在哪个节点 `Feet`、她身边的地形 `Terrain`(待不待得住、能不能站、身体放不放得下、
   种类、托着她的格、迈不迈得进下一列;`scan_around`、钓鱼站位、建造表演、跟随落脚都问它)。
 - 挖一格的定价 `DigQuote`(挖矿挑目标),建造工地的位置代价 `BuildSite`,船 `BoatNav`(读 `Terrain`)。
@@ -715,7 +715,7 @@ JVM 里成对交替跑、取每对耗时之比的中位数。这台机器上别�
 旧实现每节点读 67–309 次方块,新的 500–900 次。这一批去掉了重复算的部分;余下的差距(这一轮里起伏不许改约五倍,许改与
 隧道两三倍)就是这些事实的价钱,再往下压只能把分类表或检查搬回来,那正是重写要去掉的多来源。
 
-- **分段推进**(早先是"先交半程",按展开的节点数封顶):见第 2、3 层与 `adr/pathing/0021-segments-learning-closed-loop.md`。接着搜的
+- **分段推进**(早先是"先交半程",按展开的节点数封顶):见第 2、3 层与 `adr/pathing/0020-segments-learning-closed-loop.md`。接着搜的
   起点接在上一步后面(`Search.arrival`):快照里还没有上一段搭下的桥,只给起点时身体在那里待不住。GameTest
   `starts_bridging_a_wide_chasm_before_the_whole_route_is_found`:一百五十格宽的空隙,起步那段按真实服务器每刻五十毫秒,
   两秒内起步,一段段接上,到对岸。
@@ -1078,7 +1078,7 @@ C* = 286、h ≈ 21,地面铺开半径约 37 格,11589 个节点。挖掘的代�
 ### 规格的三个开关与越界才问(10-03,`api2` 之上)
 
 `alter` 的三级(`none` / `natural` / `any`)把三件事捆在一根旋钮上:许不许挖、许不许放、许不许走要问主人的格。所以拆开(模型
-不再有这些旋钮,第 7 步起走路一律可挖可搭、要问的格加价,见 `adr/pathing/0017-model-says-where-only.md`;模块里的三个开关还在,不改地形的活仍用):
+不再有这些旋钮,第 7 步起走路一律可挖可搭、要问的格加价,见 `adr/pathing/0016-model-says-where-only.md`;模块里的三个开关还在,不改地形的活仍用):
 
 - **`RouteSpec`**:`dig`、`place`、`consent` 三个布尔,加 `consentMultiplier`(要问的格价钱乘几倍,不小于 1,默认
   `RouteSpec.CONSENT_MULTIPLIER` = 10,原在 `ActionCosts`)。`changes()` 是"许挖或许放"。出厂默认不挖、不放、许征询;征询只在
