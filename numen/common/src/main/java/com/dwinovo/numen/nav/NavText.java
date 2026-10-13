@@ -220,6 +220,7 @@ public final class NavText {
             case NO_MATERIALS -> "I could not get the block into my hand";
             case DIVERTED -> "the ground changed and the step would land somewhere else";
             case FELL_BACK -> "I kept ending up back where the step before it started";
+            case LOST -> "I kept ending up beside the route instead of where the step lands";
         };
     }
 

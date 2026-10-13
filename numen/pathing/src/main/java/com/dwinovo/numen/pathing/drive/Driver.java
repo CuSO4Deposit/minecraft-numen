@@ -59,6 +59,11 @@ public final class Driver {
 
     /** 起点身体待不住(卡在方块里、悬在半空)最多等多少刻。 */
     private static final int STRANDED_TICKS = 60;
+    /**
+     * 路线走完、身体停住了却不在终点那一格(刚从高处落进水里,冲劲把身子压到水面以下再浮上来;冲劲带出了终点那一格),最多等多少刻让它
+     * 自己回到终点。三秒:从三格多高的地方落进水里,沉下去再浮起来要一两秒。
+     */
+    private static final int SETTLE_TICKS = 60;
 
     /** 导航的状态。 */
     public enum State {
@@ -108,6 +113,8 @@ public final class Driver {
     private boolean breathless;
 
     private int stranded;
+    /** 路线走完、身体停住了却不在终点那一格,已经等了几刻({@link #SETTLE_TICKS})。 */
+    private int unsettled;
 
     private State state = State.RUNNING;
     private Halt halt;
@@ -422,13 +429,21 @@ public final class Driver {
                 // 落回了前面一步的起点:正在走的这一步没走成,和走不下去一样记一次、从这里重搜。悄悄退回去重走的话,同一处一圈圈地退,
                 // 每一步的期限都从头算,永远等不到"卡住"
                 Maneuver current = course.current();
-                fail(new Blockage(current.to(), rig.world().getBlockState(current.to()), current.kind(), null,
+                fail(current, new Blockage(current.to(), rig.world().getBlockState(current.to()), current.kind(), null,
                         Blockage.Hitch.FELL_BACK));
                 return true;
             }
             case Tracker.Fix.Lost lost -> {
-                // 落在路线之外:从这里重新搜,不算这一步走不下去
-                replan("离开路线,落在 " + PathLog.pos(node) + ",该在 " + PathLog.step(course.current()));
+                if (step == null) {
+                    // 还没开始走这一步(上一步的冲劲把身子带出了路线):不怪它,从这里重新搜
+                    replan("离开路线,落在 " + PathLog.pos(node) + ",该在 " + PathLog.step(course.current()));
+                    return true;
+                }
+                // 走着这一步,身体落在了路线之外:这一步没把身体带到它的落点,和走不下去一样记一次。只重搜不记的话,规划看不见的墙前面
+                // 斜走一步滑到旁边一行,重搜又斜走回来,每一次都是一条新路线的第一步,期限从头算,永远等不到"卡住",永远走不出去
+                Maneuver current = course.current();
+                fail(current, new Blockage(current.to(), rig.world().getBlockState(current.to()), current.kind(), null,
+                        Blockage.Hitch.LOST));
                 return true;
             }
             case Tracker.Fix.Here here -> {
@@ -472,12 +487,29 @@ public final class Driver {
         watchdog.observe(body.position(), false);
         if (!still || node == null || !settled(endStance.kind())) {
             if (node != null && !node.equals(end) && settled(Stance.Kind.GROUND) && tracker.strays()) {
-                replan("没停在终点 " + PathLog.pos(end) + ",落在 " + PathLog.pos(node));
+                // 最后一步没把身体停在它的落点上:记为不通。只重搜不记的话,同一处终点一圈圈地冲过头、重搜、再冲过头
+                Maneuver last = course.lastLeg().maneuver();
+                PathLog.info("{} 没停在终点 {},落在 {}", rig.who, PathLog.pos(end), PathLog.pos(node));
+                fail(last, new Blockage(last.to(), rig.world().getBlockState(last.to()), last.kind(), null, Blockage.Hitch.LOST));
             }
             return;
         }
         switch (Arrival.judge(goal, rig.world(), rig.snapshot().stats(), node, body.getEyePosition(), body.blockInteractionRange())) {
-            case Arrival.Verdict.Replan replan -> replan(replan.why());
+            case Arrival.Verdict.Replan replan -> {
+                if (!node.equals(end)) {
+                    if (++unsettled <= SETTLE_TICKS) {
+                        // 停住了却不在终点那一格:刚落进水里还在往下沉、冲劲刚把身子带出终点那一格,给它一阵子自己回到终点
+                        return;
+                    }
+                    // 回不去:最后一步没把身体带到它的落点,记为不通再重搜(同一处终点一圈圈冲过头、重搜、再冲过头,永远收不了场)
+                    Maneuver last = course.lastLeg().maneuver();
+                    PathLog.info("{} {}", rig.who, replan.why());
+                    fail(last, new Blockage(last.to(), rig.world().getBlockState(last.to()), last.kind(), null, Blockage.Hitch.LOST));
+                    return;
+                }
+                unsettled = 0;
+                replan(replan.why());
+            }
             case Arrival.Verdict.Blind blind -> {
                 rig.keys.releaseAll();
                 halt(new Halt.NoSight(blind.target()));
@@ -658,6 +690,7 @@ public final class Driver {
     }
 
     private void install(Route route, boolean arrived) {
+        unsettled = 0;
         course.install(route, arrived);
         continuation.reset();
         step = null;
@@ -680,6 +713,7 @@ public final class Driver {
 
     /** 扔掉当前路线,下一刻从身体脚下重新搜,旧路打折。 */
     private void reset() {
+        unsettled = 0;
         if (!course.isEmpty()) {
             favoring = Favoring.along(course.route());
         }
@@ -696,7 +730,11 @@ public final class Driver {
      * 同一步不会走第二次,重搜多少次由这一趟的总预算管。
      */
     private void fail(Blockage blockage) {
-        Maneuver m = course.current();
+        fail(course.current(), blockage);
+    }
+
+    /** 同 {@link #fail(Blockage)},没走成的是 {@code m} 这一步(路线走完之后停不到终点,是最后一步没走成)。 */
+    private void fail(Maneuver m, Blockage blockage) {
         memory.block(m.kind(), m.from(), m.to());
         lastBlockage = blockage;
         rig.journal.blocked();
