@@ -4,6 +4,7 @@ import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.KeyCodes;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
+import com.dwinovo.numen.api.client.ui.TextClip;
 import com.dwinovo.numen.api.client.ui.WrappedText;
 
 import java.util.List;
@@ -243,7 +244,7 @@ public final class TextField extends Widget {
 
         if (display.isEmpty()) {
             // 空着就给占位,聚焦着也给——打第一个字才让开(Telegram 的"写消息…"一直在)
-            s.drawText(placeholder, x + pad, textY(s), c.textMuted(), false);
+            s.drawText(TextClip.fit(s, placeholder, innerW), x + pad, textY(s), c.textMuted(), false);   // 占位也不越出框
             if (!isFocused()) return;
         }
 
@@ -285,7 +286,7 @@ public final class TextField extends Widget {
             host.moveTo(x + pad, caretY + 1, wrapWidth(), s.lineHeight());
         }
         if (raw.isEmpty()) {
-            s.drawText(placeholder, x + pad, rowTop(0, shown, pitch) + 1, c.textMuted(), false);
+            s.drawText(TextClip.fit(s, placeholder, wrapWidth()), x + pad, rowTop(0, shown, pitch) + 1, c.textMuted(), false);
             if (!isFocused()) return;
         }
         s.pushScissor(x, y, w, h);

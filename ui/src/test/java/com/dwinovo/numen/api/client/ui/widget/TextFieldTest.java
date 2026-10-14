@@ -109,6 +109,18 @@ class TextFieldTest {
     }
 
     @Test
+    void aPlaceholderLongerThanTheFieldIsClippedToIt() {
+        UiRoot root = new UiRoot();
+        TextField f = root.add(new TextField("", s -> {}).placeholder("a placeholder that is far too long for the box"));
+        f.setBounds(0, 0, 60, 14);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        f.render(s, WidgetTestSupport.C, 0, 0, 0);
+        assertEquals(1, s.texts.size());
+        assertTrue(s.texts.get(0).length() * 6 <= 60, "占位不越出框(假度量每字 6 像素)");
+        assertTrue(s.texts.get(0).endsWith("…"));
+    }
+
+    @Test
     void aBareFieldDrawsNoFrame() {
         UiRoot root = new UiRoot();
         TextField f = root.add(new TextField("", s -> {}).placeholder("写消息").bare(true));
