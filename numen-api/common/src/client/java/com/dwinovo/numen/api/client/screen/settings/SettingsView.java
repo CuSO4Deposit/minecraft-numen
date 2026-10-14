@@ -3,7 +3,6 @@ package com.dwinovo.numen.api.client.screen.settings;
 
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.api.client.agent.EntityAgentLoop;
-import com.dwinovo.numen.api.client.screen.Dropdown;
 import com.dwinovo.numen.api.client.screen.Nb;
 import com.dwinovo.numen.api.client.screen.UiTheme;
 import com.dwinovo.numen.api.client.ui.widget.UiRoot;

@@ -28,7 +28,6 @@ import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import com.dwinovo.numen.api.client.skin.CompanionFace;
 import com.dwinovo.numen.api.network.NumenNetwork;
@@ -90,11 +89,6 @@ public final class NumenScreen extends Screen {
     /** 抬头两行:名字一行、状态一行(Telegram 的"在线 / 正在输入…"),页签在右侧居中。 */
     private static final int HEADER_H = 30;
     private static final int INPUT_H = 18;
-    /** Text fields are inset inside their field box: the EditBox is shrunk by this much
-     *  (so vanilla's top-left unbordered text lands padded + centred) and the card is
-     *  inflated back out to the full frame. */
-    private static final int FIELD_INSET_X = 5;
-    private static final int FIELD_INSET_Y = 4;
     private static final int PAD = 8;
     /**
      * 上层压在下层之上的深度差。原版字体的删除线、下划线是深度往前 0.01 画的,同一深度后画的方块盖不住它,
@@ -1481,14 +1475,6 @@ public final class NumenScreen extends Screen {
     }
     private int nameRight;
 
-    /** Shadowless placeholder for an empty, unfocused field — the EditBox's own hint renders with a shadow. */
-    private void placeholder(GuiGraphics g, EditBox f, String text) {
-        if (f != null && f.visible && f.getValue().isEmpty() && !f.isFocused()
-                && text != null && !text.isEmpty()) {
-            txt(g, Component.literal(text), f.getX(), f.getY(), TXT_FAINT);
-        }
-    }
-
     /** 皮肤 png 从系统拖进游戏窗口——皮肤表单打开时由 SettingsView 接住。 */
     @Override
     public void onFilesDrop(List<java.nio.file.Path> paths) {
@@ -2113,21 +2099,6 @@ public final class NumenScreen extends Screen {
         }
 
 
-        // Widgets render LAST, on top of the panel background (fixes the "dim fields" — the panel fill
-        // used to paint over the auto-rendered widgets). Text fields are borderless EditBoxes, so draw
-        // the shared field box behind each before it renders its text.
-        for (AbstractWidget w : overlay) {
-            // visible 检查:声线表单滚出视口的 EditBox 隐藏了自己,框也必须跟着消失
-            // (否则空框越过面板边缘悬在世界上)。
-            if (w instanceof EditBox eb && eb.visible) {
-                // 所有文本字段与气泡同款的框;聚焦的字段边框亮 CTA。
-                com.dwinovo.numen.api.client.ui.NumenStyle.box(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font),
-                        eb.getX() - FIELD_INSET_X, eb.getY() - FIELD_INSET_Y,
-                        eb.getWidth() + FIELD_INSET_X * 2, eb.getHeight() + FIELD_INSET_Y * 2,
-                        UiTheme.current().aiFill(),
-                        eb.isFocused() ? UiTheme.current().cta() : UiTheme.current().aiBorder());
-            }
-        }
         boolean sliding = tab == Tab.SETTINGS && overlayDx != 0;
         if (sliding) {
             g.enableScissor(left + 3, top + HEADER_H, left + panelW - 3, top + panelH - 3);

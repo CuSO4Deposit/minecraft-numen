@@ -237,7 +237,6 @@ public final class ModLanguageData {
         public static final String SKIN_FORM_VARIANT    = "numen.skin.form_variant";
         public static final String SKIN_VARIANT_CLASSIC = "numen.skin.variant_classic";
         public static final String SKIN_VARIANT_SLIM    = "numen.skin.variant_slim";
-        public static final String SKIN_DROP_HINT       = "numen.skin.drop_hint";
         public static final String SKIN_LOADED          = "numen.skin.loaded";
         /** 皮肤导入的唯一入口:原生文件对话框(FCL 端翻译成安卓文件选择器)。 */
         public static final String SKIN_PICK_FILE       = "numen.skin.pick_file";
@@ -666,7 +665,6 @@ public final class ModLanguageData {
         adder.add(Keys.SKIN_FORM_VARIANT,    "Arm model");
         adder.add(Keys.SKIN_VARIANT_CLASSIC, "Classic (wide arms)");
         adder.add(Keys.SKIN_VARIANT_SLIM,    "Slim (thin arms)");
-        adder.add(Keys.SKIN_DROP_HINT,       "Drag a skin png (64x64) into the game window");
         adder.add(Keys.SKIN_LOADED,          "Loaded %s ✓ — Save signs it via MineSkin");
         adder.add(Keys.SKIN_PICK_FILE,       "Choose file…");
         adder.add(Keys.SKIN_KEEP_OLD,        "Keeping the current image");
@@ -1243,7 +1241,6 @@ public final class ModLanguageData {
         adder.add(Keys.SKIN_FORM_VARIANT,    "手臂模型");
         adder.add(Keys.SKIN_VARIANT_CLASSIC, "经典(粗手臂)");
         adder.add(Keys.SKIN_VARIANT_SLIM,    "纤细(瘦手臂)");
-        adder.add(Keys.SKIN_DROP_HINT,       "把皮肤 png(64x64)直接拖进游戏窗口");
         adder.add(Keys.SKIN_LOADED,          "已加载 %s ✓——点保存经 MineSkin 签名");
         adder.add(Keys.SKIN_PICK_FILE,       "选择文件…");
         adder.add(Keys.SKIN_KEEP_OLD,        "沿用当前图片");
