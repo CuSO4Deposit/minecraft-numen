@@ -84,10 +84,10 @@ class RichLayoutTest {
     @Test
     void codeBlocksHardBreakAndPadAndSpanTheWidth() {
         Doc doc = new Doc(List.of(new Doc.Code(List.of("abcdefgh", "", "x"))));
-        Laid l = RichLayout.layout(doc, 36, M);   // 左右各留 6,一行放 4 个字符
-        assertEquals(List.of("abcd", "efgh", "", "x"), rowTexts(l));
+        Laid l = RichLayout.layout(doc, 36, M);   // 左右各留 3,一行放 5 个字符
+        assertEquals(List.of("abcde", "fgh", "", "x"), rowTexts(l));
         assertTrue(l.rows().stream().allMatch(RichLayout.Row::code));
-        assertEquals(6, l.rows().get(0).frags().get(0).x());
+        assertEquals(3, l.rows().get(0).frags().get(0).x());
         assertEquals(36, l.width());
     }
 
@@ -124,6 +124,21 @@ class RichLayoutTest {
             }
         }, 100, 50, 10);
         assertEquals(List.of("bg 111,50 14x9", "t ab 100,50", "t cd 112,50"), calls);
+    }
+
+    @Test
+    void aCodeBlockBackdropReachesAboveItsFirstRowForThePadding() {
+        List<String> calls = new ArrayList<>();
+        RichLayout.layout(new Doc(List.of(new Doc.Code(List.of("ab", "c")))), 0, M).paint(new RichLayout.Canvas() {
+            @Override
+            public void backdrop(int x, int y, int w, int h) {
+                calls.add(x + "," + y + " " + w + "x" + h);
+            }
+
+            @Override
+            public void text(Frag frag, int x, int y) {}
+        }, 10, 50, 10);
+        assertEquals(List.of("10,48 18x10", "10,58 18x10"), calls, "每行的底都上移 2,连起来就是整块,上下各有 2 的边距");
     }
 
     @Test

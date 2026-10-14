@@ -18,6 +18,10 @@ import java.util.List;
  */
 public final class RichLayout {
 
+    /** 代码块里字离底色左右缘的边距(像素,Telegram 的 pre 块);上下的边距见 {@link Laid#paint}。 */
+    static final int CODE_PAD_X = 3;
+    static final int CODE_PAD_Y = 2;
+
     private RichLayout() {}
 
     /** 一段字在某种样式下多宽。 */
@@ -67,7 +71,8 @@ public final class RichLayout {
                 Row row = rows.get(i);
                 int ry = y + i * rowH;
                 if (row.code()) {
-                    canvas.backdrop(x, ry, width, rowH);
+                    // 底往上多铺 CODE_PAD_Y:字在行里贴着行顶,上下各留这么多边距(上面的借的是上一行字下面的空隙)
+                    canvas.backdrop(x, ry - CODE_PAD_Y, width, rowH);
                 } else {
                     for (Frag f : row.frags()) {
                         if ((f.style() & Doc.CODE) != 0) canvas.backdrop(x + f.x() - 1, ry, f.w() + 2, rowH - 1);
@@ -200,7 +205,7 @@ public final class RichLayout {
     // ---- 代码块 ----
 
     private static void code(Code c, int maxW, Metrics m, List<Row> rows) {
-        int pad = m.width(" ", Doc.CODE);
+        int pad = CODE_PAD_X;
         Run run = new Run("", Doc.CODE, null);
         for (String src : c.lines()) {
             Line line = new Line(pad, m);
@@ -261,7 +266,7 @@ public final class RichLayout {
             if (frags.isEmpty()) return new Row(List.of(), code, 0);
             Frag last = frags.get(frags.size() - 1);
             // 代码行右边留一个和左边一样的空白;其余行不算行尾的空格
-            int end = code ? x + m.width(" ", Doc.CODE) : last.x() + m.width(stripEnd(last.text()), last.style());
+            int end = code ? x + CODE_PAD_X : last.x() + m.width(stripEnd(last.text()), last.style());
             return new Row(List.copyOf(frags), code, end);
         }
     }
