@@ -1050,6 +1050,13 @@ public final class NumenScreen extends Screen {
         g.pose().popPose();
         g.disableScissor();
         overlayDx = dx;
+        if (overlayKind == Tab.SETTINGS) {
+            // 设置里的表单卡盖住整个面板:在页的裁剪框与滑动之外画,且在页之上
+            g.pose().pushPose();
+            g.pose().translate(0, 0, Z_LAYER);
+            settings.renderCard(g, mouseX, mouseY);
+            g.pose().popPose();
+        }
     }
 
     /** 盖着的那页这一帧偏了多少(滑动中);设置页的真控件跟着它画。 */

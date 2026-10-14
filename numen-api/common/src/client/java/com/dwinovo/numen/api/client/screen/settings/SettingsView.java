@@ -92,8 +92,6 @@ public final class SettingsView {
             {Section.THEME}};
     private static final int ITEM_H = 20;
     private static final int GROUP_GAP = 7;
-    /** 未被模态屏蔽的真实鼠标坐标(表单卡内的 NumenUI 悬停用)。 */
-    private int rawMouseX = -10000, rawMouseY = -10000;
 
     // ---- 模型配置表单:NumenUI ProfileFormPanel(检测/思考/强度/toast/分类报错) ----
     private ProfileFormPanel providerForm;
@@ -374,12 +372,26 @@ public final class SettingsView {
                     int mouseX, int mouseY, long nowMs);
     }
 
-    /** 表单卡在场时,分区列表画完后压上这张卡(按开卡后过了多久淡入)。 */
-    private void formCard(GuiGraphics g, Component title, CardBody body) {
+    /** 表单卡在场时,分区页每帧登记这一张(画在 {@link #renderCard})。 */
+    private void formCard(Component title, CardBody body) {
         cardTitle = title;
         cardBody = body;
-        float p = Math.min(1f, (System.currentTimeMillis() - cardShownAt) / (float) CARD_SHOW_MS);
-        drawCard(g, com.dwinovo.numen.api.client.ui.Anim.easeOutCubic(p), rawMouseX, rawMouseY);
+    }
+
+    /**
+     * 画表单卡:开卡后淡入,收卡后照最后那一帧淡出(卡已不接指针)。卡盖住整个面板(连左栏),
+     * 不能画在分区页里——页会滑动、带裁剪框,卡的顶边与标题行会被抬头切掉;所以分区页画完、
+     * 屏幕撤掉页的裁剪框之后才调这里。
+     */
+    public void renderCard(GuiGraphics g, int mouseX, int mouseY) {
+        if (cardBody == null) return;
+        long now = System.currentTimeMillis();
+        if (cardUp) {
+            float p = Math.min(1f, (now - cardShownAt) / (float) CARD_SHOW_MS);
+            drawCard(g, com.dwinovo.numen.api.client.ui.Anim.easeOutCubic(p), mouseX, mouseY);
+        } else if (now - cardHiddenAt < CARD_HIDE_MS) {
+            drawCard(g, 1f - (now - cardHiddenAt) / (float) CARD_HIDE_MS, -10000, -10000);
+        }
     }
 
     /** 暗幕 + 近全幅的卡 + 卡里的表单,整体乘上 {@code alpha}。 */
@@ -595,7 +607,7 @@ public final class SettingsView {
     private void renderVoiceSection(GuiGraphics g, int mouseX, int mouseY) {
         voiceListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingVoice) formCard(g, Component.translatable(ModLanguageData.Keys.VOICE_TITLE), voiceForm()::render);
+        if (addingVoice) formCard(Component.translatable(ModLanguageData.Keys.VOICE_TITLE), voiceForm()::render);
     }
 
     private void beginEditVoice(com.dwinovo.numen.api.client.voice.VoiceLibrary.Entry e) {
@@ -982,7 +994,7 @@ public final class SettingsView {
     private void renderSkinSection(GuiGraphics g, int mouseX, int mouseY) {
         skinListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingSkin) formCard(g, Component.translatable(ModLanguageData.Keys.SKIN_TITLE), skinForm()::render);
+        if (addingSkin) formCard(Component.translatable(ModLanguageData.Keys.SKIN_TITLE), skinForm()::render);
     }
 
     /** 皮肤 png 从系统拖进游戏窗口(皮肤表单打开时)。64×64 或旧版 64×32。 */
@@ -1114,10 +1126,7 @@ public final class SettingsView {
     private void renderSection(GuiGraphics g, int mouseX, int mouseY) {
         // 任一模态(确认卡/表单卡)在场时整体屏蔽悬停坐标——暗幕下的列表行
         // 不该亮悬停底,MCP 行 tooltip 也不该浮到暗幕上。
-        // 但表单卡自己是活的:真实坐标另存一份,供卡内的 NumenUI 表单用
-        // (否则表单里的下拉/按钮悬停被误杀)。
-        rawMouseX = mouseX;
-        rawMouseY = mouseY;
+        // 表单卡自己是活的,拿的是屏幕给 renderCard 的真实坐标。
         if (formActive()) {
             mouseX = -10000;
             mouseY = -10000;
@@ -1145,17 +1154,12 @@ public final class SettingsView {
             case THEME -> themePanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()),
                     HostThemeColors.current(), mouseX, mouseY, net.minecraft.Util.getMillis());
         }
-        // 刚收起的表单卡:照最后那一帧再画几帧,淡出(卡已不接指针)
-        long sinceHidden = System.currentTimeMillis() - cardHiddenAt;
-        if (!cardUp && cardBody != null && sinceHidden < CARD_HIDE_MS) {
-            drawCard(g, 1f - sinceHidden / (float) CARD_HIDE_MS, -10000, -10000);
-        }
     }
 
     private void renderProviderSection(GuiGraphics g, int mouseX, int mouseY) {
         profileList().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingProvider) formCard(g, Component.translatable(ModLanguageData.Keys.PROVIDER_TITLE), providerForm()::render);
+        if (addingProvider) formCard(Component.translatable(ModLanguageData.Keys.PROVIDER_TITLE), providerForm()::render);
     }
 
     private void beginEditProvider(com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry e) {
@@ -1171,7 +1175,7 @@ public final class SettingsView {
         mcpListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
         if (addingMcp) {
-            formCard(g, Component.translatable("numen.mcp.title"), mcpForm()::render);
+            formCard(Component.translatable("numen.mcp.title"), mcpForm()::render);
             return;
         }
         // 悬停行体 → tooltip:工具名 + url/命令 + 错误(行尾开关上不弹)。
@@ -1223,7 +1227,7 @@ public final class SettingsView {
     private void renderPersonaSection(GuiGraphics g, int mouseX, int mouseY) {
         personaListPanel().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
-        if (addingPersona) formCard(g, Component.translatable("numen.persona.title"), personaForm()::render);
+        if (addingPersona) formCard(Component.translatable("numen.persona.title"), personaForm()::render);
     }
 
     private void beginEditPersona(PersonaLibrary.Persona p) {
