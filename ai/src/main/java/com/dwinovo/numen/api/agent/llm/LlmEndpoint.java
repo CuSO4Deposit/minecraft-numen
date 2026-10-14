@@ -6,6 +6,7 @@ import com.dwinovo.numen.api.agent.provider.Compat;
 import com.dwinovo.numen.api.agent.provider.Compats;
 import com.dwinovo.numen.api.agent.provider.ModelSpec;
 import com.dwinovo.numen.api.agent.provider.RequestOptions;
+import com.dwinovo.numen.api.agent.provider.ThinkingPlan;
 
 import java.util.Map;
 
@@ -52,6 +53,11 @@ public record LlmEndpoint(String providerId, String baseUrl, Map<String, String>
 
     public Api api() {
         return compat.api();
+    }
+
+    /** 这个端点上这个型号的思考计划:界面列哪几档、请求写什么,都问它(与协议实现问的是同一个)。 */
+    public ThinkingPlan thinkingPlan() {
+        return ThinkingPlan.of(model.thinking(), compat);
     }
 
     /**

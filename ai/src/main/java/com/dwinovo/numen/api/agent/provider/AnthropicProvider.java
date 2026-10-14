@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.agent.provider;
 
-import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -180,30 +179,29 @@ public final class AnthropicProvider implements LlmProvider {
             body.add("tools", marked);
         }
 
-        // 思考:自适应型号写 effort,老型号写预算——预算必须小于 max_tokens,所以加在玩家设的上限之上,
-        // 玩家的值仍然是"正文的上限"。
-        ThinkingLevel level = options.thinkingFor(model);
+        // 思考:这一档写成什么由 ThinkingPlan 定(自适应型号写 effort,老型号写预算)。
+        // 预算必须小于 max_tokens,所以加在玩家设的上限之上,玩家的值仍然是"正文的上限"。
+        ThinkingPlan.Wire wire = ThinkingPlan.of(model.thinking(), compat).wireFor(options.thinking());
         boolean thinking = false;
-        if (level != ThinkingLevel.AUTO && level != ThinkingLevel.OFF) {
-            JsonObject t = new JsonObject();
-            if (compat.adaptiveThinking()) {
-                String effort = model.thinking().effort(level);
-                if (effort != null) {
-                    t.addProperty("type", "adaptive");
-                    JsonObject output = new JsonObject();
-                    output.addProperty("effort", effort);
-                    body.add("output_config", output);
-                    body.add("thinking", t);
-                    thinking = true;
-                }
-            } else {
-                int budget = model.thinking().budgetTokens(level);
-                t.addProperty("type", "enabled");
-                t.addProperty("budget_tokens", budget);
+        JsonObject t = new JsonObject();
+        switch (wire.kind()) {
+            case AUTO -> { }
+            case EFFORT -> {
+                t.addProperty("type", "adaptive");
+                JsonObject output = new JsonObject();
+                output.addProperty("effort", wire.effort());
+                body.add("output_config", output);
                 body.add("thinking", t);
-                maxTokens += budget;
                 thinking = true;
             }
+            case BUDGET -> {
+                t.addProperty("type", "enabled");
+                t.addProperty("budget_tokens", wire.tokens());
+                body.add("thinking", t);
+                maxTokens += wire.tokens();
+                thinking = true;
+            }
+            case OFF, ON -> throw new IllegalStateException("ThinkingPlan 不会给 Anthropic 排出 " + wire.kind());
         }
         body.addProperty("max_tokens", maxTokens);
 

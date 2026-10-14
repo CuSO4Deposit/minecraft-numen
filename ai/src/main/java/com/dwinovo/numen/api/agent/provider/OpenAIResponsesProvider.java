@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.agent.provider;
 
-import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -129,7 +128,7 @@ public final class OpenAIResponsesProvider implements LlmProvider {
         if (options.maxTokens() > 0) {
             body.addProperty("max_output_tokens", options.maxTokens());
         }
-        applyReasoning(body, model, options.thinkingFor(model));
+        applyReasoning(body, ThinkingPlan.of(model.thinking(), compat).wireFor(options.thinking()));
         // 不让服务端替我们存这次对话:历史是我们自己的账本,存一份在别人那儿就成了第二处真源。
         // 代价是思考 item 带加密内容回传,而那正是 extras 保管的东西。
         body.addProperty("store", false);
@@ -140,14 +139,13 @@ public final class OpenAIResponsesProvider implements LlmProvider {
         return body;
     }
 
-    /** 力度:Responses 只认嵌套写法,取值是型号档位表给的字。 */
-    private static void applyReasoning(JsonObject body, ModelSpec model, ThinkingLevel level) {
-        String effort = model.thinking().effort(level);
-        if (level == ThinkingLevel.AUTO || effort == null) {
+    /** 力度:Responses 只认嵌套写法,取值是 {@link ThinkingPlan} 给的字。 */
+    private static void applyReasoning(JsonObject body, ThinkingPlan.Wire wire) {
+        if (wire.effort() == null) {
             return;
         }
         JsonObject r = new JsonObject();
-        r.addProperty("effort", effort);
+        r.addProperty("effort", wire.effort());
         body.add("reasoning", r);
     }
 

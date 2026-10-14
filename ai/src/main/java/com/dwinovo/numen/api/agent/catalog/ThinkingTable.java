@@ -11,8 +11,8 @@ import java.util.Map;
 
 /**
  * 一个型号的思考档位表:它支持统一档位里的哪几档,每一档在线上写成什么。
- * 由 models.dev 的 {@code reasoning_options} 推出,是"这个型号能怎么控制思考"的唯一出处——
- * 界面列哪几档、请求怎么写,都问它。
+ * 由 models.dev 的 {@code reasoning_options} 推出,是"这个型号能怎么控制思考"的唯一出处。
+ * 在具体协议、兼容项下哪些档位发得出去、每档写成什么,见 {@code ThinkingPlan}——那是请求体与界面共用的唯一一处。
  *
  * <p>models.dev 描述的控制方式有三种,可以并存:
  * <ul>
@@ -30,13 +30,14 @@ import java.util.Map;
  * @param toggle    是否只有开关(没有 effort 取值表也没有预算)
  * @param budget    是否有预算型控制
  * @param budgetMin 预算下限,没写是 0
+ * @param maxOutput 型号的输出上限,0 = 不知道;预算是输出的一部分,不小于它的预算发出去必被拒({@code ThinkingPlan} 据此不列)
  */
 public record ThinkingTable(List<ThinkingLevel> levels, Map<ThinkingLevel, String> efforts,
-                            boolean toggle, boolean budget, int budgetMin) {
+                            boolean toggle, boolean budget, int budgetMin, int maxOutput) {
 
     /** 查不到能力、不是推理型号、或没有可控的方式。 */
     public static final ThinkingTable AUTO_ONLY =
-            new ThinkingTable(List.of(ThinkingLevel.AUTO), Map.of(), false, false, 0);
+            new ThinkingTable(List.of(ThinkingLevel.AUTO), Map.of(), false, false, 0, 0);
 
     /** 预算型的档位 → token 数:全仓唯一的一张表。 */
     private static final Map<ThinkingLevel, Integer> BUDGETS = Map.of(
@@ -67,9 +68,9 @@ public record ThinkingTable(List<ThinkingLevel> levels, Map<ThinkingLevel, Strin
     }
 
     /**
-     * 同上,并且预算型只列预算低于型号输出上限的档(预算是输出的一部分,不小于上限的档发出去必被拒)。
+     * 同上,并记下型号的输出上限。
      *
-     * @param maxOutput 型号的输出上限;0 = 不知道,不设限
+     * @param maxOutput 型号的输出上限;0 = 不知道
      */
     public static ThinkingTable parse(boolean reasoning, JsonArray options, int maxOutput) {
         if (!reasoning || options == null) return AUTO_ONLY;
@@ -120,49 +121,23 @@ public record ThinkingTable(List<ThinkingLevel> levels, Map<ThinkingLevel, Strin
             for (ThinkingLevel l : EFFORT_WORDS.keySet().stream().sorted().toList()) {
                 if (efforts.containsKey(l)) levels.add(l);
             }
-            return new ThinkingTable(levels, efforts, false, budget, budgetMin);
+            return new ThinkingTable(levels, efforts, false, budget, budgetMin, maxOutput);
         }
         if (budget) {
-            levels.add(ThinkingLevel.OFF);
-            for (ThinkingLevel l : BUDGETS.keySet().stream().sorted().toList()) {
-                int tokens = Math.max(BUDGETS.get(l), budgetMin);
-                if (maxOutput <= 0 || tokens < maxOutput) levels.add(l);
-            }
-            return new ThinkingTable(levels, efforts, false, true, budgetMin);
+            levels.addAll(List.of(ThinkingLevel.OFF, ThinkingLevel.LOW, ThinkingLevel.MEDIUM,
+                    ThinkingLevel.HIGH, ThinkingLevel.MAX));
+            return new ThinkingTable(levels, efforts, false, true, budgetMin, maxOutput);
         }
         if (toggle) {
             levels.addAll(List.of(ThinkingLevel.OFF, ThinkingLevel.MEDIUM));
-            return new ThinkingTable(levels, efforts, true, false, 0);
+            return new ThinkingTable(levels, efforts, true, false, 0, maxOutput);
         }
         return AUTO_ONLY;
-    }
-
-    /** 档案里选的档位这个型号支不支持;不支持当作 AUTO(什么都不发)。 */
-    public ThinkingLevel effective(ThinkingLevel requested) {
-        return requested != null && levels.contains(requested) ? requested : ThinkingLevel.AUTO;
     }
 
     /** 这一档在线上写成的 effort 取值;没有给 {@code null}。 */
     public String effort(ThinkingLevel level) {
         return efforts.get(level);
-    }
-
-    /** 一档在线上的样子。{@code effort} 与 {@code tokens} 只在对应的 {@link Kind} 下有意义。 */
-    public record Wire(Kind kind, String effort, int tokens) {
-        public enum Kind { AUTO, OFF, ON, EFFORT, BUDGET }
-    }
-
-    /**
-     * 这一档实际会发什么:界面给每一档配的说明从这里来,不另写一份映射。
-     * 有 effort 取值的档发取值;没有就看控制方式:开关型的开(记成中档)不带量,预算型发预算。
-     */
-    public Wire wire(ThinkingLevel level) {
-        if (level == ThinkingLevel.AUTO) return new Wire(Wire.Kind.AUTO, null, 0);
-        if (level == ThinkingLevel.OFF) return new Wire(Wire.Kind.OFF, null, 0);
-        String effort = efforts.get(level);
-        if (effort != null) return new Wire(Wire.Kind.EFFORT, effort, 0);
-        if (budget) return new Wire(Wire.Kind.BUDGET, null, budgetTokens(level));
-        return new Wire(Wire.Kind.ON, null, 0);
     }
 
     /** 这一档的预算(token),不低于型号下限;低/中/高/最高以外的档位给 0。 */

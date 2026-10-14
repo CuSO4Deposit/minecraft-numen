@@ -5,12 +5,12 @@ import com.dwinovo.numen.api.agent.catalog.Catalog;
 import com.dwinovo.numen.api.agent.catalog.ModelInfo;
 import com.dwinovo.numen.api.agent.catalog.ProviderInfo;
 import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
-import com.dwinovo.numen.api.agent.catalog.ThinkingTable;
 import com.dwinovo.numen.api.agent.llm.ConnectionProfile;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.api.agent.llm.ProviderLibrary;
+import com.dwinovo.numen.api.agent.provider.ThinkingPlan;
 import com.dwinovo.numen.api.client.agent.LlmErrorWords;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
@@ -241,20 +241,20 @@ public final class ProfileFormPanel {
         keyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        // 单一自适应思考控件:档位随型号变(由型号目录的档位表给出),每档右边一句话说它实际发什么。
-        // 型号不支持思考、或能力未知(手填的型号)时整栏不出,请求里什么都不发。
-        ThinkingTable table = preview().model().thinking();
-        thinkingLevels = table.levels();
-        if (thinkingLevels.size() > 1) {
+        // 单一自适应思考控件:列哪几档、每档右边的说明都来自解析出的端点的思考计划——请求体写的也是它,
+        // 所以选得到的每一档都真会改变请求。计划里只剩自动(型号不支持、手填的型号、这个端点发不出)时整栏不出。
+        ThinkingPlan plan = preview().thinkingPlan();
+        thinkingLevels = plan.steps().stream().map(ThinkingPlan.Step::level).toList();
+        if (!plan.autoOnly()) {
             ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_THINKING);
             List<String> levelNames = new ArrayList<>();
             List<String> levelNotes = new ArrayList<>();
-            for (ThinkingLevel l : thinkingLevels) {
-                levelNames.add(levelLabel(l, table));
-                levelNotes.add(levelNote(table.wire(l)));
+            for (ThinkingPlan.Step step : plan.steps()) {
+                levelNames.add(levelLabel(step));
+                levelNotes.add(levelNote(step.wire()));
             }
             Dropdown thinking = ui.add(new Dropdown(levelNames,
-                    thinkingLevels.indexOf(table.effective(ThinkingLevel.byId(draft.reasoningEffort))),
+                    thinkingLevels.indexOf(plan.effective(ThinkingLevel.byId(draft.reasoningEffort))),
                     this::onThinkingPicked).details(levelNotes));
             thinking.setBounds(x, ry, Math.min(w, 260), NumenStyle.CONTROL_H);
             ry += NumenStyle.ROW_PITCH;
@@ -580,20 +580,20 @@ public final class ProfileFormPanel {
 
     // ---- 思考 ----
 
-    private static String levelLabel(ThinkingLevel level, ThinkingTable table) {
-        return t(switch (level) {
+    private static String levelLabel(ThinkingPlan.Step step) {
+        if (step.wire().kind() == ThinkingPlan.Wire.Kind.ON) return t(ModLanguageData.Keys.GUI_PROVIDERS_THINKING_ON);
+        return t(switch (step.level()) {
             case AUTO -> ModLanguageData.Keys.GUI_PROVIDERS_THINKING_AUTO;
             case OFF -> ModLanguageData.Keys.GUI_PROVIDERS_THINKING_OFF;
             case LOW -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_LOW;
-            case MEDIUM -> table.toggle() ? ModLanguageData.Keys.GUI_PROVIDERS_THINKING_ON
-                    : ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MEDIUM;
+            case MEDIUM -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MEDIUM;
             case HIGH -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_HIGH;
             case MAX -> ModLanguageData.Keys.GUI_PROVIDERS_EFFORT_MAX;
         });
     }
 
-    /** 一档右边的灰色说明,取自档位表给出的“实际会发什么”。 */
-    private static String levelNote(ThinkingTable.Wire wire) {
+    /** 一档右边的灰色说明,取自思考计划给出的“实际会发什么”。 */
+    private static String levelNote(ThinkingPlan.Wire wire) {
         return switch (wire.kind()) {
             case AUTO -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_AUTO);
             case OFF -> t(ModLanguageData.Keys.GUI_PROVIDERS_NOTE_OFF);

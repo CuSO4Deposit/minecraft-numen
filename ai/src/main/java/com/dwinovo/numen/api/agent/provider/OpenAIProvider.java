@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.agent.provider;
 
-import com.dwinovo.numen.api.agent.catalog.ThinkingLevel;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -40,27 +39,29 @@ public final class OpenAIProvider implements LlmProvider {
         this.compat = compat;
     }
 
-    /** 思考参数:档位由型号的档位表定,写法由兼容项的 thinkingFormat 定。 */
-    private void applyThinking(JsonObject body, ModelSpec model, ThinkingLevel level) {
-        if (level == ThinkingLevel.AUTO) return;
-        boolean off = level == ThinkingLevel.OFF;
-        String effort = model.thinking().effort(level);
+    /**
+     * 思考参数:这一档发不发、带什么,已经由 {@link ThinkingPlan} 定好(玩家选得到的档位都真会写进请求);
+     * 这里只管按兼容项的 thinkingFormat 把它写成这个端点认的字段。
+     */
+    private void applyThinking(JsonObject body, ThinkingPlan.Wire wire) {
+        if (wire.kind() == ThinkingPlan.Wire.Kind.AUTO) return;
+        boolean off = wire.kind() == ThinkingPlan.Wire.Kind.OFF;
         switch (compat.thinkingFormat()) {
             case NONE -> { }
             case ZAI -> body.add("thinking", thinkingType(!off));
             case DEEPSEEK -> {
                 body.add("thinking", thinkingType(!off));
-                if (effort != null && !off) body.addProperty("reasoning_effort", effort);
+                if (wire.kind() == ThinkingPlan.Wire.Kind.EFFORT) body.addProperty("reasoning_effort", wire.effort());
             }
             case QWEN -> body.addProperty("enable_thinking", !off);
             case OPENROUTER -> {
-                if (effort == null) return;
+                if (wire.effort() == null) return;
                 JsonObject r = new JsonObject();
-                r.addProperty("effort", effort);
+                r.addProperty("effort", wire.effort());
                 body.add("reasoning", r);
             }
             case OPENAI -> {
-                if (effort != null) body.addProperty("reasoning_effort", effort);
+                if (wire.effort() != null) body.addProperty("reasoning_effort", wire.effort());
             }
         }
     }
@@ -164,7 +165,7 @@ public final class OpenAIProvider implements LlmProvider {
         Double temperature = options.temperatureFor(model);
         if (temperature != null) body.addProperty("temperature", temperature);
         if (options.maxTokens() > 0) body.addProperty(compat.maxTokensField().wire(), options.maxTokens());
-        applyThinking(body, model, options.thinkingFor(model));
+        applyThinking(body, ThinkingPlan.of(model.thinking(), compat).wireFor(options.thinking()));
 
         body.addProperty("stream", true);
         if (compat.streamUsage()) {
