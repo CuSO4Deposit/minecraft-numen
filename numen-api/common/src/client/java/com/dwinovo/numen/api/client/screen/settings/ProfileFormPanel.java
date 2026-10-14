@@ -128,6 +128,8 @@ public final class ProfileFormPanel {
     private int x, y, w, h, viewportBottom;
     /** 选择框的遮罩范围(设置窗口),由宿主给。 */
     private int dimX, dimY, dimW, dimH;
+    /** 上面那块窗口与屏幕相交的可见部分:选择框的遮罩、下拉的可用区域按它算。 */
+    private int visX, visY, visW, visH;
     /** 高级一节展开了没有。 */
     private boolean advanced;
     /** 厂家、型号共用的选择框;随每次重排换新(它的搜索框是屏幕上的真输入框,屏幕重建时一起没了)。 */
@@ -172,8 +174,13 @@ public final class ProfileFormPanel {
         this.viewportBottom = viewportBottom;
         ui.clear();
         fixedUi.clear();
-        // 下拉与选择框不得越出设置窗口
-        ui.setViewport(dimX, dimY, dimX + dimW, viewportBottom);
+        // 下拉与选择框不得越出设置窗口,窗口比屏幕大时以屏幕为界:缩小游戏窗口后它们仍整块可见
+        var win = Minecraft.getInstance().getWindow();
+        visX = Math.max(dimX, 0);
+        visY = Math.max(dimY, 0);
+        visW = Math.min(dimX + dimW, win.getGuiScaledWidth()) - visX;
+        visH = Math.min(dimY + dimH, win.getGuiScaledHeight()) - visY;
+        ui.setViewport(visX, visY, visX + visW, Math.min(viewportBottom, visY + visH));
         picker = new PickerBox();
 
         if (draft.provider == null || draft.provider.isBlank()) {
@@ -214,7 +221,7 @@ public final class ProfileFormPanel {
 
         ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_MODEL);
         PickField modelField = ui.add(new PickField(model == null ? draft.model : model.name(), draft.model,
-                this::openModelPicker));
+                this::openModelPicker).placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL)));
         modelField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         List<TagRow.Tag> tags = modelTags(model);
         var font = Minecraft.getInstance().font;
@@ -475,7 +482,7 @@ public final class ProfileFormPanel {
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_VENDOR_HINT, catalog.providers().size()),
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_SEARCH), pickerKeys(),
                 q -> t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_MATCH, q));
-        picker.open(ui, dimX, dimY, dimW, dimH, labels, null, q -> {
+        picker.open(ui, visX, visY, visW, visH, labels, null, q -> {
             String lq = q.toLowerCase(Locale.ROOT);
             List<PickerBox.Item> popular = catalog.popular().stream()
                     .filter(p -> matches(lq, p.name(), p.id(), p.host())).map(this::vendorRow).toList();
@@ -515,10 +522,12 @@ public final class ProfileFormPanel {
                 vendor == null ? t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL_HAND)
                         : t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL_HINT, vendor.name(), models.size()),
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_SEARCH), pickerKeys(),
-                q -> t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_MATCH, q));
+                // 没搜时列表就是空的(自定义厂家没有目录):提示该手填,而不是“没有找到「」”
+                q -> q.isEmpty() ? t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_MODEL_HAND)
+                        : t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_MATCH, q));
         PickerBox.Table table = new PickerBox.Table(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_MODEL), List.of(
                 new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_CONTEXT), 5, true),
-                new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_OUTPUT), 5, true),
+                new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_OUTPUT), 4, true),
                 new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_THINKING), 3, false),
                 new PickerBox.Column(t(ModLanguageData.Keys.GUI_PROVIDERS_COL_INPUT), 11, false)), 380);
         PickerBox.FreeEntry free = new PickerBox.FreeEntry(t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_FREE),
@@ -526,7 +535,7 @@ public final class ProfileFormPanel {
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_FREE_DETAIL));
         // 发布日期新的在前;没写日期的排在后面(同日期保持目录里的顺序)
         Comparator<ModelInfo> newestFirst = Comparator.comparing(ModelInfo::releaseDate).reversed();
-        picker.open(ui, dimX, dimY, dimW, dimH, labels, table, q -> {
+        picker.open(ui, visX, visY, visW, visH, labels, table, q -> {
             String lq = q.toLowerCase(Locale.ROOT);
             List<ModelInfo> hit = models.stream().filter(m -> matches(lq, m.name(), m.id()))
                     .sorted(newestFirst).toList();

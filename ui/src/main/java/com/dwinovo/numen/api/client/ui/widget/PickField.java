@@ -23,6 +23,14 @@ public final class PickField extends Widget {
         setText(main, sub);
     }
 
+    /** 值是空的时候(还没选)显示的提示字,淡色。 */
+    private String placeholder = "";
+
+    public PickField placeholder(String text) {
+        this.placeholder = text == null ? "" : text;
+        return this;
+    }
+
     public void setText(String main, String sub) {
         this.main = main == null ? "" : main;
         this.sub = sub == null ? "" : sub;
@@ -47,8 +55,9 @@ public final class PickField extends Widget {
         int subW = s.textWidth(subText);
         if (subW > 0) s.drawText(subText, right - subW, ty, c.textMuted(), false);
         int mainRoom = right - left - (subW > 0 ? subW + 8 : 0);
-        s.drawText(TextClip.fit(s, main, Math.max(0, mainRoom)), left, ty,
-                enabled ? c.textPrimary() : c.textMuted(), false);
+        boolean empty = main.isEmpty();
+        s.drawText(TextClip.fit(s, empty ? placeholder : main, Math.max(0, mainRoom)), left, ty,
+                enabled && !empty ? c.textPrimary() : c.textMuted(), false);
     }
 
     @Override

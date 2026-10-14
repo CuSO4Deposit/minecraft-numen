@@ -135,6 +135,8 @@ public final class PickerBox implements UiRoot.Overlay {
     private int active = -1;
     private float activeT;
     private boolean reveal;
+    /** 打开那一刻:当前项居中露出(之后键盘移动只求露出来就行)。 */
+    private boolean centerOnReveal;
     private int scrollY;
     private int lastMouseX = Integer.MIN_VALUE, lastMouseY = Integer.MIN_VALUE;
     private long lastFrameMs = -1;
@@ -177,6 +179,7 @@ public final class PickerBox implements UiRoot.Overlay {
         active = firstCurrent();
         activeT = 0;
         reveal = true;
+        centerOnReveal = true;
         scrollY = 0;
         shownH = -1;
         lastFrameMs = -1;
@@ -344,8 +347,10 @@ public final class PickerBox implements UiRoot.Overlay {
         lastMouseX = mouseX;
         lastMouseY = mouseY;
         if (reveal && active >= 0) {
-            revealRow(active);
+            if (centerOnReveal) scrollY = (tops[active] + tops[active + 1] - listH) / 2;
+            else revealRow(active);
             reveal = false;
+            centerOnReveal = false;
         }
         scrollY = Math.max(0, Math.min(maxScroll, scrollY));
         activeT = NumenStyle.hoverStep(activeT, true, dt);
@@ -395,7 +400,9 @@ public final class PickerBox implements UiRoot.Overlay {
         }
         s.drawText(TextClip.fit(s, it.title(), room), textX, ry + 2, fc.textPrimary(), false);
         if (!it.detail().isEmpty()) {
-            s.drawText(TextClip.fit(s, it.detail(), room), textX, ry + 2 + lh, fc.textMuted(), false);
+            // 当前行铺着悬停底,次要小字提一档对比,免得糊在底色里
+            s.drawText(TextClip.fit(s, it.detail(), room), textX, ry + 2 + lh,
+                    isActive ? fc.textSecondary() : fc.textMuted(), false);
         }
     }
 

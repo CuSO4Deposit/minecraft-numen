@@ -28,6 +28,15 @@ class TagRowTest {
     }
 
     @Test
+    void pickFieldShowsItsPlaceholderWhileEmpty() {
+        PickField f = new PickField("", "", () -> {}).placeholder("选择型号");
+        f.setBounds(0, 0, 300, 18);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        f.render(s, WidgetTestSupport.C, 0, 0, 0);
+        assertTrue(s.texts.contains("选择型号"));
+    }
+
+    @Test
     void pickFieldClickRunsTheAction() {
         AtomicInteger n = new AtomicInteger();
         PickField f = new PickField("DeepSeek", "api.deepseek.com", n::incrementAndGet);
