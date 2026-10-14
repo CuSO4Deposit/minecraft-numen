@@ -74,7 +74,8 @@ public final class NumenScreen extends Screen {
     // ——行宽超过阅读舒适区就不再跟了。
     // 不学原版的固定尺寸(箱子/工作台从不随窗口伸缩):那样大窗口下是大面板稀内容,
     // 字的视觉占比被稀释,显小显散。
-    private static final int PANEL_MIN_W = 300;
+    // 下限 280:原版 GUI 最小是 320×240,窄栏(40)加最窄的正文刚好装满,再大右边的 ⋮、发送键就落到屏幕外了。
+    private static final int PANEL_MIN_W = 280;
     private static final int PANEL_MIN_H = 232;
     private static final int PANEL_MAX_W = 380;
     private static final int PANEL_MAX_H = PANEL_MIN_H;
