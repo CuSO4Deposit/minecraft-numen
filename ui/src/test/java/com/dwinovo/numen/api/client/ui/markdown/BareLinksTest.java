@@ -1,22 +1,23 @@
-package com.dwinovo.numen.api.client.screen.chat;
+package com.dwinovo.numen.api.client.ui.markdown;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ChatLinksTest {
+class BareLinksTest {
 
     private static List<String> urls(String text) {
-        return ChatLinks.find(text).stream().map(ChatLinks.Span::url).toList();
+        return BareLinks.find(text).stream().map(BareLinks.Span::url).toList();
     }
 
     @Test
     void findsHttpAndHttpsWithTheirPositions() {
         String t = "看 https://minecraft.wiki/w/Iron 和 http://a.com";
-        List<ChatLinks.Span> spans = ChatLinks.find(t);
+        List<BareLinks.Span> spans = BareLinks.find(t);
         assertEquals(2, spans.size());
         assertEquals("https://minecraft.wiki/w/Iron", t.substring(spans.get(0).start(), spans.get(0).end()));
         assertEquals("http://a.com", spans.get(1).url());
@@ -44,8 +45,17 @@ class ChatLinksTest {
 
     @Test
     void otherSchemesAndBareSchemesAreNotLinks() {
-        assertTrue(ChatLinks.find("ftp://a.com file:///c javascript:alert(1)").isEmpty());
-        assertTrue(ChatLinks.find("https:// 什么都没有").isEmpty());
-        assertTrue(ChatLinks.find("没有链接").isEmpty());
+        assertTrue(BareLinks.find("ftp://a.com file:///c javascript:alert(1)").isEmpty());
+        assertTrue(BareLinks.find("https:// 什么都没有").isEmpty());
+        assertTrue(BareLinks.find("没有链接").isEmpty());
+    }
+
+    @Test
+    void onlyHttpDestinationsOpen() {
+        assertTrue(BareLinks.opens("https://a.com"));
+        assertTrue(BareLinks.opens("HTTP://a.com"));
+        assertFalse(BareLinks.opens("javascript:alert(1)"));
+        assertFalse(BareLinks.opens("/relative"));
+        assertFalse(BareLinks.opens(null));
     }
 }
