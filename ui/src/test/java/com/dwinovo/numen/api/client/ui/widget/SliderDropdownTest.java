@@ -133,6 +133,20 @@ class SliderDropdownTest {
     }
 
     @Test
+    void anEmptyRowSaysWhereToGoAndClickingGoesThere() {
+        UiRoot root = new UiRoot();
+        AtomicInteger went = new AtomicInteger();
+        Dropdown dd = root.add(new Dropdown(List.of(), 0, i -> {}).row("模型", 4).whenEmpty("没有", went::incrementAndGet));
+        dd.setBounds(0, 0, 200, 20);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        assertTrue(s.texts.contains("没有"));
+        assertTrue(root.mouseClicked(5, 5, 0));
+        assertEquals(1, went.get());
+        assertTrue(!dd.isOpen() && !root.hasOverlay(), "没有可选的:不开弹层,只跳转");
+    }
+
+    @Test
     void dropdownPopupRendersAfterOtherWidgets() {
         UiRoot root = new UiRoot();
         Dropdown dd = root.add(new Dropdown(List.of("a", "b"), 0, i -> {}));

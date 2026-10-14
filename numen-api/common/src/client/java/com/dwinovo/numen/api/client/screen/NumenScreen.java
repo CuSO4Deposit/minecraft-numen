@@ -814,6 +814,13 @@ public final class NumenScreen extends Screen {
                     && minecraft.player.hasPermissions(2);
         }
 
+        @Override public void onNoProvider() {
+            closeCard();
+            selectTab(Tab.SETTINGS);
+            settings.showProviders();
+            settings.beginNewProvider();
+        }
+
         @Override public boolean ownerCreative() {
             return minecraft != null && minecraft.player != null && minecraft.player.isCreative();
         }

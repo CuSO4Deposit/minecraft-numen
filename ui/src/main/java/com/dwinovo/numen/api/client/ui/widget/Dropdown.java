@@ -72,6 +72,17 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         return this;
     }
 
+    /** 没有可选的项时行上写这句警告色的话,点它做 {@link #onEmpty};null = 空着就是空着。 */
+    private String emptyText;
+    private Runnable onEmpty;
+
+    /** 空列表的出路:行上直接说"没有——去哪儿新建",点一下就去(选择行形态)。 */
+    public Dropdown whenEmpty(String text, Runnable go) {
+        this.emptyText = text;
+        this.onEmpty = go;
+        return this;
+    }
+
     private int popupWidth() {
         if (popupW > 0) return popupW;
         return rowLabel != null && rowPopupW > 0 ? rowPopupW : w;
@@ -149,14 +160,20 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         int ty = y + (h - s.lineHeight()) / 2 + 1;
         s.drawText(rowLabel, x + rowInset, ty, c.textPrimary(), false);
         int room = w - rowInset * 2 - s.textWidth(rowLabel) - 8;
-        String value = com.dwinovo.numen.api.client.ui.TextClip.fit(s, selectedItem(), Math.max(0, room));
+        boolean none = items.isEmpty() && emptyText != null;
+        String value = com.dwinovo.numen.api.client.ui.TextClip.fit(s, none ? emptyText : selectedItem(), Math.max(0, room));
         s.drawText(value, x + w - rowInset - s.textWidth(value), ty,
-                enabled ? c.accent() : c.textMuted(), false);
+                none ? c.warning() : enabled ? c.accent() : c.textMuted(), false);
     }
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        if (button != 0 || !contains(mx, my) || !enabled || items.isEmpty()) return false;
+        if (button != 0 || !contains(mx, my) || !enabled) return false;
+        if (items.isEmpty()) {
+            if (onEmpty == null) return false;
+            onEmpty.run();
+            return true;
+        }
         open = true;
         openedAtMs = -1;
         if (root != null) root.openOverlay(this);

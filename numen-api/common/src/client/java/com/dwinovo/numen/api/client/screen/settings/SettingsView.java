@@ -131,12 +131,7 @@ public final class SettingsView {
                     e -> Component.translatable(ModLanguageData.Keys.PROVIDER_DELETE_CONFIRM,
                             e.name() == null ? "" : e.name()).getString(),
                     e -> com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance().remove(e.id()),
-                    () -> {
-                        addingProvider = true;
-                        providerEditId = null;
-                        providerDraft = new ProfileFormPanel.Draft();
-                        host.rebuild();
-                    },
+                    this::beginNewProvider,
                     this::beginEditProvider)
                     // 换绑走 setProviderEntry(下一次请求即生效);不许解绑——同伴必须有端点
                     .withBind(e -> {
@@ -1182,6 +1177,19 @@ public final class SettingsView {
         profileList().render(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font()), HostThemeColors.current(),
                 mouseX, mouseY, net.minecraft.Util.getMillis());
         if (addingProvider) formCard(Component.translatable(ModLanguageData.Keys.PROVIDER_TITLE), providerForm()::render);
+    }
+
+    /** 新建模型配置:打开空白表单卡。召唤卡上"没有——去设置里新建"也走这里(设置页先由屏幕切到模型配置)。 */
+    public void beginNewProvider() {
+        addingProvider = true;
+        providerEditId = null;
+        providerDraft = new ProfileFormPanel.Draft();
+        host.rebuild();
+    }
+
+    /** 直接落在模型配置分区(别处要把人送到这儿新建模型配置时用)。 */
+    public void showProviders() {
+        selectSection(Section.PROVIDER);
     }
 
     private void beginEditProvider(com.dwinovo.numen.api.agent.llm.ProviderLibrary.Entry e) {
