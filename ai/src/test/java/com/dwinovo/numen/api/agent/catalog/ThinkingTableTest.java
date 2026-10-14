@@ -105,4 +105,24 @@ class ThinkingTableTest {
         assertEquals(AUTO, t.effective(OFF));
         assertEquals(AUTO, t.effective(null));
     }
+
+    @Test
+    void budgetLevelsAtOrAboveTheOutputLimitAreNotOffered() {
+        JsonArray opts = (JsonArray) JsonParser.parseString("[{\"type\":\"budget_tokens\",\"min\":1024}]");
+        ThinkingTable t = ThinkingTable.parse(true, opts, 16_384);
+        assertEquals(List.of(AUTO, OFF, LOW, MEDIUM), t.levels(), "高=16384 已不小于上限");
+        assertEquals(List.of(AUTO, OFF, LOW, MEDIUM, HIGH, MAX), ThinkingTable.parse(true, opts, 0).levels());
+    }
+
+    @Test
+    void wireSaysWhatEachLevelSends() {
+        ThinkingTable budget = of("[{\"type\":\"budget_tokens\",\"min\":4096}]");
+        assertEquals(new ThinkingTable.Wire(ThinkingTable.Wire.Kind.BUDGET, null, 4_096), budget.wire(LOW));
+        assertEquals(ThinkingTable.Wire.Kind.OFF, budget.wire(OFF).kind());
+        assertEquals(ThinkingTable.Wire.Kind.AUTO, budget.wire(AUTO).kind());
+        ThinkingTable toggle = of("[{\"type\":\"toggle\"}]");
+        assertEquals(ThinkingTable.Wire.Kind.ON, toggle.wire(MEDIUM).kind());
+        ThinkingTable effort = of("[{\"type\":\"effort\",\"values\":[\"low\",\"high\",\"xhigh\"]}]");
+        assertEquals("xhigh", effort.wire(MAX).effort());
+    }
 }

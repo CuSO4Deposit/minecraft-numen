@@ -20,6 +20,14 @@ public record ProviderInfo(String id, String name, String baseUrl, Api api, Stri
         models = List.copyOf(models);
     }
 
+    /** 接口地址里的主机名(界面上用来认厂家);地址为空是空串。不走 URI 解析:目录里有带占位符的地址。 */
+    public String host() {
+        int scheme = baseUrl.indexOf("://");
+        String rest = scheme >= 0 ? baseUrl.substring(scheme + 3) : baseUrl;
+        int slash = rest.indexOf('/');
+        return slash >= 0 ? rest.substring(0, slash) : rest;
+    }
+
     /** 厂家下的某个型号;没有给 {@code null}。 */
     public ModelInfo model(String modelId) {
         if (modelId != null) {

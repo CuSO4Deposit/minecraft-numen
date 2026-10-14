@@ -109,6 +109,16 @@ class ModelsDevTest {
     }
 
     @Test
+    void hostIsTheAddressWithoutSchemeAndPath() {
+        Map<String, ProviderInfo> p = ModelsDev.parse(SAMPLE);
+        assertEquals("api.deepseek.com", p.get("deepseek").host());
+        assertEquals("openrouter.ai", p.get("openrouter").host());
+        assertEquals("", new ProviderInfo("x", "X", "", Api.CHAT, "", Map.of(), java.util.List.of()).host());
+        assertEquals("${RES}.example.com", new ProviderInfo("x", "X", "https://${RES}.example.com/v1", Api.CHAT, "",
+                Map.of(), java.util.List.of()).host());
+    }
+
+    @Test
     void openRouterCarriesItsAttributionHeaders() {
         assertTrue(ModelsDev.parse(SAMPLE).get("openrouter").headers().containsKey("X-Title"));
         assertTrue(ModelsDev.parse(SAMPLE).get("deepseek").headers().isEmpty());

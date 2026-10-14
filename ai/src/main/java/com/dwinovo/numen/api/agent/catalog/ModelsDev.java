@@ -81,7 +81,7 @@ public final class ModelsDev {
         return new ModelInfo(id, m.has("name") ? str(m, "name") : id,
                 (int) num(limit, "context"), (int) num(limit, "output"), inputs,
                 bool(m, "tool_call", false), bool(m, "temperature", true),
-                ThinkingTable.parse(bool(m, "reasoning", false), options),
+                ThinkingTable.parse(bool(m, "reasoning", false), options, (int) num(limit, "output")),
                 interleaved, cost, api, baseUrl, str(m, "release_date"));
     }
 
