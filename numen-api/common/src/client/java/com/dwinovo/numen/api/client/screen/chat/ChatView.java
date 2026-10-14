@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.client.screen.chat;
 
-import com.dwinovo.numen.api.Constants;
 import com.dwinovo.numen.api.agent.llm.ConvoLog;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.conversation.Conversation;
@@ -29,7 +28,7 @@ import com.dwinovo.numen.api.client.skin.CompanionFace;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import com.dwinovo.numen.api.client.ui.mc.Sprites;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.time.Instant;
@@ -132,11 +131,6 @@ public final class ChatView {
         SERVICE_FG = t.serviceFg();
     }
 
-    private static ResourceLocation spr(String n) {
-        return ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, n);
-    }
-    private static final ResourceLocation SCROLL_THUMB = spr("scroll_thumb");
-    private static final ResourceLocation CHEVRON_DOWN = spr("chevron_down");
     /**
      * 回到最新的浮钮(Telegram 翻上去时右下角那枚):边长、离右缘和底边的距离,
      * 以及露出的进度 0..1(趋近)——它从底边下面滑上来,被对话流裁掉,不是原地淡入。
@@ -380,7 +374,8 @@ public final class ChatView {
         g.enableScissor(x, y, right, y + h);
         NumenStyle.box(new com.dwinovo.numen.api.client.ui.mc.McDrawSurface(g, font), jumpX, jumpY, JUMP, JUMP,
                 AI_FILL, AI_BORDER);
-        g.blitSprite(CHEVRON_DOWN, jumpX + (JUMP - 11) / 2, jumpY + (JUMP - 6) / 2, 11, 6);
+        Sprites.draw(g, Sprites.CHEVRON_DOWN, jumpX + (JUMP - Sprites.CHEVRON_W) / 2, jumpY + (JUMP - Sprites.CHEVRON_H) / 2,
+                Sprites.CHEVRON_W, Sprites.CHEVRON_H, MUTED);
         if (unread > 0) {
             String n = UnreadBadge.label(unread);
             int bw = UnreadBadge.width(font, n);
@@ -470,9 +465,9 @@ public final class ChatView {
                 && (overBody || barDragging || frameNow - lastScrollMs < 800 || Math.abs(scrollPos - scrollTarget) > 0.5f);
         barShown = Anim.approach(barShown, wantBar ? 8f : 0f, 14f, dt);
         if (barShown > 0.5f && lastMaxScroll > 0) {
-            g.setColor(1f, 1f, 1f, barShown / 8f);
-            g.blitSprite(SCROLL_THUMB, barX(), thumbY(), SB_W, thumbH());   // 只有滑块,没有槽,贴正文区右缘(Telegram)
-            g.setColor(1f, 1f, 1f, 1f);
+            // 只有滑块,没有槽,贴正文区右缘;半透明的灰(Telegram 的滚动条),随出没淡入淡出
+            int a = Math.round(0x80 * Math.min(1f, barShown / 8f));
+            g.fill(barX(), thumbY(), barX() + SB_W, thumbY() + thumbH(), (a << 24) | (MUTED & 0xFFFFFF));
         }
     }
 

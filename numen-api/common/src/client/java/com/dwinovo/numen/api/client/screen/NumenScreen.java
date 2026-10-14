@@ -128,9 +128,6 @@ public final class NumenScreen extends Screen {
         RUN = t.run();
         FAIL = t.fail();
     }
-    private static net.minecraft.resources.ResourceLocation railSpr(String n) {
-        return net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(com.dwinovo.numen.api.Constants.MOD_ID, n);
-    }
     /** 图标格边长:与名字那一行的字齐高。 */
     private static final int ICON_N = com.dwinovo.numen.api.client.ui.mc.Sprites.SIZE;
 
@@ -252,8 +249,6 @@ public final class NumenScreen extends Screen {
         return (argb & 0xFFFFFF) | (a << 24);
     }
 
-    private static final net.minecraft.resources.ResourceLocation CHEVRON_UP = railSpr("chevron_up");
-    private static final net.minecraft.resources.ResourceLocation CHEVRON_DOWN = railSpr("chevron_down");
 
     /**
      * 面板对着的会话(左栏切换就地换);null = 空面板(没同伴,或只开设置页)。
@@ -636,8 +631,8 @@ public final class NumenScreen extends Screen {
                 : (chatView.matchAt() < 0 ? "" : (chatView.matchAt() + 1) + "/") + n;
         txt(g, Component.literal(count), findBtnX(0) - 4 - font.width(count), y + (FIND_H - 8) / 2, TXT_MUTED);
         int hot = slide == 0 ? findButtonAt(mouseX, mouseY) : -1;
-        chevron(g, findBtnX(0) + 6, y + 5, true);
-        chevron(g, findBtnX(1) + 6, y + 5, false);
+        chevron(g, findBtnX(0) + 6, y + 5, true, TXT_MUTED);
+        chevron(g, findBtnX(1) + 6, y + 5, false, TXT_MUTED);
         if (hot == 0 || hot == 1) g.fill(findBtnX(hot), y + 1, findBtnX(hot) + 12, y + FIND_H - 1, 0x30FFFFFF);
         txt(g, Component.literal("×"), findBtnX(2) + (12 - font.width("×")) / 2, y + (FIND_H - 8) / 2, hot == 2 ? TXT : TXT_MUTED);
         g.pose().popPose();
@@ -2232,8 +2227,8 @@ public final class NumenScreen extends Screen {
         g.disableScissor();
         // scroll cues — chevrons when the list overflows in either direction
         int cx = railX + railW / 2;
-        if (railScroll > 0) chevron(g, cx, top + 1, true);
-        if (railScroll < maxRailScroll()) chevron(g, cx, railBottomEdge() + 2, false);
+        if (railScroll > 0) chevron(g, cx, top + 1, true, TXT_MUTED);
+        if (railScroll < maxRailScroll()) chevron(g, cx, railBottomEdge() + 2, false, TXT_MUTED);
     }
 
     /**
@@ -2707,9 +2702,11 @@ public final class NumenScreen extends Screen {
 
     /** Scroll-affordance chevron sprite (amber pixel-art triangle, up = more above / down = more below).
      *  Blitted at its native 11×6 so the pixels stay crisp (no scaling, no AA). */
-    private void chevron(GuiGraphics g, int cx, int y, boolean up) {
-        g.blitSprite(
-                up ? CHEVRON_UP : CHEVRON_DOWN, cx - 5, y, 11, 6);
+    private void chevron(GuiGraphics g, int cx, int y, boolean up, int color) {
+        com.dwinovo.numen.api.client.ui.mc.Sprites.draw(g,
+                up ? com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_UP : com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_DOWN,
+                cx - 5, y, com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_W,
+                com.dwinovo.numen.api.client.ui.mc.Sprites.CHEVRON_H, color);
     }
 
     /** 最后一行的底边最多到哪(下面留一道缝给箭头)。 */
