@@ -529,8 +529,8 @@ public final class ModLanguageData {
         adder.add(Keys.STT_FAILED, "Voice input failed: %s");
         adder.add("numen.settings.nav.persona", "Persona");
         adder.add("numen.persona.title", "Personas");
-        adder.add("numen.persona.empty", "None · click ＋ New (top-right)");
-        adder.add("numen.persona.add", "＋ New");
+        adder.add("numen.persona.empty", "None · click New");
+        adder.add("numen.persona.add", "New");
         adder.add("numen.persona.preset_badge", "Preset");
         adder.add("numen.persona.form_name", "Name");
         adder.add("numen.persona.form_text", "Persona");
@@ -566,8 +566,8 @@ public final class ModLanguageData {
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
         adder.add("numen.tool.lua", "Run");
         adder.add("numen.mcp.title", "Tool Extensions (MCP)");
-        adder.add("numen.mcp.empty", "None · click ＋ Add (top-right)");
-        adder.add("numen.mcp.add", "＋ Add");
+        adder.add("numen.mcp.empty", "None · click Add");
+        adder.add("numen.mcp.add", "Add");
         adder.add("numen.mcp.type_http", "HTTP");
         adder.add("numen.mcp.type_stdio", "stdio");
         adder.add("numen.mcp.form_name", "Name");
@@ -596,7 +596,7 @@ public final class ModLanguageData {
 
         // Model-config section
         adder.add(Keys.PROVIDER_TITLE,          "Model Configs");
-        adder.add(Keys.PROVIDER_EMPTY,          "No model config yet — click New (top-right) to create one");
+        adder.add(Keys.PROVIDER_EMPTY,          "No model config yet — click New to create one");
         adder.add(Keys.PROVIDER_ADD,            "New");
         adder.add(Keys.PROVIDER_DELETE_CONFIRM, "Delete \"%s\"? Companions using it can't chat until rebound.");
         adder.add(Keys.PROVIDER_NO_KEY,         "no key");
@@ -653,7 +653,7 @@ public final class ModLanguageData {
         adder.add(Keys.RAIL_NO_MATCH,          "No matches");
         adder.add(Keys.SKIN_TITLE,           "Skins");
         adder.add(Keys.SKIN_ADD,             "New");
-        adder.add(Keys.SKIN_EMPTY,           "No skins yet. Click New, then drag a skin png into the window.");
+        adder.add(Keys.SKIN_EMPTY,           "No skins yet. Click New, then pick a 64×64 skin png.");
         adder.add(Keys.SKIN_FORM_NAME,       "Name (required)");
         adder.add(Keys.SKIN_FORM_VARIANT,    "Arm model");
         adder.add(Keys.SKIN_VARIANT_CLASSIC, "Classic (wide arms)");
@@ -722,7 +722,7 @@ public final class ModLanguageData {
         adder.add("numen.gui.list.cloned",   "Cloned as an editable copy");
         adder.add("numen.gui.list.unbound",  "The entry it was using was just deleted — now unbound");
         adder.add(Keys.SKIN_WARN_NAME,       "Name is required");
-        adder.add(Keys.SKIN_WARN_IMAGE,      "Drag a skin png into the window first");
+        adder.add(Keys.SKIN_WARN_IMAGE,      "Pick a skin png first");
         adder.add(Keys.SKIN_WARN_SIZE,       "Skin must be 64x64 (or legacy 64x32), got %s");
         adder.add(Keys.SKIN_WARN_READ,       "Couldn't read the file: %s");
         adder.add(Keys.SKIN_SIGNED,          "signed");
@@ -740,7 +740,7 @@ public final class ModLanguageData {
         // Voice (TTS) section
         adder.add(Keys.VOICE_TITLE,          "Voice");
         adder.add(Keys.VOICE_ENABLED,        "Enabled");
-        adder.add(Keys.VOICE_EMPTY,          "No voice yet — click New (top-right) to create one");
+        adder.add(Keys.VOICE_EMPTY,          "No voice yet — click New to create one");
         adder.add(Keys.VOICE_ADD,            "New");
         adder.add(Keys.VOICE_DELETE_CONFIRM, "Delete voice \"%s\"? Companions bound to it fall silent.");
         adder.add(Keys.VOICE_FORM_NAME,      "Name (required)");
@@ -1098,8 +1098,8 @@ public final class ModLanguageData {
         adder.add(Keys.STT_FAILED, "语音输入失败：%s");
         adder.add("numen.settings.nav.persona", "人设");
         adder.add("numen.persona.title", "人设库");
-        adder.add("numen.persona.empty", "无 · 点右上「＋ 新建」");
-        adder.add("numen.persona.add", "＋ 新建");
+        adder.add("numen.persona.empty", "无 · 点「新建」");
+        adder.add("numen.persona.add", "新建");
         adder.add("numen.persona.preset_badge", "内置");
         adder.add("numen.persona.form_name", "名称");
         adder.add("numen.persona.form_text", "人设描述");
@@ -1135,8 +1135,8 @@ public final class ModLanguageData {
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。
         adder.add("numen.tool.lua", "执行");
         adder.add("numen.mcp.title", "工具扩展 (MCP)");
-        adder.add("numen.mcp.empty", "无 · 点右上「＋ 添加」");
-        adder.add("numen.mcp.add", "＋ 添加");
+        adder.add("numen.mcp.empty", "无 · 点「添加」");
+        adder.add("numen.mcp.add", "添加");
         adder.add("numen.mcp.type_http", "HTTP");
         adder.add("numen.mcp.type_stdio", "stdio");
         adder.add("numen.mcp.form_name", "名称");
@@ -1165,7 +1165,7 @@ public final class ModLanguageData {
 
         // Model-config section
         adder.add(Keys.PROVIDER_TITLE,          "模型配置");
-        adder.add(Keys.PROVIDER_EMPTY,          "还没有模型配置——点右上「新建」创建一条");
+        adder.add(Keys.PROVIDER_EMPTY,          "还没有模型配置——点「新建」创建一条");
         adder.add(Keys.PROVIDER_ADD,            "新建");
         adder.add(Keys.PROVIDER_DELETE_CONFIRM, "删除「%s」?正在使用它的同伴将无法对话,直到重新绑定。");
         adder.add(Keys.PROVIDER_NO_KEY,         "未填Key");
@@ -1222,7 +1222,7 @@ public final class ModLanguageData {
         adder.add(Keys.RAIL_NO_MATCH,          "没有对得上的会话");
         adder.add(Keys.SKIN_TITLE,           "皮肤库");
         adder.add(Keys.SKIN_ADD,             "新建");
-        adder.add(Keys.SKIN_EMPTY,           "还没有皮肤。点右上角\"新建\",再把皮肤 png 拖进游戏窗口。");
+        adder.add(Keys.SKIN_EMPTY,           "还没有皮肤。点\"新建\",再选一张 64×64 的皮肤 png。");
         adder.add(Keys.SKIN_FORM_NAME,       "名称(必填)");
         adder.add(Keys.SKIN_FORM_VARIANT,    "手臂模型");
         adder.add(Keys.SKIN_VARIANT_CLASSIC, "经典(粗手臂)");
@@ -1291,7 +1291,7 @@ public final class ModLanguageData {
         adder.add("numen.gui.list.cloned",   "已克隆为可编辑副本");
         adder.add("numen.gui.list.unbound",  "刚才删掉的条目它正在用,现在已解绑");
         adder.add(Keys.SKIN_WARN_NAME,       "名称必填");
-        adder.add(Keys.SKIN_WARN_IMAGE,      "先把皮肤 png 拖进游戏窗口");
+        adder.add(Keys.SKIN_WARN_IMAGE,      "先选一张皮肤 png");
         adder.add(Keys.SKIN_WARN_SIZE,       "皮肤需为 64x64(或旧版 64x32),拖入的是 %s");
         adder.add(Keys.SKIN_WARN_READ,       "文件读取失败: %s");
         adder.add(Keys.SKIN_SIGNED,          "已签名");
@@ -1309,7 +1309,7 @@ public final class ModLanguageData {
         // Voice (TTS) section
         adder.add(Keys.VOICE_TITLE,          "语音");
         adder.add(Keys.VOICE_ENABLED,        "启用");
-        adder.add(Keys.VOICE_EMPTY,          "还没有声线——点右上「新建」创建一条");
+        adder.add(Keys.VOICE_EMPTY,          "还没有声线——点「新建」创建一条");
         adder.add(Keys.VOICE_ADD,            "新建");
         adder.add(Keys.VOICE_DELETE_CONFIRM, "删除声线「%s」?绑定它的同伴将静音。");
         adder.add(Keys.VOICE_FORM_NAME,      "名称(必填)");
