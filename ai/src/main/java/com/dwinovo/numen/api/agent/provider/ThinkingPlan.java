@@ -23,7 +23,7 @@ public final class ThinkingPlan {
         public enum Kind {
             /** 什么都不发,交给服务端。 */
             AUTO,
-            /** 明确关掉(开关型写 disabled/false;effort 型写 {@code none},此时 {@code effort} 是那个字)。Anthropic 没有这一档。 */
+            /** 明确关掉(开关型写 disabled/false;effort 型写 {@code none},此时 {@code effort} 是那个字;Anthropic 写 {@code thinking.type=disabled})。 */
             OFF,
             /** 打开,不带量,用量由厂家定。 */
             ON,
@@ -62,7 +62,24 @@ public final class ThinkingPlan {
     private static void chat(ThinkingTable table, ChatCompat.ThinkingFormat format, List<Step> steps) {
         switch (format) {
             case NONE -> { }
-            case OPENAI, OPENROUTER -> effortStyle(table, steps);
+            case OPENAI -> effortStyle(table, steps);
+            // 照 pi:对所有推理型号一律写 reasoning.effort,OpenRouter 自己换算成各家的写法(预算也由它算)。
+            // 目录给了 effort 取值就用那些,只给预算或开关的型号按缺省给低、中、高;关写 none
+            case OPENROUTER -> {
+                steps.add(new Step(ThinkingLevel.OFF, new Wire(Wire.Kind.OFF, "none", 0)));
+                int before = steps.size();
+                for (ThinkingLevel level : table.levels()) {
+                    String effort = table.effort(level);
+                    if (level != ThinkingLevel.AUTO && level != ThinkingLevel.OFF && effort != null) {
+                        steps.add(new Step(level, new Wire(Wire.Kind.EFFORT, effort, 0)));
+                    }
+                }
+                if (steps.size() == before) {
+                    for (ThinkingLevel level : List.of(ThinkingLevel.LOW, ThinkingLevel.MEDIUM, ThinkingLevel.HIGH)) {
+                        steps.add(new Step(level, new Wire(Wire.Kind.EFFORT, level.id(), 0)));
+                    }
+                }
+            }
             // 只有开关:选再高的档,发出去的也只是"打开"
             case ZAI, QWEN -> {
                 offIfOffable(table, steps);
@@ -94,7 +111,8 @@ public final class ThinkingPlan {
     }
 
     private static void anthropic(ThinkingTable table, boolean adaptive, List<Step> steps) {
-        // 关没有单独的写法:不发思考参数,老型号就不思考——和自动是同一个请求,所以不列
+        // 照 pi:推理型号都有"关",显式写 thinking.type=disabled;自动才是什么都不发
+        steps.add(new Step(ThinkingLevel.OFF, new Wire(Wire.Kind.OFF, null, 0)));
         for (ThinkingLevel level : table.levels()) {
             if (level == ThinkingLevel.AUTO || level == ThinkingLevel.OFF) continue;
             if (adaptive) {

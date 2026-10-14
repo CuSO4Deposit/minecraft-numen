@@ -179,13 +179,17 @@ public final class AnthropicProvider implements LlmProvider {
             body.add("tools", marked);
         }
 
-        // 思考:这一档写成什么由 ThinkingPlan 定(自适应型号写 effort,老型号写预算)。
+        // 思考:这一档写成什么由 ThinkingPlan 定(自适应型号写 effort,老型号写预算,关写 disabled)。
         // 预算必须小于 max_tokens,所以加在玩家设的上限之上,玩家的值仍然是"正文的上限"。
         ThinkingPlan.Wire wire = ThinkingPlan.of(model.thinking(), compat).wireFor(options.thinking());
         boolean thinking = false;
         JsonObject t = new JsonObject();
         switch (wire.kind()) {
             case AUTO -> { }
+            case OFF -> {
+                t.addProperty("type", "disabled");
+                body.add("thinking", t);
+            }
             case EFFORT -> {
                 t.addProperty("type", "adaptive");
                 JsonObject output = new JsonObject();
@@ -201,7 +205,7 @@ public final class AnthropicProvider implements LlmProvider {
                 maxTokens += wire.tokens();
                 thinking = true;
             }
-            case OFF, ON -> throw new IllegalStateException("ThinkingPlan 不会给 Anthropic 排出 " + wire.kind());
+            case ON -> throw new IllegalStateException("ThinkingPlan 不会给 Anthropic 排出 " + wire.kind());
         }
         body.addProperty("max_tokens", maxTokens);
 

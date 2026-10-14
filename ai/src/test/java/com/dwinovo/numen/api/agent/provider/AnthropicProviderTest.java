@@ -216,17 +216,23 @@ class AnthropicProviderTest {
     }
 
     @Test
-    void autoOffAndUnsupportedLevelsSendNoThinkingAtAll() {
+    void autoAndUnsupportedLevelsSendNoThinkingAtAll() {
         ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
         for (var level : new com.dwinovo.numen.api.agent.catalog.ThinkingLevel[]{
                 com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO,
-                com.dwinovo.numen.api.agent.catalog.ThinkingLevel.OFF,
                 com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MAX}) {   // 这个型号没有最高档
             JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(), think(level));
             assertFalse(body.has("thinking"), level.name());
             assertFalse(body.has("output_config"), level.name());
             assertEquals(8192, body.get("max_tokens").getAsInt(), level.name());
         }
+        // 关显式写 disabled(自动才是什么都不发),不带预算,max_tokens 不变
+        JsonObject off = P.buildRequestBody(m, null, List.of(), new JsonArray(),
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.OFF));
+        assertEquals("disabled", off.getAsJsonObject("thinking").get("type").getAsString());
+        assertFalse(off.getAsJsonObject("thinking").has("budget_tokens"));
+        assertFalse(off.has("output_config"));
+        assertEquals(8192, off.get("max_tokens").getAsInt());
         // 目录里查不到的型号:任何档位都不发
         JsonObject unknown = P.buildRequestBody(M, null, List.of(), new JsonArray(),
                 think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH));
