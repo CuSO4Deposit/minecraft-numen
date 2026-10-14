@@ -54,8 +54,8 @@ public abstract class LoopHarness {
             onDone.accept(new ModelOutcome.Answered(new AssistantTurn("", List.of(calls), null), Usage.ZERO));
         }
 
-        public void fail(String words) {
-            onDone.accept(new ModelOutcome.Failed(words));
+        public void fail(Cause cause) {
+            onDone.accept(new ModelOutcome.Failed(cause));
         }
 
         public void stream(String content) {
@@ -75,14 +75,14 @@ public abstract class LoopHarness {
     }
 
     public final class FakeModel implements ModelPort {
-        public String unavailable;
+        public Cause unavailable;
         public int turnRequests;
         /** 非空时每次调用当场就用这句话答完,回调同步回到内核里——模拟回得比调用栈退得还快的端口。 */
         public String replyAtOnce;
         public final List<Call> calls = new ArrayList<>();
 
         @Override
-        public String unavailable() {
+        public Cause unavailable() {
             return unavailable;
         }
 

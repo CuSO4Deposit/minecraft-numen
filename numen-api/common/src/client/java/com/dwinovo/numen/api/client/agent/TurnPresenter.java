@@ -83,10 +83,10 @@ final class TurnPresenter {
                     endTurn();   // 失败或被切断:半截文字作废、语音收尾(说完了的回复在落库时已经收过)
                 }
             }
-            case LoopEvent.TurnFailed failed -> showFailure(failed.words());
+            case LoopEvent.TurnFailed failed -> showFailure(CauseWords.text(failed.cause()));
             case LoopEvent.HoldChanged changed -> {
                 if (changed.hold() == Hold.BLOCKED) {
-                    showBlocked(changed.reason());
+                    showBlocked(CauseWords.text(changed.cause()));
                 }
             }
             case LoopEvent.Halted halted -> {

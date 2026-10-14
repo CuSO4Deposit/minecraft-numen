@@ -2895,7 +2895,8 @@ public final class NumenScreen extends Screen {
         }
         // 没绑模型/没填 key:她停在 BLOCKED,原因一直挂在输入行上面,绑好了自己消失
         if (blocked && !compacting) {
-            txt(g, Component.literal(lp.status().holdReason()), left + PAD, dockY, FAIL);
+            txt(g, Component.literal(com.dwinovo.numen.api.client.agent.CauseWords.text(lp.status().holdReason())),
+                    left + PAD, dockY, FAIL);
         }
         // 整理记忆:一条随摘要流回来的字数逼近满格的进度条。摘要多长事先不知道,所以它
         // 报的是"还在动",不是"完成了百分之几"——永远差一点,收尾时整条消失。

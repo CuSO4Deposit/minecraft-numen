@@ -13,6 +13,7 @@ import com.dwinovo.numen.api.agent.inbox.EventTypes;
 import com.dwinovo.numen.api.agent.inbox.JsonlJournal;
 import com.dwinovo.numen.api.agent.llm.ConvoState;
 import com.dwinovo.numen.api.agent.loop.AgentLoop;
+import com.dwinovo.numen.api.agent.loop.Cause;
 import com.dwinovo.numen.api.agent.memory.Compactor;
 import com.dwinovo.numen.api.agent.loop.HaltReason;
 import com.dwinovo.numen.api.agent.loop.Hold;
@@ -631,21 +632,21 @@ public final class EntityAgentLoop {
     }
 
     /**
-     * 这只同伴现在发不了请求的理由(没绑档案、档案没填 key),给主人看的话;{@code null} = 能发。
+     * 这只同伴现在发不了请求的理由(没绑档案、档案没填 key),结构化的原因;{@code null} = 能发。
      * 只有内核在要发请求时问它({@link ModelPort#unavailable}):不可用就停在 BLOCKED,原因进
      * {@link LoopStatus#holdReason},界面从那里读。
      */
-    private String endpointProblem() {
+    private Cause endpointProblem() {
         var lib = com.dwinovo.numen.api.agent.llm.ProviderLibrary.instance();
         if (providerEntryId == null || lib.get(providerEntryId) == null) {
-            return I18n.get(ModLanguageData.Keys.ENDPOINT_UNBOUND);
+            return Cause.of(Cause.UNBOUND);
         }
         var endpoint = lib.resolve(providerEntryId);
         if (!endpoint.hasApiKey()) {
-            return I18n.get(ModLanguageData.Keys.ENDPOINT_NO_KEY, lib.get(providerEntryId).name());
+            return Cause.of(Cause.NO_KEY, lib.get(providerEntryId).name());
         }
         if (!endpoint.hasUrl()) {
-            return I18n.get(ModLanguageData.Keys.ENDPOINT_NO_URL, lib.get(providerEntryId).name());
+            return Cause.of(Cause.NO_URL, lib.get(providerEntryId).name());
         }
         return null;
     }
@@ -734,7 +735,7 @@ public final class EntityAgentLoop {
     private final class Model implements ModelPort {
 
         @Override
-        public String unavailable() {
+        public Cause unavailable() {
             return endpointProblem();
         }
 
@@ -765,9 +766,9 @@ public final class EntityAgentLoop {
                 }
                 if (err != null) {
                     // 面向主人的是分类人话;技术细节进日志(传输层还有全量)。
-                    String words = LlmErrorWords.classify(err);
-                    Constants.LOG.warn("[numen-entity#{}] LLM call failed: {} ({})", entityUuid, words, unwrap(err));
-                    onDone.accept(new ModelOutcome.Failed(words));
+                    Cause cause = Cause.fromError(err);
+                    Constants.LOG.warn("[numen-entity#{}] LLM call failed: {} ({})", entityUuid, cause.forModel(), unwrap(err));
+                    onDone.accept(new ModelOutcome.Failed(cause));
                     return;
                 }
                 onDone.accept(new ModelOutcome.Answered(res.turn(), res.usage()));

@@ -204,7 +204,7 @@ public final class GoalSteward {
         }
         if (outcome instanceof ModelOutcome.Failed failed) {
             // 判不出来不等于做完了。歇一轮,下次做完再判。
-            AiLog.LOG.warn("[numen-entity#{}] 目标评估失败,这一轮先不续:{}", name, failed.words());
+            AiLog.LOG.warn("[numen-entity#{}] 目标评估失败,这一轮先不续:{}", name, failed.cause().forModel());
             return;
         }
         ModelOutcome.Answered answered = (ModelOutcome.Answered) outcome;

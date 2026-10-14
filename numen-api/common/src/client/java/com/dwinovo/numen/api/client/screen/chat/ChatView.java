@@ -7,6 +7,7 @@ import com.dwinovo.numen.api.agent.conversation.Mentions;
 import com.dwinovo.numen.api.agent.conversation.Quote;
 import com.dwinovo.numen.api.agent.conversation.Transcript;
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
+import com.dwinovo.numen.api.client.agent.CauseWords;
 import com.dwinovo.numen.api.agent.provider.AssistantTurn;
 import com.dwinovo.numen.api.agent.provider.LlmToolCall;
 import com.dwinovo.numen.api.client.agent.Conversations;
@@ -1038,7 +1039,10 @@ public final class ChatView {
                 case ConvoState.Msg.Tool ignored -> { /* result drives done/fail, not a block */ }
                 case ConvoState.Msg.Halt h -> {
                     flushProcess(f, done, failed, bubbleMaxW);
-                    notice(out, I18n.get("numen.chat.halted", h.reason()), bubbleMaxW);
+                    // 有结构化原因就按当前语言说;老日志只有当时存下的那句
+                    String why = h.code() == null ? h.reason()
+                            : CauseWords.text(new com.dwinovo.numen.api.agent.loop.Cause(h.code(), h.args()));
+                    notice(out, I18n.get("numen.chat.halted", why), bubbleMaxW);
                     f.last = null;
                 }
             }

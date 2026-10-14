@@ -562,6 +562,13 @@ public final class ModLanguageData {
         adder.add("numen.chat.cleared", "Context cleared — she starts fresh (chat log kept)");
         adder.add("numen.chat.persona_changed", "Persona switched");
         adder.add("numen.chat.halted", "Interrupted: %s");
+        adder.add("numen.cause.llm.empty_reply", "The server returned an empty reply");
+        adder.add("numen.cause.halt.owner_stop", "Stopped by you");
+        adder.add("numen.cause.halt.death", "She died");
+        adder.add("numen.cause.halt.death_by", "She died (%s)");
+        adder.add("numen.cause.halt.disconnect", "You disconnected");
+        adder.add("numen.cause.halt.external", "An external brain took over");
+        adder.add("numen.cause.halt.dispose", "Her brain was reset");
         adder.add("numen.chat.steps", "%s steps");
         adder.add("numen.chat.plan", "Plan %s/%s");
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
@@ -1132,6 +1139,13 @@ public final class ModLanguageData {
         adder.add("numen.chat.cleared", "上下文已清除，她从头开始（聊天记录保留）");
         adder.add("numen.chat.persona_changed", "人设已切换");
         adder.add("numen.chat.halted", "已中断：%s");
+        adder.add("numen.cause.llm.empty_reply", "服务端返回了空回应");
+        adder.add("numen.cause.halt.owner_stop", "被你打断");
+        adder.add("numen.cause.halt.death", "她死了");
+        adder.add("numen.cause.halt.death_by", "她死了(%s)");
+        adder.add("numen.cause.halt.disconnect", "你断线了");
+        adder.add("numen.cause.halt.external", "外接大脑接管了");
+        adder.add("numen.cause.halt.dispose", "她的大脑被重置了");
         adder.add("numen.chat.steps", "%s 步");
         adder.add("numen.chat.plan", "计划 %s/%s");
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。

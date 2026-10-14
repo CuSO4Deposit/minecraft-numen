@@ -9,6 +9,6 @@ public sealed interface ModelOutcome {
     /** 模型回话了,附上服务端报的用量。 */
     record Answered(AssistantTurn turn, Usage usage) implements ModelOutcome {}
 
-    /** 调用失败;{@code words} 是给主人看的分类原因。 */
-    record Failed(String words) implements ModelOutcome {}
+    /** 调用失败;{@code cause} 是结构化的原因,话由界面按当前语言说。 */
+    record Failed(Cause cause) implements ModelOutcome {}
 }

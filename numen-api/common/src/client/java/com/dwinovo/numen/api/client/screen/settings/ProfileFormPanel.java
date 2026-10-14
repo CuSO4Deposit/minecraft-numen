@@ -11,7 +11,8 @@ import com.dwinovo.numen.api.agent.llm.LlmEndpoint;
 import com.dwinovo.numen.api.agent.llm.NumenLlmClient;
 import com.dwinovo.numen.api.agent.llm.ProviderLibrary;
 import com.dwinovo.numen.api.agent.provider.ThinkingPlan;
-import com.dwinovo.numen.api.client.agent.LlmErrorWords;
+import com.dwinovo.numen.api.agent.loop.Cause;
+import com.dwinovo.numen.api.client.agent.CauseWords;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
@@ -644,7 +645,7 @@ public final class ProfileFormPanel {
                         resultAlert.show(InlineAlert.Severity.SUCCESS,
                                 t(ModLanguageData.Keys.GUI_PROVIDERS_CHECK_OK), 2_500);
                     } else {
-                        resultAlert.show(InlineAlert.Severity.ERROR, LlmErrorWords.classify(error));
+                        resultAlert.show(InlineAlert.Severity.ERROR, CauseWords.text(Cause.fromError(error)));
                     }
                 }));
     }
