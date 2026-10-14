@@ -17,6 +17,9 @@ import java.util.TreeMap;
  * 这个类只懂这个格式的两个方向——把文本读成 {@link ProviderInfo}({@link #parse}),
  * 把完整的 {@code api.json} 裁成我们用到的那几个字段({@link #slim})。
  * 随包快照和运行时缓存存的都是裁过的文本,与完整数据同形,所以读它们走同一个 {@link #parse}。
+ *
+ * <p>已弃用的型号({@code status: deprecated})在这里读进来时就丢掉,目录里没有它,谁也不必再过滤;
+ * 档案里还用着这样的型号,就和任何目录里没有的型号一样当作手填的型号。
  */
 public final class ModelsDev {
 
@@ -39,6 +42,7 @@ public final class ModelsDev {
         List<ModelInfo> models = new ArrayList<>();
         if (p.has("models") && p.get("models").isJsonObject()) {
             for (var m : p.getAsJsonObject("models").entrySet()) {
+                if ("deprecated".equals(str(m.getValue().getAsJsonObject(), "status"))) continue;
                 models.add(model(m.getKey(), m.getValue().getAsJsonObject(), api, baseUrl));
             }
         }
@@ -54,11 +58,11 @@ public final class ModelsDev {
         String baseUrl = route.has("api") ? str(route, "api") : vendorBaseUrl;
 
         JsonObject limit = obj(m, "limit");
-        boolean vision = false;
+        List<String> inputs = new ArrayList<>();
         JsonObject modalities = obj(m, "modalities");
         if (modalities.has("input") && modalities.get("input").isJsonArray()) {
             for (JsonElement el : modalities.getAsJsonArray("input")) {
-                vision |= el.isJsonPrimitive() && "image".equals(el.getAsString());
+                if (el.isJsonPrimitive() && !"text".equals(el.getAsString())) inputs.add(el.getAsString());
             }
         }
         String interleaved = null;
@@ -75,10 +79,10 @@ public final class ModelsDev {
         JsonArray options = m.has("reasoning_options") && m.get("reasoning_options").isJsonArray()
                 ? m.getAsJsonArray("reasoning_options") : null;
         return new ModelInfo(id, m.has("name") ? str(m, "name") : id,
-                (int) num(limit, "context"), (int) num(limit, "output"), vision,
+                (int) num(limit, "context"), (int) num(limit, "output"), inputs,
                 bool(m, "tool_call", false), bool(m, "temperature", true),
                 ThinkingTable.parse(bool(m, "reasoning", false), options),
-                interleaved, cost, api, baseUrl);
+                interleaved, cost, api, baseUrl, str(m, "release_date"));
     }
 
     /**
@@ -116,7 +120,8 @@ public final class ModelsDev {
 
     private static JsonObject slimModel(JsonObject m) {
         JsonObject out = new JsonObject();
-        copy(m, out, "name", "reasoning", "tool_call", "temperature", "reasoning_options", "interleaved");
+        copy(m, out, "name", "status", "release_date", "reasoning", "tool_call", "temperature",
+                "reasoning_options", "interleaved");
         JsonObject limit = obj(m, "limit");
         if (limit.size() > 0) {
             JsonObject l = new JsonObject();

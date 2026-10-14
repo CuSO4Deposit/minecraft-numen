@@ -26,7 +26,10 @@ class ModelsDevTest {
                 "models":{"deepseek-v4":{"id":"deepseek-v4","name":"DeepSeek V4","reasoning":true,"tool_call":true,
                   "interleaved":{"field":"reasoning_content"},
                   "reasoning_options":[{"type":"toggle"},{"type":"effort","values":["low","high","max"]}],
-                  "limit":{"context":1000000,"output":393216}}}},
+                  "release_date":"2026-04-24",
+                  "limit":{"context":1000000,"output":393216}},
+                  "deepseek-old":{"id":"deepseek-old","name":"DeepSeek Old","status":"deprecated","tool_call":true},
+                  "deepseek-beta":{"id":"deepseek-beta","name":"DeepSeek Beta","status":"beta","tool_call":true}}},
               "google": {"id":"google","npm":"@ai-sdk/google","name":"Google","doc":"d","models":{}},
               "xai": {"id":"xai","npm":"@ai-sdk/xai","name":"xAI","doc":"d","models":{}},
               "gateway": {"id":"gateway","npm":"@ai-sdk/openai-compatible","api":"https://gw.example/v1","name":"Gateway","doc":"d",
@@ -69,7 +72,7 @@ class ModelsDevTest {
         assertEquals("GPT-5", gpt.name());
         assertEquals(400_000, gpt.contextWindow());
         assertEquals(128_000, gpt.maxOutput());
-        assertTrue(gpt.vision());
+        assertEquals(java.util.List.of("image"), gpt.inputs());
         assertTrue(gpt.toolCall());
         assertFalse(gpt.temperature());
         assertEquals(new ModelInfo.Cost(1.25, 10, 0.125, 0), gpt.cost());
@@ -79,8 +82,20 @@ class ModelsDevTest {
         ModelInfo ds = ModelsDev.parse(SAMPLE).get("deepseek").model("deepseek-v4");
         assertEquals("reasoning_content", ds.interleaved());
         assertTrue(ds.temperature(), "目录没写温度就按能调处理");
-        assertFalse(ds.vision());
+        assertTrue(ds.inputs().isEmpty());
         assertNull(ds.cost());
+    }
+
+    @Test
+    void deprecatedModelsAreDroppedOnRead() {
+        ProviderInfo ds = ModelsDev.parse(SAMPLE).get("deepseek");
+        assertNull(ds.model("deepseek-old"));
+        assertTrue(ds.model("deepseek-beta") != null, "只有 deprecated 被丢,其它状态照常列");
+        assertEquals("2026-04-24", ds.model("deepseek-v4").releaseDate());
+        assertEquals("", ds.model("deepseek-beta").releaseDate());
+        // 裁剪后的快照/缓存要留着 status,读的时候才丢得掉
+        assertTrue(ModelsDev.slim(SAMPLE).contains("deprecated"));
+        assertNull(ModelsDev.parse(ModelsDev.slim(SAMPLE)).get("deepseek").model("deepseek-old"));
     }
 
     @Test
