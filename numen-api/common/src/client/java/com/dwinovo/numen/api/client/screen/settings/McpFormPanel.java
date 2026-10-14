@@ -75,7 +75,7 @@ public final class McpFormPanel {
                 t(draft.stdio ? "numen.mcp.type_stdio" : "numen.mcp.type_http"),
                 Button.Style.NORMAL, this::onTypeToggle));
         typeBtn.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-        ry += NumenStyle.ROW_PITCH - NumenStyle.LABEL_PITCH + 4;
+        ry += NumenStyle.CONTROL_H + 5;   // 钮的底边下面留一道缝,下一行的标签才不压在钮上
 
         ry = label(x, ry, draft.stdio ? "numen.mcp.form_command" : "numen.mcp.form_url");
         targetField = ui.add(new TextField(draft.target, v -> draft.target = v)
