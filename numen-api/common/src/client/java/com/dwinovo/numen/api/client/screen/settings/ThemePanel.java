@@ -87,9 +87,10 @@ public final class ThemePanel {
         s.fillRect(rx + 2, ry + 5, 10, 14, t.ground());
         s.fillRect(rx + 12, ry + 5, 10, 14, t.band());
         s.fillRect(rx + 22, ry + 5, 10, 14, t.cta());
-        s.drawText(t.label(), rx + 40, ry + 8, cur ? c.textPrimary() : c.textMuted(), false);
+        String name = I18n.get(t.isDark() ? "numen.menu.night" : "numen.menu.day");   // 主题名与 ☰ 菜单里同一份语言键
+        s.drawText(name, rx + 40, ry + 8, cur ? c.textPrimary() : c.textMuted(), false);
         if (cur) {
-            s.drawText("✔", rx + 40 + s.textWidth(t.label()) + 6, ry + 8, c.success(), false);
+            s.drawText("✔", rx + 40 + s.textWidth(name) + 6, ry + 8, c.success(), false);
         }
     }
 
