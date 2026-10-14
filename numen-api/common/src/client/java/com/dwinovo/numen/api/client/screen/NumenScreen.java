@@ -2454,9 +2454,13 @@ public final class NumenScreen extends Screen {
         };
     }
 
-    /** 这个分组里有几个会话有未读——Telegram 标签上的数是"几个会话",不是几条。 */
+    /**
+     * 这个分组里有几个会话有未读——Telegram 标签上的数是"几个会话",不是几条。内置的三个(全部、私聊、群聊)
+     * 不挂数:数只在会话行上,栏窄时标签得完整装得下;自建的分组才挂。
+     */
     private int folderUnread(String id) {
         Conversations convos = Conversations.instance();
+        if (convos.customFolder(id) == null) return 0;
         int n = 0;
         for (Conversation c : convos.all()) {
             if (convos.inFolder(id, c) && railUnread(c) > 0) n++;
