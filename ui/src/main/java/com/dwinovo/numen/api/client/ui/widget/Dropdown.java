@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.ui.widget;
 
+import com.dwinovo.numen.api.client.ui.Animation;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
@@ -22,7 +23,15 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     private float hoverT;
     private long lastFrameMs = -1;
     private int popupScroll;   // 弹层滚动(行数)
-    
+    /**
+     * 弹层出入的时长:从贴着字段的那一边长开、收回去。始终是实底,半透明会让底下字段的字透出来;
+     * 长开从这个比例起,第一帧就看得见,不是空的一帧。
+     */
+    private static final long REVEAL_MS = 150;
+    private static final float REVEAL_FROM = 0.2f;
+    /** 弹层开了 / 收了的时刻;-1 = 还没画到那一帧(时间由渲染给,控件不读钟)。 */
+    private long openedAtMs = -1, closedAtMs = -1;
+
 
     /** 紧凑模式:收起态只画箭头不画值(窄"选择器"用,值另有输入框承载)。 */
     private boolean compact;
@@ -149,6 +158,7 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     public boolean mouseClicked(double mx, double my, int button) {
         if (button != 0 || !contains(mx, my) || !enabled || items.isEmpty()) return false;
         open = true;
+        openedAtMs = -1;
         if (root != null) root.openOverlay(this);
         return true;
     }
@@ -178,6 +188,24 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
 
     @Override
     public void renderOverlay(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
+        if (openedAtMs < 0) openedAtMs = nowMs;
+        float t = Animation.easeOutCubic(Animation.progress(nowMs - openedAtMs, REVEAL_MS));
+        drawPopup(s, c, mouseX, mouseY, REVEAL_FROM + (1f - REVEAL_FROM) * t);
+    }
+
+    /** 收起后浮层通道已经放手,收回去那几帧由通道的退场画;收回中不接指针,也就不画悬停。 */
+    @Override
+    public boolean renderLeaving(IDrawSurface s, NumenTheme.Colors c, long nowMs) {
+        if (open) return false;
+        if (closedAtMs < 0) closedAtMs = nowMs;
+        float t = Animation.progress(nowMs - closedAtMs, REVEAL_MS);
+        if (t >= 1f) return false;
+        drawPopup(s, c, Integer.MIN_VALUE, Integer.MIN_VALUE, 1f - Animation.easeInCubic(t));
+        return true;
+    }
+
+    /** @param reveal 露出多少(0~1):从贴着字段的那一边起算 */
+    private void drawPopup(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, float reveal) {
         rowHCached = rowH(s);
         if (rowLabel != null) {
             int widest = 0;
@@ -190,6 +218,8 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         int py = p.y();
         int px = p.x();
         int pw = p.w();
+        int shownH = Math.max(1, Math.round(p.h() * reveal));
+        s.pushScissor(px, p.up() ? p.y() + p.h() - shownH : p.y(), pw, shownH);
         s.fillRect(px, py, pw, rows * rowHCached, c.panelBg());
         for (int r = 0; r < rows; r++) {
             int idx = popupScroll + r;
@@ -213,6 +243,7 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
                     * (double) popupScroll / Math.max(1, maxPopupScroll()));
             s.fillRect(px + pw - NumenStyle.SCROLLBAR_W, thumbY, NumenStyle.SCROLLBAR_W, thumbH, c.divider());
         }
+        s.popScissor();
     }
 
     @Override
@@ -239,5 +270,6 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     @Override
     public void closeOverlay() {
         open = false;
+        closedAtMs = -1;
     }
 }

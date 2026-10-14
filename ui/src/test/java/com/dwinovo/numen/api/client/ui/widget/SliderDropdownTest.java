@@ -114,6 +114,25 @@ class SliderDropdownTest {
     }
 
     @Test
+    void closedPopupKeepsDrawingWhileItRetractsThenGoes() {
+        UiRoot root = new UiRoot();
+        Dropdown dd = root.add(new Dropdown(List.of("a", "b"), 0, i -> {}).compact().popupWidth(80));
+        dd.setBounds(0, 0, 80, 14);
+        root.mouseClicked(5, 5, 0);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        root.mouseClicked(5, 14 + 2, 0);   // 选第一项,弹层收起
+        assertTrue(!root.hasOverlay());
+
+        s.reset();
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 50);   // 收回途中:弹层还在画,不是硬切
+        assertTrue(s.texts.contains("a"));
+        s.reset();
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 50 + 1000);   // 收完了
+        assertTrue(s.texts.isEmpty());
+    }
+
+    @Test
     void dropdownPopupRendersAfterOtherWidgets() {
         UiRoot root = new UiRoot();
         Dropdown dd = root.add(new Dropdown(List.of("a", "b"), 0, i -> {}));
