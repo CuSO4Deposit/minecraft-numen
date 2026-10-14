@@ -328,6 +328,8 @@ public final class SettingsView {
     /** Esc while a form modal is up: close it back to the list (same as the card's 取消). */
     public boolean cancelForm() {
         if (!formActive()) return false;
+        // 表单里的选择框、下拉开着时 Esc 只收它们(由表单自己的浮层通道处理),不收整张表单
+        if (addingProvider && providerForm().hasOverlay()) return false;
         addingProvider = false; providerEditId = null;
         addingVoice = false; voiceEditId = null;
         if (voiceForm != null) voiceForm.cancelPendingTest();
@@ -534,6 +536,7 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 表单(检测/思考/强度/toast 齐备);卡壳照旧 formModal。 */
     private void buildProviderFormNew() {
         providerForm().open(providerDraft);
+        providerForm().setDimBounds(left(), top(), panelW(), panelH());
         providerForm().build(fx(), fy0(), fw(), fBottom() - fy0(),
                 top() + panelH() - 2);
     }
