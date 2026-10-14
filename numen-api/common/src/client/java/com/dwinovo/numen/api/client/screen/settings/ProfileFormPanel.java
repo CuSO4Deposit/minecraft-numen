@@ -23,6 +23,7 @@ import com.dwinovo.numen.api.client.ui.widget.InlineAlert;
 import com.dwinovo.numen.api.client.ui.widget.Label;
 import com.dwinovo.numen.api.client.ui.widget.PickField;
 import com.dwinovo.numen.api.client.ui.widget.PickerBox;
+import com.dwinovo.numen.api.client.ui.widget.Reveal;
 import com.dwinovo.numen.api.client.ui.widget.ScrollBox;
 import com.dwinovo.numen.api.client.ui.widget.TagRow;
 import com.dwinovo.numen.api.client.ui.widget.TextField;
@@ -128,8 +129,10 @@ public final class ProfileFormPanel {
     private int x, y, w, h;
     /** 设置窗口与屏幕相交的可见部分,由宿主给:选择框的遮罩、下拉的可用区域都按它算。 */
     private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
-    /** 高级一节展开了没有。 */
-    private boolean advanced;
+    /** 高级一节开合的进度;跨重排保留,过渡不被打断。 */
+    private final Reveal advanced = new Reveal();
+    /** 高级一节收着时内容到哪(相对表单顶)、全开时到哪;每帧按 {@link #advanced} 在两者之间取。 */
+    private int baseH, fullH;
     /** 厂家、型号共用的选择框;随每次重排换新(它的搜索框是屏幕上的真输入框,屏幕重建时一起没了)。 */
     private PickerBox picker = new PickerBox();
 
@@ -153,7 +156,7 @@ public final class ProfileFormPanel {
     /** 载入待编辑的草稿(新建=空草稿;编辑=从条目拷来)。宿主随后 build。 */
     public void open(Draft d) {
         this.draft = d;
-        this.advanced = false;
+        this.advanced.snap(false);
     }
 
     /** 下拉与选择框不得越出的区域(通常是整个设置窗口)。在 build 之前给。 */
@@ -248,52 +251,48 @@ public final class ProfileFormPanel {
             ry += NumenStyle.ROW_PITCH;
         }
 
-        Disclosure adv = ui.add(new Disclosure(t("numen.brain.advanced"), advanced, () -> {
-            advanced = !advanced;
-            relayout();
-        }));
+        Disclosure adv = ui.add(new Disclosure(t("numen.brain.advanced"), advanced));
         adv.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-        int bottom = ry + NumenStyle.CONTROL_H;
-        if (advanced) {
-            ry += NumenStyle.CONTROL_H + 4;
-            if (vendor != null) {
-                // 自定义厂家的地址已经在上面,这里不再放第二个入口
-                ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_BASE_OVERRIDE);
-                baseUrlField = addBaseUrlField(x, ry);
-                ry += NumenStyle.ROW_PITCH;
-            }
-            // 代理按档案走:国内外站点常需不同走线,留空跟随全局(/numen 里设)。
-            ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_PROXY);
-            TextField proxyField = ui.add(new TextField(draft.proxy, v -> draft.proxy = v)
-                    .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PROXY_HINT)).underlined(true));
-            proxyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        baseH = ry + NumenStyle.CONTROL_H - y;
+        // 高级一节的行一直摆着,开合只是露出多高(见 applyReveal):行不重建,输入框里的字也不丢
+        ry += NumenStyle.CONTROL_H + 4;
+        if (vendor != null) {
+            // 自定义厂家的地址已经在上面,这里不再放第二个入口
+            ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_BASE_OVERRIDE);
+            baseUrlField = addBaseUrlField(x, ry);
             ry += NumenStyle.ROW_PITCH;
-
-            // 上下文长度:压缩闸门与面板水位都按这个窗口算——填错太小会提前压缩,填错太大会顶爆上游。
-            ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_CTX);
-            TextField ctxField = ui.add(new TextField(draft.ctx, v -> draft.ctx = v).numeric()
-                    .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_CTX_HINT)).underlined(true));
-            ctxField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
-            ry += NumenStyle.ROW_PITCH;
-
-            // 温度与输出上限并排:都是“不填用厂家默认”的生成参数
-            int half = (w - 8) / 2;
-            labelWidgetAt(x, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_TEMP);
-            labelWidgetAt(x + half + 8, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_MAX_OUT);
-            ry += NumenStyle.LABEL_PITCH;
-            TextField temp = ui.add(new TextField(draft.temperature, v -> draft.temperature = v)
-                    .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)).underlined(true));
-            temp.setBounds(x, ry, half, NumenStyle.CONTROL_H);
-            TextField maxOut = ui.add(new TextField(draft.maxTokens, v -> draft.maxTokens = v).numeric()
-                    .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)).underlined(true));
-            maxOut.setBounds(x + half + 8, ry, half, NumenStyle.CONTROL_H);
-            bottom = ry + NumenStyle.CONTROL_H;
         }
+        // 代理按档案走:国内外站点常需不同走线,留空跟随全局(/numen 里设)。
+        ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_PROXY);
+        TextField proxyField = ui.add(new TextField(draft.proxy, v -> draft.proxy = v)
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PROXY_HINT)).underlined(true));
+        proxyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        ry += NumenStyle.ROW_PITCH;
 
-        // ---- 滚动记账:视口到收尾行上方为止,内容高按最后一行的底边算 ----
+        // 上下文长度:压缩闸门与面板水位都按这个窗口算——填错太小会提前压缩,填错太大会顶爆上游。
+        ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_CTX);
+        TextField ctxField = ui.add(new TextField(draft.ctx, v -> draft.ctx = v).numeric()
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_CTX_HINT)).underlined(true));
+        ctxField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
+        ry += NumenStyle.ROW_PITCH;
+
+        // 温度与输出上限并排:都是“不填用厂家默认”的生成参数
+        int half = (w - 8) / 2;
+        labelWidgetAt(x, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_TEMP);
+        labelWidgetAt(x + half + 8, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_MAX_OUT);
+        ry += NumenStyle.LABEL_PITCH;
+        TextField temp = ui.add(new TextField(draft.temperature, v -> draft.temperature = v)
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)).underlined(true));
+        temp.setBounds(x, ry, half, NumenStyle.CONTROL_H);
+        TextField maxOut = ui.add(new TextField(draft.maxTokens, v -> draft.maxTokens = v).numeric()
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)).underlined(true));
+        maxOut.setBounds(x + half + 8, ry, half, NumenStyle.CONTROL_H);
+        fullH = ry + NumenStyle.CONTROL_H - y;
+
+        // ---- 滚动记账:视口到收尾行上方为止,内容高随高级一节的开合在 baseH 与 fullH 之间走 ----
         scroll.measure(ui, x, y, w,
                 NumenStyle.footerTop(y, h) - NumenStyle.HEADER_GAP - y,
-                bottom - y);
+                revealedH());
 
         // ---- 固定层:结果胶囊/按钮行——不随滚动 ----
         // 页面级 Alert:贴在收尾行上方悬浮,和检测、保存同在表单底部——操作结果的家(字段错误才内联)。
@@ -311,7 +310,13 @@ public final class ProfileFormPanel {
 
     // ---- 宿主转发面 ----
 
+    /** 此刻露出的内容高。 */
+    private int revealedH() {
+        return baseH + Math.round((fullH - baseH) * advanced.value());
+    }
+
     public void render(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
+        if (advanced.step(nowMs)) scroll.resize(revealedH());
         // 表单行进裁剪区(滚出视口的部分不画);下拉弹层、选择框与固定层在裁剪区外。
         scroll.beginClip(s);
         ui.renderContent(s, c, mouseX, mouseY, nowMs);
@@ -619,10 +624,7 @@ public final class ProfileFormPanel {
         // 检测用档案当前的设置,只是思考不发(检测只关心连得通、密钥对不对)
         LlmEndpoint ep = ProviderLibrary.instance().resolve(draft.toProfile().withReasoningEffort("auto"));
         if (!ep.hasUrl()) {
-            if (baseUrlField == null) {   // 目录厂家没有固定地址:地址覆盖在收起的高级里,展开它再标错
-                advanced = true;
-                relayout();
-            }
+            advanced.setOpen(true);   // 目录厂家没有固定地址:地址覆盖在高级里,展开它再标错
             baseUrlField.setError(t(ModLanguageData.Keys.GUI_INLINE_NEED_URL));
             return;
         }
