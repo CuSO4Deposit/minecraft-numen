@@ -345,10 +345,11 @@ public final class VoiceFormPanel {
             backend = probe.createBackend();
             synth = backend.synthesize(I18n.get(ModLanguageData.Keys.VOICE_TEST_SENTENCE));
         } catch (Exception ex) {
-            String why = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
-            com.dwinovo.numen.api.Constants.LOG.warn("[numen-voice] 试音失败(同步): {}", why);
+            com.dwinovo.numen.api.Constants.LOG.warn("[numen-voice] 试音失败(同步): {}",
+                    com.dwinovo.numen.api.client.voice.VoiceError.fromError(ex).getMessage());
             resultAlert.show(InlineAlert.Severity.ERROR,
-                    t2(ModLanguageData.Keys.VOICE_TEST_FAIL, shorten(why)));
+                    t2(ModLanguageData.Keys.VOICE_TEST_FAIL,
+                            shorten(com.dwinovo.numen.api.client.voice.VoiceWords.text(ex))));
             return;
         }
         synth.whenComplete((wav, err) -> {
@@ -366,14 +367,12 @@ public final class VoiceFormPanel {
             Minecraft.getInstance().execute(() -> {
                 if (gen != testGen) return;   // 表单已离开/又点了一次:作废
                 if (fail != null) {
-                    Throwable cur = fail;
-                    while (cur.getCause() != null && cur != cur.getCause()) cur = cur.getCause();
-                    String why = cur.getMessage() == null ? cur.getClass().getSimpleName() : cur.getMessage();
                     // 完整原因进日志(胶囊里被截短,排障全靠这行)。
                     com.dwinovo.numen.api.Constants.LOG.warn("[numen-voice] 试音失败({}): {}",
-                            backend.describe(), why);
+                            backend.describe(), com.dwinovo.numen.api.client.voice.VoiceError.fromError(fail).getMessage());
                     resultAlert.show(InlineAlert.Severity.ERROR,
-                            t2(ModLanguageData.Keys.VOICE_TEST_FAIL, shorten(why)));
+                            t2(ModLanguageData.Keys.VOICE_TEST_FAIL,
+                                    shorten(com.dwinovo.numen.api.client.voice.VoiceWords.text(fail))));
                     return;
                 }
                 var sm = Minecraft.getInstance().getSoundManager();

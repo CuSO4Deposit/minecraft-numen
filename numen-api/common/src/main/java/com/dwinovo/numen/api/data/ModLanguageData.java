@@ -568,6 +568,20 @@ public final class ModLanguageData {
         adder.add("numen.cause.halt.disconnect", "You disconnected");
         adder.add("numen.cause.halt.external", "An external brain took over");
         adder.add("numen.cause.halt.dispose", "Her brain was reset");
+        adder.add("numen.voice.error.detail", "%1$s: %2$s");
+        adder.add("numen.voice.error.http", "%1$s returned HTTP %2$s");
+        adder.add("numen.voice.error.api", "%1$s reported an error");
+        adder.add("numen.voice.error.reply_missing", "%1$s's reply is missing: %2$s");
+        adder.add("numen.voice.error.reply_bad", "%1$s's reply could not be read (%2$s)");
+        adder.add("numen.voice.error.no_key", "%1$s has no API key set");
+        adder.add("numen.voice.error.no_voice", "%1$s has no voice ID set");
+        adder.add("numen.voice.error.no_url", "The URL is empty");
+        adder.add("numen.voice.error.bad_url", "The URL is invalid: %1$s");
+        adder.add("numen.voice.error.empty_text", "There is nothing to speak");
+        adder.add("numen.voice.error.empty_audio", "The server returned no audio");
+        adder.add("numen.voice.error.closed", "The connection was closed (%1$s)");
+        adder.add("numen.voice.error.bad_wav", "The audio is not a valid WAV (%1$s)");
+        adder.add("numen.voice.error.unknown", "Voice failed (%1$s: %2$s)");
         adder.add("numen.chat.steps", "%s steps");
         adder.add("numen.chat.plan", "Plan %s/%s");
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
@@ -1144,6 +1158,20 @@ public final class ModLanguageData {
         adder.add("numen.cause.halt.disconnect", "你断线了");
         adder.add("numen.cause.halt.external", "外接大脑接管了");
         adder.add("numen.cause.halt.dispose", "她的大脑被重置了");
+        adder.add("numen.voice.error.detail", "%1$s:%2$s");
+        adder.add("numen.voice.error.http", "%1$s 返回 HTTP %2$s");
+        adder.add("numen.voice.error.api", "%1$s 报告了错误");
+        adder.add("numen.voice.error.reply_missing", "%1$s 的回应缺少:%2$s");
+        adder.add("numen.voice.error.reply_bad", "%1$s 的回应读不懂(%2$s)");
+        adder.add("numen.voice.error.no_key", "%1$s 没填 API Key");
+        adder.add("numen.voice.error.no_voice", "%1$s 没填音色 ID");
+        adder.add("numen.voice.error.no_url", "地址没填");
+        adder.add("numen.voice.error.bad_url", "地址无效:%1$s");
+        adder.add("numen.voice.error.empty_text", "没有可念的文字");
+        adder.add("numen.voice.error.empty_audio", "服务端没有返回音频");
+        adder.add("numen.voice.error.closed", "连接被关闭了(%1$s)");
+        adder.add("numen.voice.error.bad_wav", "音频不是有效的 WAV(%1$s)");
+        adder.add("numen.voice.error.unknown", "语音出错了(%1$s:%2$s)");
         adder.add("numen.chat.steps", "%s 步");
         adder.add("numen.chat.plan", "计划 %s/%s");
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。
