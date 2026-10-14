@@ -76,8 +76,9 @@ public final class SkinFormPanel {
         signing = false;
     }
 
-    public void build(int x, int y, int w, int h) {
+    public void build(int x, int y, int w, int h, UiRoot.Viewport window) {
         ui.clear();
+        ui.setViewport(window);
 
         int ry = y;
         Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.SKIN_FORM_NAME);

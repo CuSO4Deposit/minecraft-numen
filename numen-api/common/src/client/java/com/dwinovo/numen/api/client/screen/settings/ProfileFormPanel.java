@@ -125,11 +125,9 @@ public final class ProfileFormPanel {
     private Draft draft = new Draft();
 
     /** 最近一次 build 的几何:草稿变了要按同样的几何重排。 */
-    private int x, y, w, h, viewportBottom;
-    /** 选择框的遮罩范围(设置窗口),由宿主给。 */
-    private int dimX, dimY, dimW, dimH;
-    /** 上面那块窗口与屏幕相交的可见部分:选择框的遮罩、下拉的可用区域按它算。 */
-    private int visX, visY, visW, visH;
+    private int x, y, w, h;
+    /** 设置窗口与屏幕相交的可见部分,由宿主给:选择框的遮罩、下拉的可用区域都按它算。 */
+    private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
     /** 高级一节展开了没有。 */
     private boolean advanced;
     /** 厂家、型号共用的选择框;随每次重排换新(它的搜索框是屏幕上的真输入框,屏幕重建时一起没了)。 */
@@ -158,29 +156,19 @@ public final class ProfileFormPanel {
         this.advanced = false;
     }
 
-    /** 选择框的遮罩盖多大(通常是整个设置窗口)。在 build 之前给。 */
-    public void setDimBounds(int dimX, int dimY, int dimW, int dimH) {
-        this.dimX = dimX;
-        this.dimY = dimY;
-        this.dimW = dimW;
-        this.dimH = dimH;
+    /** 下拉与选择框不得越出的区域(通常是整个设置窗口)。在 build 之前给。 */
+    public void setWindow(UiRoot.Viewport window) {
+        this.window = window;
     }
 
-    public void build(int x, int y, int w, int h, int viewportBottom) {
+    public void build(int x, int y, int w, int h) {
         this.x = x;
         this.y = y;
         this.w = w;
         this.h = h;
-        this.viewportBottom = viewportBottom;
         ui.clear();
         fixedUi.clear();
-        // 下拉与选择框不得越出设置窗口,窗口比屏幕大时以屏幕为界:缩小游戏窗口后它们仍整块可见
-        var win = Minecraft.getInstance().getWindow();
-        visX = Math.max(dimX, 0);
-        visY = Math.max(dimY, 0);
-        visW = Math.min(dimX + dimW, win.getGuiScaledWidth()) - visX;
-        visH = Math.min(dimY + dimH, win.getGuiScaledHeight()) - visY;
-        ui.setViewport(visX, visY, visX + visW, Math.min(viewportBottom, visY + visH));
+        ui.setViewport(window);
         picker = new PickerBox();
 
         if (draft.provider == null || draft.provider.isBlank()) {
@@ -318,7 +306,7 @@ public final class ProfileFormPanel {
 
     /** 草稿变了:按同样的几何整张重排(控件的值都从草稿来)。 */
     private void relayout() {
-        build(x, y, w, h, viewportBottom);
+        build(x, y, w, h);
     }
 
     // ---- 宿主转发面 ----
@@ -482,7 +470,8 @@ public final class ProfileFormPanel {
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_VENDOR_HINT, catalog.providers().size()),
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_SEARCH), pickerKeys(),
                 q -> t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_NO_MATCH, q));
-        picker.open(ui, visX, visY, visW, visH, labels, null, q -> {
+        picker.open(ui, window.left(), window.top(), window.right() - window.left(),
+                window.bottom() - window.top(), labels, null, q -> {
             String lq = q.toLowerCase(Locale.ROOT);
             List<PickerBox.Item> popular = catalog.popular().stream()
                     .filter(p -> matches(lq, p.name(), p.id(), p.host())).map(this::vendorRow).toList();
@@ -535,7 +524,8 @@ public final class ProfileFormPanel {
                 t(ModLanguageData.Keys.GUI_PROVIDERS_PICK_FREE_DETAIL));
         // 发布日期新的在前;没写日期的排在后面(同日期保持目录里的顺序)
         Comparator<ModelInfo> newestFirst = Comparator.comparing(ModelInfo::releaseDate).reversed();
-        picker.open(ui, visX, visY, visW, visH, labels, table, q -> {
+        picker.open(ui, window.left(), window.top(), window.right() - window.left(),
+                window.bottom() - window.top(), labels, table, q -> {
             String lq = q.toLowerCase(Locale.ROOT);
             List<ModelInfo> hit = models.stream().filter(m -> matches(lq, m.name(), m.id()))
                     .sorted(newestFirst).toList();

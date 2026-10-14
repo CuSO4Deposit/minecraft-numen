@@ -86,7 +86,9 @@ public final class VoiceFormPanel {
 
     /** 表单行装不下卡片时整体上下位移(记账在 {@link ScrollBox})。 */
     private final ScrollBox scroll = new ScrollBox();
-    private int formX, formY, formW, formH, viewportBottom;
+    private int formX, formY, formW, formH;
+    /** 下拉不得越出的区域,由宿主给(设置窗口与屏幕的交集)。 */
+    private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
 
     private Draft draft = new Draft();
     private TextField nameField;
@@ -116,15 +118,15 @@ public final class VoiceFormPanel {
         testGen++;
     }
 
-    public void build(int x, int y, int w, int h, int viewportBottom) {
+    public void build(int x, int y, int w, int h, UiRoot.Viewport window) {
         this.formX = x;
         this.formY = y;
         this.formW = w;
         this.formH = h;
-        this.viewportBottom = viewportBottom;
+        this.window = window;
         ui.clear();
         fixedUi.clear();
-        ui.setViewportHeight(viewportBottom);
+        ui.setViewport(window);
 
         int ry = y;
         Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.VOICE_FORM_NAME);
@@ -313,7 +315,7 @@ public final class VoiceFormPanel {
         }
         draft.backend = sel;
         scroll.toTop();
-        build(formX, formY, formW, formH, viewportBottom);
+        build(formX, formY, formW, formH, window);
     }
 
     private void save() {

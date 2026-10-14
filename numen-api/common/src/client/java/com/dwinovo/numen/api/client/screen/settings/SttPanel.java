@@ -49,6 +49,8 @@ public final class SttPanel {
     private List<String> modelIds = List.of();
     private List<String> micIds = List.of();
     private int panelX, panelY, panelW, panelH;
+    /** 下拉不得越出的区域,由宿主给(分区页与屏幕的交集)。 */
+    private UiRoot.Viewport window = UiRoot.Viewport.UNBOUNDED;
 
     public SttPanel() {
         Minecraft mc = Minecraft.getInstance();
@@ -64,11 +66,12 @@ public final class SttPanel {
         seeded = false;
     }
 
-    public void build(int x, int y, int w, int h) {
+    public void build(int x, int y, int w, int h, UiRoot.Viewport window) {
         this.panelX = x;
         this.panelY = y;
         this.panelW = w;
         this.panelH = h;
+        this.window = window;
         INumenConfig cfg = Services.CONFIG;
         if (!seeded) {
             seeded = true;
@@ -81,6 +84,7 @@ public final class SttPanel {
             customModel = seed.models().isEmpty() || !seed.models().contains(model);
         }
         ui.clear();
+        ui.setViewport(window);
         SttProviders.Option opt = SttProviders.byId(provider);
         provider = opt.id();
 
@@ -225,7 +229,7 @@ public final class SttPanel {
 
     /** 行随状态换(换商/模型双态切换):纯内部重建,不惊动宿主。 */
     private void rebuild() {
-        build(panelX, panelY, panelW, panelH);
+        build(panelX, panelY, panelW, panelH, window);
     }
 
     private void save() {

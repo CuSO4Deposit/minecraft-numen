@@ -40,6 +40,14 @@ public final class UiRoot {
         public Viewport withBottom(int bottom) {
             return new Viewport(left, top, right, bottom);
         }
+
+        /**
+         * 面板 {@code (x, y, w, h)} 与屏幕 {@code screenW × screenH} 相交的那一块:窗口比面板小时以窗口为界,
+         * 缩小游戏窗口后浮层仍整块可见。
+         */
+        public static Viewport clip(int x, int y, int w, int h, int screenW, int screenH) {
+            return new Viewport(Math.max(x, 0), Math.max(y, 0), Math.min(x + w, screenW), Math.min(y + h, screenH));
+        }
     }
 
     private Viewport viewport = Viewport.UNBOUNDED;
@@ -47,6 +55,10 @@ public final class UiRoot {
     /** 屏幕层 init/resize 时设置:浮层不得越出这块区域(窗口、面板)。 */
     public void setViewport(int left, int top, int right, int bottom) {
         this.viewport = new Viewport(left, top, right, bottom);
+    }
+
+    public void setViewport(Viewport viewport) {
+        this.viewport = viewport;
     }
 
     /** 只知道下缘的宿主用这个:其余三边保持原样。 */

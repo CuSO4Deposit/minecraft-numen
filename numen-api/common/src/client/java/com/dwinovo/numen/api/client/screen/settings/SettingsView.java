@@ -6,6 +6,7 @@ import com.dwinovo.numen.api.client.agent.EntityAgentLoop;
 import com.dwinovo.numen.api.client.screen.Dropdown;
 import com.dwinovo.numen.api.client.screen.Nb;
 import com.dwinovo.numen.api.client.screen.UiTheme;
+import com.dwinovo.numen.api.client.ui.widget.UiRoot;
 import com.dwinovo.numen.api.data.ModLanguageData;
 import com.dwinovo.numen.api.mcp.server.McpMode;
 import com.dwinovo.numen.api.persona.PersonaLibrary;
@@ -316,6 +317,21 @@ public final class SettingsView {
     private int secBottom() { return innerBottom() - INNER; }
     private int secH() { return secBottom() - secY0(); }
 
+    /**
+     * 下拉与选择框能用的区域,窗口比面板小时以窗口为界(缩小游戏窗口后弹层仍整块可见):
+     * 表单卡盖住整个面板,所以是整个面板;分区页画在自己的裁剪框里,弹层出了内容区就被切掉,所以是内容区。
+     */
+    private UiRoot.Viewport formWindow() {
+        var win = Minecraft.getInstance().getWindow();
+        return UiRoot.Viewport.clip(left(), top(), panelW(), panelH(), win.getGuiScaledWidth(), win.getGuiScaledHeight());
+    }
+
+    private UiRoot.Viewport pageWindow() {
+        var win = Minecraft.getInstance().getWindow();
+        return UiRoot.Viewport.clip(innerLeft(), secY0(), innerRight() - innerLeft(), innerBottom() - secY0(),
+                win.getGuiScaledWidth(), win.getGuiScaledHeight());
+    }
+
     // ---- form modal (add/edit forms float on a card over the dimmed list) ----
 
     /** 任一新建/编辑表单在场(表单模态)——屏幕据此屏蔽背景交互。 */
@@ -537,7 +553,7 @@ public final class SettingsView {
                 brainPanel().setDimBounds(left(), top(), panelW(), panelH());
                 brainPanel().build(secX(), secY0(), secW(), secH());
             }
-            case STT -> sttPanel().build(secX(), secY0(), secW(), secH());
+            case STT -> sttPanel().build(secX(), secY0(), secW(), secH(), pageWindow());
             case THEME -> themePanel().build(secX(), secY0(), secW(), secH());
         }
     }
@@ -555,9 +571,8 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 表单(检测/思考/强度/toast 齐备);卡壳照旧 formModal。 */
     private void buildProviderFormNew() {
         providerForm().open(providerDraft);
-        providerForm().setDimBounds(left(), top(), panelW(), panelH());
-        providerForm().build(fx(), fy0(), fw(), fBottom() - fy0(),
-                top() + panelH() - 2);
+        providerForm().setWindow(formWindow());
+        providerForm().build(fx(), fy0(), fw(), fBottom() - fy0());
     }
 
 
@@ -567,7 +582,7 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 声线表单(后端切行/滚动/试听/胶囊);卡壳照旧 formModal。 */
     private void buildVoiceForm() {
         voiceForm().open(voiceDraft);
-        voiceForm().build(fx(), fy0(), fw(), fBottom() - fy0(), top() + panelH() - 2);
+        voiceForm().build(fx(), fy0(), fw(), fBottom() - fy0(), formWindow());
     }
 
     private VoiceFormPanel voiceForm() {
@@ -962,7 +977,7 @@ public final class SettingsView {
     /** 表单卡里的 NumenUI 皮肤表单(名称/手臂模型/文件导入/签名);卡壳照旧 formModal。 */
     private void buildSkinForm() {
         skinForm().open(skinDraft);
-        skinForm().build(fx(), fy0(), fw(), fBottom() - fy0());
+        skinForm().build(fx(), fy0(), fw(), fBottom() - fy0(), formWindow());
     }
 
     private SkinFormPanel skinForm() {

@@ -66,6 +66,17 @@ class PopupPlacementTest {
     }
 
     @Test
+    void viewportClipIsThePanelWhereItLiesInsideTheScreen() {
+        assertEquals(new UiRoot.Viewport(10, 20, 110, 220), UiRoot.Viewport.clip(10, 20, 100, 200, 400, 300));
+    }
+
+    @Test
+    void viewportClipStopsAtTheScreenEdgesWhenThePanelOverhangs() {
+        // 窗口缩得比面板小:左、上从屏幕边起,右、下止于屏幕边
+        assertEquals(new UiRoot.Viewport(0, 0, 284, 160), UiRoot.Viewport.clip(-20, -36, 380, 232, 284, 160));
+    }
+
+    @Test
     void unboundedViewportKeepsTheWantedBox() {
         PopupPlacement p = PopupPlacement.place(500, 18, 10, 80, 8 * ROW, ROW, UiRoot.Viewport.UNBOUNDED);
         assertFalse(p.up());
