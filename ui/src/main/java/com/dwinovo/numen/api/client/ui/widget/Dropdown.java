@@ -147,20 +147,22 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
 
     // ---- 浮层通道 ----
 
-    /** 弹层行数:条目数、行数上限、屏幕底缘剩余空间三者取最小(至少 3 行保可用)。 */
+    /** 弹层摆在哪(往下还是往上、多高、多宽):字段位置、行高、条目数、可见区域一变就跟着变,所以每次现算。 */
+    private PopupPlacement placement() {
+        int want = Math.min(items.size(), NumenStyle.POPUP_MAX_ROWS) * rowHCached;
+        return PopupPlacement.place(y, h, popupX(), popupWidth(), want, rowHCached,
+                root == null ? UiRoot.Viewport.UNBOUNDED : root.viewport());
+    }
+
     private int popupRows() {
-        int byViewport = NumenStyle.POPUP_MAX_ROWS;
-        if (root != null && root.viewportHeight() != Integer.MAX_VALUE) {
-            byViewport = Math.max(3, (root.viewportHeight() - (y + h) - 4) / Math.max(1, rowHCached));
-        }
-        return Math.min(items.size(), Math.min(NumenStyle.POPUP_MAX_ROWS, byViewport));
+        return placement().h() / rowHCached;
     }
 
     private int maxPopupScroll() { return Math.max(0, items.size() - popupRows()); }
 
     private boolean inPopup(double mx, double my) {
-        return mx >= popupX() && mx < popupX() + popupWidth()
-                && my >= y + h && my < y + h + popupRows() * rowHCached;
+        PopupPlacement p = placement();
+        return mx >= p.x() && mx < p.x() + p.w() && my >= p.y() && my < p.y() + p.h();
     }
 
     /** 行高在渲染时缓存,事件处理无画布也能判命中。 */
@@ -176,9 +178,10 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         }
         popupScroll = Math.min(popupScroll, maxPopupScroll());
         int rows = popupRows();
-        int py = y + h;
-        int px = popupX();
-        int pw = popupWidth();
+        PopupPlacement p = placement();
+        int py = p.y();
+        int px = p.x();
+        int pw = p.w();
         s.fillRect(px, py, pw, rows * rowHCached, c.panelBg());
         for (int r = 0; r < rows; r++) {
             int idx = popupScroll + r;
@@ -202,7 +205,7 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     @Override
     public boolean overlayClicked(double mx, double my, int button) {
         if (!inPopup(mx, my)) return false;
-        int row = (int) ((my - y - h) / rowHCached);
+        int row = (int) ((my - placement().y()) / rowHCached);
         int idx = popupScroll + row;
         if (idx >= 0 && idx < items.size()) {
             selected = idx;
