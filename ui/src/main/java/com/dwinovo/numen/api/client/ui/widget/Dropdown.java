@@ -74,6 +74,14 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
         return rowLabel != null && rowPopupW > 0 ? Math.max(x, x + w - rowInset + 5 - rowPopupW) : x;
     }
 
+    /** 每一项右边的灰色说明(与条目一一对应);弹层里右对齐,放不下就省略。收起态不显示。 */
+    private List<String> details = List.of();
+
+    public Dropdown details(List<String> details) {
+        this.details = details;
+        return this;
+    }
+
     public void setItems(List<String> items, int selected) {
         this.items = items;
         this.selected = Math.max(0, Math.min(selected, items.size() - 1));
@@ -191,6 +199,11 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
             if (idx == selected) s.fillRect(px, ry, pw, rowHCached, c.selected());
             else if (hov) s.fillRect(px, ry, pw, rowHCached, c.hover());
             s.drawText(items.get(idx), px + 5, ry + 2, c.textPrimary(), false);
+            if (idx < details.size()) {
+                int room = pw - NumenStyle.SCROLLBAR_W - 5 - (5 + s.textWidth(items.get(idx)) + 8);
+                String d = com.dwinovo.numen.api.client.ui.TextClip.fit(s, details.get(idx), Math.max(0, room));
+                s.drawText(d, px + pw - NumenStyle.SCROLLBAR_W - 5 - s.textWidth(d), ry + 2, c.textMuted(), false);
+            }
         }
         // 装不下全部条目时画滚动拇指——告诉玩家"下面还有,滚轮翻"。
         if (items.size() > rows) {

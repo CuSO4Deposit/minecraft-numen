@@ -103,6 +103,17 @@ class SliderDropdownTest {
     }
 
     @Test
+    void popupShowsAGrayDetailBesideEachItem() {
+        UiRoot root = new UiRoot();
+        Dropdown dd = root.add(new Dropdown(List.of("自动", "低"), 0, i -> {}).details(List.of("不发参数", "档位 low")));
+        dd.setBounds(0, 0, 200, 14);
+        root.mouseClicked(5, 5, 0);
+        WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
+        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        assertTrue(s.texts.contains("不发参数") && s.texts.contains("档位 low"));
+    }
+
+    @Test
     void dropdownPopupRendersAfterOtherWidgets() {
         UiRoot root = new UiRoot();
         Dropdown dd = root.add(new Dropdown(List.of("a", "b"), 0, i -> {}));
