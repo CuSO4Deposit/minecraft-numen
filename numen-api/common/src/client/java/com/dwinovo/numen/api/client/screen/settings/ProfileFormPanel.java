@@ -184,7 +184,7 @@ public final class ProfileFormPanel {
         int ry = y;
         Label nameLabel = labelWidget(x, ry, "numen.provider.form_name");
         ry += NumenStyle.LABEL_PITCH;
-        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).underlined(true).withLabel(nameLabel));
+        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -227,7 +227,7 @@ public final class ProfileFormPanel {
 
         Label keyLabel = labelWidget(x, ry, "numen.gui.settings.api_key");
         ry += NumenStyle.LABEL_PITCH;
-        keyField = ui.add(new TextField(draft.apiKey, v -> draft.apiKey = v).masked(true).underlined(true)
+        keyField = ui.add(new TextField(draft.apiKey, v -> draft.apiKey = v).masked(true)
                 .withLabel(keyLabel));
         keyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
@@ -265,14 +265,14 @@ public final class ProfileFormPanel {
         // 代理按档案走:国内外站点常需不同走线,留空跟随全局(/numen 里设)。
         ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_PROXY);
         TextField proxyField = ui.add(new TextField(draft.proxy, v -> draft.proxy = v)
-                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PROXY_HINT)).underlined(true));
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_PROXY_HINT)));
         proxyField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
         // 上下文长度:压缩闸门与面板水位都按这个窗口算——填错太小会提前压缩,填错太大会顶爆上游。
         ry = label(x, ry, ModLanguageData.Keys.GUI_PROVIDERS_CTX);
         TextField ctxField = ui.add(new TextField(draft.ctx, v -> draft.ctx = v).numeric()
-                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_CTX_HINT)).underlined(true));
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_CTX_HINT)));
         ctxField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -282,10 +282,10 @@ public final class ProfileFormPanel {
         labelWidgetAt(x + half + 8, ry, half, ModLanguageData.Keys.GUI_PROVIDERS_MAX_OUT);
         ry += NumenStyle.LABEL_PITCH;
         TextField temp = ui.add(new TextField(draft.temperature, v -> draft.temperature = v)
-                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)).underlined(true));
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)));
         temp.setBounds(x, ry, half, NumenStyle.CONTROL_H);
         TextField maxOut = ui.add(new TextField(draft.maxTokens, v -> draft.maxTokens = v).numeric()
-                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)).underlined(true));
+                .placeholder(t(ModLanguageData.Keys.GUI_PROVIDERS_DEFAULT_HINT)));
         maxOut.setBounds(x + half + 8, ry, half, NumenStyle.CONTROL_H);
         fullH = ry + NumenStyle.CONTROL_H - y;
 
@@ -370,7 +370,7 @@ public final class ProfileFormPanel {
 
     /** 地址输入:占位是目录给的缺省地址(不含档案里的覆盖)。 */
     private TextField addBaseUrlField(int fx, int fy) {
-        TextField f = ui.add(new TextField(draft.baseUrl, v -> draft.baseUrl = v).underlined(true));
+        TextField f = ui.add(new TextField(draft.baseUrl, v -> draft.baseUrl = v));
         f.placeholder(preview().baseUrl());
         f.setBounds(fx, fy, w, NumenStyle.CONTROL_H);
         return f;

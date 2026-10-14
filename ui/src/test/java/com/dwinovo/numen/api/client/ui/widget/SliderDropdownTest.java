@@ -51,22 +51,22 @@ class SliderDropdownTest {
         root.setViewportHeight(80);   // 下拉在 y=0,h=14;底缘剩 66px → 66/13=5 行(上面没有空间,只能往下)
         List<String> many = new java.util.ArrayList<>();
         for (int i = 0; i < 20; i++) many.add("site" + i);
-        // 紧凑模式:收起态不画值文本,texts 里只剩弹层行,计数才纯净。
-        Dropdown dd = root.add(new Dropdown(many, 0, i -> {}).compact().popupWidth(80));
+        // 只画浮层(字段自己也写着当前值),texts 里只剩弹层行,计数才纯净。
+        Dropdown dd = root.add(new Dropdown(many, 0, i -> {}).popupWidth(80));
         dd.setBounds(0, 0, 80, 14);
 
         root.mouseClicked(5, 5, 0);
         WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
-        root.render(s, WidgetTestSupport.C, -10, -10, 0);   // 首帧定行高
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 0);   // 首帧定行高
         s.reset();
-        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 0);
         long popupRows = s.texts.stream().filter(t -> t.startsWith("site")).count();
         assertEquals(5, popupRows, "弹层只露装得下的整行,不越出底缘");
 
         // 滚动后首行前进,仍不越界。
         root.mouseScrolled(5, 20, -1);
         s.reset();
-        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 0);
         assertTrue(s.texts.contains("site1") && !s.texts.contains("site0"));
     }
 
@@ -90,13 +90,13 @@ class SliderDropdownTest {
     void shortDropdownNeverReachesOutsideTheViewportEvenWithFewRoomBelow() {
         UiRoot root = new UiRoot();
         root.setViewport(0, 0, 200, 100);
-        Dropdown dd = root.add(new Dropdown(List.of("a", "b", "c"), 0, i -> {}).compact().popupWidth(80));
+        Dropdown dd = root.add(new Dropdown(List.of("a", "b", "c"), 0, i -> {}).popupWidth(80));
         dd.setBounds(100, 60, 80, 14);   // 下面 26px(2 行),上面 60px(3 行装得下)
         root.mouseClicked(105, 65, 0);
         WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();
-        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 0);
         s.reset();
-        root.render(s, WidgetTestSupport.C, -10, -10, 0);
+        root.renderOverlayLayer(s, WidgetTestSupport.C, -10, -10, 0);
         // 3 行装不进下面的 26px,上面装得下:整张弹层在字段上方,没有一行落在字段下面
         assertTrue(s.rects.stream().allMatch(r -> r[1] + r[3] <= 100));
         assertEquals(3, s.texts.stream().filter(t -> List.of("a", "b", "c").contains(t)).count());
@@ -116,7 +116,7 @@ class SliderDropdownTest {
     @Test
     void closedPopupKeepsDrawingWhileItRetractsThenGoes() {
         UiRoot root = new UiRoot();
-        Dropdown dd = root.add(new Dropdown(List.of("a", "b"), 0, i -> {}).compact().popupWidth(80));
+        Dropdown dd = root.add(new Dropdown(List.of("a", "b"), 0, i -> {}).popupWidth(80));
         dd.setBounds(0, 0, 80, 14);
         root.mouseClicked(5, 5, 0);
         WidgetTestSupport.FakeSurface s = new WidgetTestSupport.FakeSurface();

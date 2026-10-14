@@ -62,7 +62,6 @@ public final class PersonaFormPanel {
         ry += NumenStyle.LABEL_PITCH;
         nameField = ui.add(new TextField(draft.name, v -> draft.name = v)
                 .placeholder(I18n.get(ModLanguageData.Keys.PERSONA_NAME_PLACEHOLDER))
-                .underlined(true)
                 .withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;

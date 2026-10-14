@@ -85,7 +85,6 @@ public final class SkinFormPanel {
         ry += NumenStyle.LABEL_PITCH;
         nameField = ui.add(new TextField(draft.name, v -> draft.name = v)
                 .placeholder(t("numen.skin.name_placeholder"))   // 规则先说,别等报错才知道
-                .underlined(true)
                 .withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;

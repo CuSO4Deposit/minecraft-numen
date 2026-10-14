@@ -4,6 +4,7 @@ import com.dwinovo.numen.api.client.ui.Animation;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
+import com.dwinovo.numen.api.client.ui.TextClip;
 
 import java.util.List;
 import java.util.function.IntConsumer;
@@ -33,18 +34,13 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     private long openedAtMs = -1, closedAtMs = -1;
 
 
-    /** 紧凑模式:收起态只画箭头不画值(窄"选择器"用,值另有输入框承载)。 */
-    private boolean compact;
+    /** 底线(字段外观只有这一种,见 {@link FieldLine});下拉开着当聚焦,展开从点击处起。 */
+    private final FieldLine line = new FieldLine();
 
     public Dropdown(List<String> items, int selected, IntConsumer onSelect) {
         this.items = items;
         this.selected = Math.max(0, Math.min(selected, items.size() - 1));
         this.onSelect = onSelect;
-    }
-
-    public Dropdown compact() {
-        this.compact = true;
-        return this;
     }
 
     /** 弹层宽度覆盖(默认与收起态同宽);弹层右缘对齐控件右缘,窄选择器不至于挤爆版面。 */
@@ -133,22 +129,17 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
             renderRow(s, c);
             return;
         }
-        // 与输入框同一卡壳形制;展开描边亮 accent(=聚焦态)。悬停是"在底上叠一层"
-        // 而非"换底色"——hover 是亮度感知的半透明叠加色(暗主题偏白/亮主题偏黑),
+        // 一行字 + 右侧箭头 + 底线(和输入框同一种外观,不画框);下拉开着底线亮 accent(=聚焦态)。
+        // 悬停是"在底上叠一层"而非"换底色"——hover 是亮度感知的半透明叠加色(暗主题偏白/亮主题偏黑),
         // 拿它当实底填会整块发黑(真机教训),按进度收放透明度才对。
-        NumenStyle.box(s, x, y, w, h, c.inputBg(),
-                open ? c.accent() : c.inputBorder());
         if (hoverT > 0.01f) {
             int overlay = ((int) (((c.hover() >>> 24) & 0xFF) * hoverT) << 24) | (c.hover() & 0xFFFFFF);
-            s.fillRect(x + 1, y + 1, w - 2, h - 2, overlay);
+            s.fillRect(x, y, w, h - 1, overlay);
         }
-        if (!compact) {
-            s.drawText(selectedItem(), x + 5, y + (h - s.lineHeight()) / 2 + 1,
-                    enabled ? c.textPrimary() : c.textMuted(), false);
-        }
-        int arrowX = compact ? x + (w - s.textWidth("▼")) / 2 : x + w - 11;
-        s.drawText(open ? "▲" : "▼", arrowX, y + (h - s.lineHeight()) / 2 + 1,
-                c.textMuted(), false);
+        line.draw(s, c, x, y, w, h, open, hovered, false, nowMs);
+        s.drawText(TextClip.fit(s, selectedItem(), Math.max(0, w - NumenStyle.FIELD_PAD - 16)), x + NumenStyle.FIELD_PAD,
+                y + (h - s.lineHeight()) / 2 + 1, enabled ? c.textPrimary() : c.textMuted(), false);
+        s.drawText(open ? "▲" : "▼", x + w - 11, y + (h - s.lineHeight()) / 2 + 1, c.textSecondary(), false);
     }
 
     /** 选择行:整行浅底随悬停收放,左标签、右当前值。 */
@@ -169,6 +160,7 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (button != 0 || !contains(mx, my) || !enabled) return false;
+        line.press(mx);
         if (items.isEmpty()) {
             if (onEmpty == null) return false;
             onEmpty.run();

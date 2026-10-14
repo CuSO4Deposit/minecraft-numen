@@ -105,7 +105,7 @@ public final class SttPanel {
         ry += SettingsRows.ROW_H;
 
         label(x, ry, cx, ModLanguageData.Keys.GUI_SETTINGS_API_KEY);
-        keyField = ui.add(new TextField(key, v -> key = v).masked(true).underlined(true)
+        keyField = ui.add(new TextField(key, v -> key = v).masked(true)
                 .placeholder(SttProviders.BACKEND_DOUBAO.equals(opt.backend())
                         ? I18n.get(ModLanguageData.Keys.STT_DOUBAO_KEY_PLACEHOLDER) : ""));
         keyField.setBounds(cx, SettingsRows.controlY(ry, NumenStyle.CONTROL_H), cw, NumenStyle.CONTROL_H);
@@ -125,7 +125,7 @@ public final class SttPanel {
             modelPick.setBounds(cx, cy, cw, NumenStyle.CONTROL_H);
             model = modelIds.get(sel);
         } else {
-            modelField = ui.add(new TextField(model, v -> model = v).underlined(true));
+            modelField = ui.add(new TextField(model, v -> model = v));
             modelField.setBounds(cx, cy, hasPresets ? cw - 17 : cw, NumenStyle.CONTROL_H);
             if (hasPresets) {
                 modelBackBtn = ui.add(new Button("▾", Button.Style.NORMAL, this::onModelBackToPresets));
@@ -135,7 +135,7 @@ public final class SttPanel {
         ry += SettingsRows.ROW_H;
 
         label(x, ry, cx, ModLanguageData.Keys.GUI_SETTINGS_BASE_URL);
-        baseUrlField = ui.add(new TextField(baseUrl, v -> baseUrl = v).underlined(true)
+        baseUrlField = ui.add(new TextField(baseUrl, v -> baseUrl = v)
                 .placeholder(opt.defaultBaseUrl()));
         baseUrlField.setBounds(cx, SettingsRows.controlY(ry, NumenStyle.CONTROL_H), cw, NumenStyle.CONTROL_H);
         ry += SettingsRows.ROW_H;

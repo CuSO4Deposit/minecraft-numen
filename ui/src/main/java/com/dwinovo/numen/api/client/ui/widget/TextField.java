@@ -26,9 +26,9 @@ public final class TextField extends Widget {
     private final Consumer<String> onChange;
     private String placeholder = "";
     private boolean masked;
-    /** 只画一道下划线、不画卡壳。见 {@link #underlined}。 */
-    private boolean underlined;
-    /** 什么框都不画,底色由宿主给。见 {@link #bare}。 */
+    /** 底线(字段外观只有这一种,见 {@link FieldLine});聚焦的展开从点击处起。 */
+    private final FieldLine line = new FieldLine();
+    /** 什么线都不画,底色由宿主给。见 {@link #bare}。 */
     private boolean bare;
     private boolean numericOnly;
     private int cursor;
@@ -78,15 +78,6 @@ public final class TextField extends Widget {
 
     public TextField masked(boolean masked) {
         this.masked = masked;
-        return this;
-    }
-
-    /**
-     * 嵌在一行里的输入框:只画底边一道线(聚焦、出错照样换色),不画框——它是那一行的一部分,
-     * 不是另一个框。
-     */
-    public TextField underlined(boolean underlined) {
-        this.underlined = underlined;
         return this;
     }
 
@@ -206,12 +197,8 @@ public final class TextField extends Widget {
 
     @Override
     public void render(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
-        // 统一的框:描边+内衬底;聚焦/错误只换描边色(STT 参考样式定标)。
-        int border = error != null ? c.danger() : isFocused() ? c.accent() : c.inputBorder();
-        if (underlined) {
-            s.fillRect(x, y + h - 1, w, 1, border);
-        } else if (!bare) {
-            NumenStyle.box(s, x, y, w, h, c.inputBg(), border);
+        if (!bare) {
+            line.draw(s, c, x, y, w, h, isFocused(), contains(mouseX, mouseY), error != null, nowMs);
         }
         if (labelWidget != null) labelWidget.setVisible(error == null);   // 出错时标签让位
         if (error != null) {
@@ -355,7 +342,13 @@ public final class TextField extends Widget {
 
     /** 多行:点哪光标到哪。 */
     @Override
+    public void onFocusLost() {
+        line.release();
+    }
+
+    @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0 && contains(mx, my)) line.press(mx);
         if (maxLines <= 1 || button != 0 || !contains(mx, my)) return false;
         WrappedText lay = wrap();
         int shown = Math.min(maxLines, lay.lineCount());

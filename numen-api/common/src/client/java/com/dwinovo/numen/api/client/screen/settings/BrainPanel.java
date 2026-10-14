@@ -170,7 +170,7 @@ public final class BrainPanel {
         portField = ui.add(new TextField(portText, v -> {
             portText = v;
             refreshSaveState();
-        }).numeric().underlined(true));
+        }).numeric());
         portField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
                 NUM_FIELD_W, NumenStyle.CONTROL_H);
         ry += SettingsRows.ROW_H;
@@ -188,7 +188,7 @@ public final class BrainPanel {
         timeoutText = timeoutText != null ? timeoutText
                 : String.valueOf(cfg.callTimeoutSeconds());
         TextField timeoutField = ui.add(new TextField(timeoutText, v -> timeoutText = v)
-                .numeric().underlined(true));
+                .numeric());
         timeoutField.setBounds(x + w - RIGHT_INSET - NUM_FIELD_W, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
                 NUM_FIELD_W, NumenStyle.CONTROL_H);
         ry += SettingsRows.ROW_H;
@@ -197,7 +197,7 @@ public final class BrainPanel {
         hiddenText = hiddenText != null ? hiddenText : String.join(", ", cfg.hiddenTools());
         int hiddenW = w - RIGHT_INSET - HIDDEN_LABEL_W - 8;
         TextField hiddenField = ui.add(new TextField(hiddenText, v -> hiddenText = v)
-                .placeholder(t("numen.brain.hidden_hint")).underlined(true));
+                .placeholder(t("numen.brain.hidden_hint")));
         hiddenField.setBounds(x + w - RIGHT_INSET - hiddenW, SettingsRows.controlY(ry, NumenStyle.CONTROL_H),
                 hiddenW, NumenStyle.CONTROL_H);
         ry += SettingsRows.ROW_H;

@@ -65,8 +65,7 @@ public final class McpFormPanel {
         int ry = y;
         Label nameLabel = labelWidget(x, ry, "numen.mcp.form_name");
         ry += NumenStyle.LABEL_PITCH;
-        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).placeholder("kfc")
-                .underlined(true).withLabel(nameLabel));
+        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).placeholder("kfc").withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -79,16 +78,14 @@ public final class McpFormPanel {
 
         ry = label(x, ry, draft.stdio ? "numen.mcp.form_command" : "numen.mcp.form_url");
         targetField = ui.add(new TextField(draft.target, v -> draft.target = v)
-                .placeholder(draft.stdio ? "cmd /c npx -y <server>" : "https://mcp.mcd.cn")
-                .underlined(true));
+                .placeholder(draft.stdio ? "cmd /c npx -y <server>" : "https://mcp.mcd.cn"));
         targetField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
         // 第四行:HTTP → 请求头 "Name: Value";stdio → 环境变量 "KEY=value"(';' 分隔)。
         ry = label(x, ry, draft.stdio ? "numen.mcp.form_env" : "numen.mcp.form_header");
         TextField extraField = ui.add(new TextField(draft.extra, v -> draft.extra = v)
-                .placeholder(draft.stdio ? "KEY=value; KEY2=value2" : "Authorization: Bearer <token>")
-                .underlined(true));
+                .placeholder(draft.stdio ? "KEY=value; KEY2=value2" : "Authorization: Bearer <token>"));
         extraField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
 
         DialogButtons.cancelSave(ui, x, y, w, h, onCancel, this::save);

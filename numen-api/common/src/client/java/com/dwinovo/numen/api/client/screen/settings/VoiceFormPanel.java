@@ -131,7 +131,7 @@ public final class VoiceFormPanel {
         int ry = y;
         Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.VOICE_FORM_NAME);
         ry += NumenStyle.LABEL_PITCH;
-        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).underlined(true).withLabel(nameLabel));
+        nameField = ui.add(new TextField(draft.name, v -> draft.name = v).withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -150,7 +150,7 @@ public final class VoiceFormPanel {
 
         ry = label(x, ry, ModLanguageData.Keys.VOICE_FORM_URL);
         TextField urlField = ui.add(new TextField(draft.url, v -> draft.url = v)
-                .placeholder(defaultUrl(draft.backend)).underlined(true));
+                .placeholder(defaultUrl(draft.backend)));
         urlField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
@@ -300,7 +300,7 @@ public final class VoiceFormPanel {
     private int textRow(int x, int ry, int w, String labelKey, String placeholder,
                         boolean masked, String initial, Consumer<String> onChange) {
         ry = label(x, ry, labelKey);
-        TextField f = ui.add(new TextField(initial, onChange).masked(masked).underlined(true));
+        TextField f = ui.add(new TextField(initial, onChange).masked(masked));
         if (!placeholder.isEmpty()) f.placeholder(placeholder);
         f.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         return ry + NumenStyle.ROW_PITCH;

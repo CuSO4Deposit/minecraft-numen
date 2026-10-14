@@ -6,8 +6,8 @@ import com.dwinovo.numen.api.client.ui.NumenTheme;
 import com.dwinovo.numen.api.client.ui.TextClip;
 
 /**
- * 按钮式字段:外观是一个输入框,里面左边是当前值的名字、右边一小段次要文字(id、主机名),最右一个 ›;
- * 点一下交给宿主去开{@link PickerBox}。它自己不存值,宿主换了值就 {@link #setText}。
+ * 按钮式字段:外观和输入框一样只有底线({@link FieldLine}),一行字——左边是当前值的名字、右边一小段次要文字
+ * (id、主机名),最右一个 ›;点一下交给宿主去开{@link PickerBox}。它自己不存值,宿主换了值就 {@link #setText}。
  */
 public final class PickField extends Widget {
 
@@ -17,6 +17,7 @@ public final class PickField extends Widget {
     /** 悬停进度(0~1,HOVER_MS 走满),和下拉同一种收放。 */
     private float hoverT;
     private long lastFrameMs = -1;
+    private final FieldLine line = new FieldLine();
 
     public PickField(String main, String sub, Runnable onClick) {
         this.onClick = onClick;
@@ -41,11 +42,11 @@ public final class PickField extends Widget {
         long dt = lastFrameMs < 0 ? 1000 : nowMs - lastFrameMs;
         lastFrameMs = nowMs;
         hoverT = NumenStyle.hoverStep(hoverT, enabled && contains(mouseX, mouseY), dt);
-        NumenStyle.box(s, x, y, w, h, c.inputBg(), c.inputBorder());
         if (hoverT > 0.01f) {
             int overlay = ((int) (((c.hover() >>> 24) & 0xFF) * hoverT) << 24) | (c.hover() & 0xFFFFFF);
-            s.fillRect(x + 1, y + 1, w - 2, h - 2, overlay);
+            s.fillRect(x, y, w, h - 1, overlay);
         }
+        line.draw(s, c, x, y, w, h, false, enabled && contains(mouseX, mouseY), false, nowMs);
         int ty = y + (h - s.lineHeight()) / 2 + 1;
         int caretX = x + w - 4 - s.textWidth("›");
         s.drawText("›", caretX, ty, c.textSecondary(), false);
