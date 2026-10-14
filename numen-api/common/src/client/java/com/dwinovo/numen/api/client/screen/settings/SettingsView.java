@@ -323,11 +323,18 @@ public final class SettingsView {
         return addingProvider || addingVoice || addingSkin || addingPersona || addingMcp;
     }
 
+    /** 在场的那张表单里有下拉或选择框开着。人设、MCP 表单没有弹层。 */
+    private boolean formOverlayOpen() {
+        return addingProvider && providerForm().hasOverlay()
+                || addingVoice && voiceForm().hasOverlay()
+                || addingSkin && skinForm().hasOverlay();
+    }
+
     /** Esc while a form modal is up: close it back to the list (same as the card's 取消). */
     public boolean cancelForm() {
         if (!formActive()) return false;
         // 表单里的选择框、下拉开着时 Esc 只收它们(由表单自己的浮层通道处理),不收整张表单
-        if (addingProvider && providerForm().hasOverlay()) return false;
+        if (formOverlayOpen()) return false;
         addingProvider = false; providerEditId = null;
         addingVoice = false; voiceEditId = null;
         if (voiceForm != null) voiceForm.cancelPendingTest();

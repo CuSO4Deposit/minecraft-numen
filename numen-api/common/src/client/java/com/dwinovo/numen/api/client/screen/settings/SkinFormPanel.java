@@ -159,6 +159,10 @@ public final class SkinFormPanel {
         return ui.keyPressed(keyCode, modifiers);
     }
 
+    public boolean hasOverlay() {
+        return ui.hasOverlay();
+    }
+
     public boolean charTyped(char ch) {
         return ui.charTyped(ch);
     }
