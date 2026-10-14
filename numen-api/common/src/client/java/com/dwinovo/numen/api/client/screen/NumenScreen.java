@@ -95,6 +95,12 @@ public final class NumenScreen extends Screen {
     private static final int FIELD_INSET_X = 5;
     private static final int FIELD_INSET_Y = 4;
     private static final int PAD = 8;
+    /**
+     * 上层压在下层之上的深度差。原版字体的删除线、下划线是深度往前 0.01 画的,同一深度后画的方块盖不住它,
+     * 对话里划掉的计划项、@ 名字的下划线就会穿透模态卡、菜单、滑进来的页;每一层比下面一层再往前这么多,
+     * 后画的才真盖得住。
+     */
+    private static final int Z_LAYER = 100;
     private static final int LINE_H = 10;
     private static final int MAX_PROMPT = 1024;
 
@@ -1031,7 +1037,7 @@ public final class NumenScreen extends Screen {
         int bodyTop = top + HEADER_H, bodyBottom = top + panelH - 3;
         g.enableScissor(left + 3, bodyTop, left + panelW - 3, bodyBottom);
         g.pose().pushPose();
-        g.pose().translate(dx, 0, 0);
+        g.pose().translate(dx, 0, Z_LAYER);   // 盖着的页在对话之上,见 Z_LAYER
         UiTheme t = UiTheme.current();
         g.fill(left + 3, bodyTop, left + panelW - 3, bodyBottom, t.band());   // 盖着的页是窗口底色(Telegram 资料页、设置页),盖住下面的对话
         if (overlayKind == Tab.SETTINGS) {
@@ -1990,8 +1996,11 @@ public final class NumenScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partial) {
         // 崩溃护栏:面板渲染的任何异常都不许带走游戏——降级成一行红字
-        if (!com.dwinovo.numen.api.client.ui.SafeUi.run("panel-render",
-                () -> renderInner(g, mouseX, mouseY, partial))) {
+        g.pose().pushPose();   // renderInner 为分层把深度一路往前推,画完把干净的位姿还给后画的(通知卡、别的模组)
+        boolean drawn = com.dwinovo.numen.api.client.ui.SafeUi.run("panel-render",
+                () -> renderInner(g, mouseX, mouseY, partial));
+        g.pose().popPose();
+        if (!drawn) {
             g.drawString(font, I18n.get(ModLanguageData.Keys.SCREEN_RENDER_FAILED),
                     left + 10, top + 10, 0xFFFF6B6B, true);
         }
@@ -2063,6 +2072,7 @@ public final class NumenScreen extends Screen {
         }
         // 抬头以下所有页共用一段:页面本身,再往上是模态卡、浮层、提示——盖着的页上开的卡也得画得出来
         renderOverlayPage(g, mouseX, mouseY);
+        g.pose().translate(0, 0, Z_LAYER);   // 之后画的一切(模态卡、菜单、确认卡)都在盖着的页之上
         if (narrow()) renderSearch(g, mouseX, mouseY);   // 窄栏的搜索框浮在抬头左边,压在页面上
         // 对话里悬停的那张脸:提示能点开资料
         if (tab == Tab.CHAT && !modalOpen() && !overlayOpen() && chatView.faceAt(mouseX, mouseY) != null) {
