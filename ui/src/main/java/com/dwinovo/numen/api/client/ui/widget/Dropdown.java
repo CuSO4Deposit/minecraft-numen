@@ -249,7 +249,7 @@ public final class Dropdown extends Widget implements UiRoot.Overlay {
             if (idx < details.size()) {
                 int room = pw - NumenStyle.SCROLLBAR_W - 5 - (5 + s.textWidth(items.get(idx)) + 8);
                 String d = com.dwinovo.numen.api.client.ui.TextClip.fit(s, details.get(idx), Math.max(0, room));
-                s.drawText(d, px + pw - NumenStyle.SCROLLBAR_W - 5 - s.textWidth(d), ry + 2, c.textMuted(), false);
+                s.drawText(d, px + pw - NumenStyle.SCROLLBAR_W - 5 - s.textWidth(d), ry + 2, c.textSecondary(), false);
             }
         }
         // 装不下全部条目时画滚动拇指——告诉玩家"下面还有,滚轮翻"。

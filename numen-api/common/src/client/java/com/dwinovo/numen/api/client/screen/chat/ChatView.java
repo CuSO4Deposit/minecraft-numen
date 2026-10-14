@@ -554,7 +554,7 @@ public final class ChatView {
                         + (mcp.token().isBlank() ? I18n.get("numen.brain.token_none") : mcp.maskedToken()),
                 cx, cy + 26, MUTED);
         int ty = cy + 44;
-        for (FormattedCharSequence l : font.split(Nb.colored(I18n.get("numen.brain.guide_step"), FAINT), cw)) {
+        for (FormattedCharSequence l : font.split(Nb.colored(I18n.get("numen.brain.guide_step"), MUTED), cw)) {
             draw(g, l, cx, ty);
             ty += LINE_H + 2;
         }

@@ -71,7 +71,7 @@ public final class ThemePanel {
                 v -> com.dwinovo.numen.api.client.data.ClientPrefs.setInitiativeLevel((int) v),
                 v -> String.valueOf((int) v)));
         initiative.setBounds(x + 44, sy, Math.min(140, w - 44), NumenStyle.CONTROL_H);
-        wrapped(I18n.get(ModLanguageData.Keys.THEME_INITIATIVE_HINT), x, sy + NumenStyle.CONTROL_H + 3, w, Label.Role.MUTED);
+        wrapped(I18n.get(ModLanguageData.Keys.THEME_INITIATIVE_HINT), x, sy + NumenStyle.CONTROL_H + 3, w, Label.Role.SECONDARY);
     }
 
     /**
@@ -97,7 +97,7 @@ public final class ThemePanel {
         s.fillRect(rx + 12, ry + 5, 10, 14, t.band());
         s.fillRect(rx + 22, ry + 5, 10, 14, t.cta());
         String name = I18n.get(t.isDark() ? "numen.menu.night" : "numen.menu.day");   // 主题名与 ☰ 菜单里同一份语言键
-        s.drawText(name, rx + 40, ry + 8, cur ? c.textPrimary() : c.textMuted(), false);
+        s.drawText(name, rx + 40, ry + 8, cur ? c.textPrimary() : c.textSecondary(), false);
         if (cur) {
             s.drawText("✔", rx + 40 + s.textWidth(name) + 6, ry + 8, c.success(), false);
         }

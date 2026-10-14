@@ -1238,7 +1238,7 @@ public final class SettingsView {
         lines.add(Component.literal(h.name()));
         var spec = com.dwinovo.numen.api.mcp.client.McpClientManager.spec(h.name());
         if (spec != null) {
-            lines.add(Nb.colored(spec.isStdio() ? spec.command() : spec.url(), TXT_FAINT));
+            lines.add(Nb.colored(spec.isStdio() ? spec.command() : spec.url(), TXT_MUTED));
         }
         if (h.status() == com.dwinovo.numen.api.mcp.client.McpClientManager.Status.FAILED && !h.error().isBlank()) {
             lines.add(Nb.colored(h.error(), FAIL));

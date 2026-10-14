@@ -121,7 +121,7 @@ public final class McpFormPanel {
 
     /** 标签控件本体:会报错的字段用 withLabel 认领它(出错时自动让位)。 */
     private Label labelWidget(int lx, int ly, String key) {
-        Label l = ui.add(new Label(t(key), Label.Role.MUTED));
+        Label l = ui.add(new Label(t(key), Label.Role.SECONDARY));
         l.setBounds(lx, ly, 200, 9);
         return l;
     }

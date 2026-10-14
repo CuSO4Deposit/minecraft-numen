@@ -207,7 +207,7 @@ final class ProfilePage {
                 Nb.text(g, font, line, x + PAD + TEXT_DX, by);
                 by += 10;
             }
-            Nb.text(g, font, I18n.get("numen.profile.bio"), x + PAD + TEXT_DX, by, t.faint());
+            Nb.text(g, font, I18n.get("numen.profile.bio"), x + PAD + TEXT_DX, by, t.textDim());
             cy = by + 12;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -228,7 +228,7 @@ final class ProfilePage {
         cy = sectionHead(g, t, I18n.get("numen.profile.memories"), all.isEmpty() ? "" : String.valueOf(all.size()),
                 x + PAD, cy, iw);
         if (all.isEmpty()) {
-            Nb.text(g, font, I18n.get("numen.profile.memories_none"), x + PAD, cy, t.faint());
+            Nb.text(g, font, I18n.get("numen.profile.memories_none"), x + PAD, cy, t.textDim());
             cy += 14;
         } else {
             for (int i = 0; i < Math.min(NOTES_SHOWN, all.size()); i++) {
@@ -239,7 +239,7 @@ final class ProfilePage {
             }
             if (all.size() > NOTES_SHOWN) {
                 Nb.text(g, font, I18n.get("numen.profile.memories_more", all.size() - NOTES_SHOWN),
-                        x + PAD + TEXT_DX, cy, t.faint());
+                        x + PAD + TEXT_DX, cy, t.textDim());
                 cy += 12;
             }
             cy += 2;
@@ -363,13 +363,13 @@ final class ProfilePage {
             slot(g, t, sx, sy);
             collect(g, i < craft.size() ? craft.get(i) : ItemStack.EMPTY, sx + 1, sy + 1, mouseX, mouseY, hover);
         }
-        Nb.text(g, font, "→", crx + 2 * SLOT + 3, midY + 5, t.faint());
+        Nb.text(g, font, "→", crx + 2 * SLOT + 3, midY + 5, t.textDim());
         slot(g, t, resX, midY);
         collect(g, craft.size() > 4 ? craft.get(4) : ItemStack.EMPTY, resX + 1, midY + 1, mouseX, mouseY, hover);
         int sy0 = cy + 2 * SLOT + 6;
         if (snap == null || !snap.loaded() || snap.items().isEmpty()) {
             String hint = I18n.get(snap == null ? "numen.status.loading" : "numen.status.asleep");
-            Nb.text(g, font, hint, gx, sy0 + 4, t.faint());
+            Nb.text(g, font, hint, gx, sy0 + 4, t.textDim());
             return;
         }
         List<ItemStack> items = snap.items();
@@ -429,7 +429,7 @@ final class ProfilePage {
     /** 节头:强调色小字,右端可带一个淡色的数。返回下面内容的顶边。 */
     private int sectionHead(GuiGraphics g, UiTheme t, String title, String count, int x, int y, int w) {
         Nb.text(g, font, title, x, y, t.accent());
-        if (!count.isEmpty()) Nb.text(g, font, count, x + w - font.width(count), y, t.faint());
+        if (!count.isEmpty()) Nb.text(g, font, count, x + w - font.width(count), y, t.textDim());
         return y + 14;
     }
 
@@ -468,7 +468,7 @@ final class ProfilePage {
         Sprites.draw(g, icon, x, y + (ROW_H - Sprites.SIZE) / 2 - 1, Sprites.SIZE, t.textDim());
         int tx = x + TEXT_DX, room = w - TEXT_DX;
         Nb.text(g, font, Nb.clip(font, value, room), tx, y + 1, t.text());
-        Nb.text(g, font, Nb.clip(font, caption, room), tx, y + 11, t.faint());
+        Nb.text(g, font, Nb.clip(font, caption, room), tx, y + 11, t.textDim());
     }
 
     /** 统一凹槽:从窗口底色向边框色压暗两档(边更深、内浅一档),跟着主题换。 */

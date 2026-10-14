@@ -48,12 +48,12 @@ public final class PickField extends Widget {
         }
         int ty = y + (h - s.lineHeight()) / 2 + 1;
         int caretX = x + w - 4 - s.textWidth("›");
-        s.drawText("›", caretX, ty, c.textMuted(), false);
+        s.drawText("›", caretX, ty, c.textSecondary(), false);
         int right = caretX - 6;
         int left = x + NumenStyle.FIELD_PAD + 1;
         String subText = TextClip.fit(s, sub, Math.max(0, (right - left) * 2 / 5));
         int subW = s.textWidth(subText);
-        if (subW > 0) s.drawText(subText, right - subW, ty, c.textMuted(), false);
+        if (subW > 0) s.drawText(subText, right - subW, ty, c.textSecondary(), false);
         int mainRoom = right - left - (subW > 0 ? subW + 8 : 0);
         boolean empty = main.isEmpty();
         s.drawText(TextClip.fit(s, empty ? placeholder : main, Math.max(0, mainRoom)), left, ty,

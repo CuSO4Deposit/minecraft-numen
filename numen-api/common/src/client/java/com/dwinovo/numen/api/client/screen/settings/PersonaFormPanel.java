@@ -57,7 +57,7 @@ public final class PersonaFormPanel {
         ui.clear();
 
         int ry = y;
-        Label nameLabel = ui.add(new Label(t("numen.persona.form_name"), Label.Role.MUTED));
+        Label nameLabel = ui.add(new Label(t("numen.persona.form_name"), Label.Role.SECONDARY));
         nameLabel.setBounds(x, ry, 200, 9);
         ry += NumenStyle.LABEL_PITCH;
         nameField = ui.add(new TextField(draft.name, v -> draft.name = v)
@@ -67,7 +67,7 @@ public final class PersonaFormPanel {
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
         ry += NumenStyle.ROW_PITCH;
 
-        Label textLabel = ui.add(new Label(t("numen.persona.form_text"), Label.Role.MUTED));
+        Label textLabel = ui.add(new Label(t("numen.persona.form_text"), Label.Role.SECONDARY));
         textLabel.setBounds(x, ry, 140, 9);
         ry += NumenStyle.LABEL_PITCH;
         // 正文占满剩余高度(编辑器自带滚动),底部留出按钮行。

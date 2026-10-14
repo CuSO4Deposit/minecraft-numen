@@ -106,7 +106,7 @@ public final class SkinFormPanel {
         int pickW = Minecraft.getInstance().font.width(pickLabel) + 14;
         Button pick = ui.add(new Button(pickLabel, Button.Style.NORMAL, onPickFile));
         pick.setBounds(x, ry, pickW, 16);
-        statusLabel = ui.add(new Label("", Label.Role.MUTED));
+        statusLabel = ui.add(new Label("", Label.Role.SECONDARY));
         statusLabel.setBounds(x + pickW + 6, ry + 4, Math.max(0, w - pickW - 6), 9);
         refreshStatus();
 
@@ -188,7 +188,7 @@ public final class SkinFormPanel {
 
     /** 标签控件本体:会报错的字段用 withLabel 认领它(出错时自动让位)。 */
     private Label labelWidget(int lx, int ly, String key) {
-        Label l = ui.add(new Label(t(key), Label.Role.MUTED));
+        Label l = ui.add(new Label(t(key), Label.Role.SECONDARY));
         l.setBounds(lx, ly, 200, 9);
         return l;
     }

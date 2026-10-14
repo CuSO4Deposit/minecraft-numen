@@ -363,7 +363,7 @@ public final class ProfileFormPanel {
     }
 
     private Label labelWidgetAt(int lx, int ly, int lw, String key) {
-        Label l = ui.add(new Label(t(key), Label.Role.MUTED));
+        Label l = ui.add(new Label(t(key), Label.Role.SECONDARY));
         l.setBounds(lx, ly, lw, 9);
         return l;
     }

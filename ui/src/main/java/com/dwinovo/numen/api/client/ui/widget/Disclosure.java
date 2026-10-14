@@ -33,7 +33,7 @@ public final class Disclosure extends Widget {
     @Override
     public void render(IDrawSurface s, NumenTheme.Colors c, int mouseX, int mouseY, long nowMs) {
         boolean hot = contains(mouseX, mouseY);
-        int fg = hot ? c.textPrimary() : c.textMuted();
+        int fg = hot ? c.textPrimary() : c.textSecondary();
 
         arrow(s, fg, reveal.value());
 

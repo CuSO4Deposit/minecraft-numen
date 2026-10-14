@@ -384,7 +384,7 @@ public final class BrainPanel {
         s.drawText(TextClip.fit(s, t("numen.brain.prompt_warn"), w - promptW - 8),
                 x + promptW + 8,
                 NumenStyle.centerIn(footerRow, NumenStyle.CONTROL_H, s.lineHeight()),
-                c.textMuted(), false);
+                c.textSecondary(), false);
         // 话筒那一行平时空着,只有起服失败时说话(回执胶囊也落在这儿)。
         String err = mcp.lastError();
         if (err != null) {

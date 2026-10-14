@@ -324,7 +324,7 @@ public final class PickerBox implements UiRoot.Overlay {
         int ty = cardY + DialogBox.TITLE_TOP;
         s.drawText(labels.title(), tx, ty, fc.textPrimary(), false);
         int hintX = tx + s.textWidth(labels.title()) + 8;
-        s.drawText(TextClip.fit(s, labels.hint(), cardX + cardW - INSET - hintX), hintX, ty, fc.textMuted(), false);
+        s.drawText(TextClip.fit(s, labels.hint(), cardX + cardW - INSET - hintX), hintX, ty, fc.textSecondary(), false);
 
         search.setBounds(tx, cardY + DialogBox.TITLE_H, cardW - INSET * 2, NumenStyle.CONTROL_H);
         inner.renderContent(s, fc, mouseX, mouseY, nowMs);
@@ -334,7 +334,7 @@ public final class PickerBox implements UiRoot.Overlay {
         s.fillRect(cardX + 1, footerTop, cardW - 2, 1, fc.divider());
         int kx = tx;
         for (String k : labels.keys()) {
-            s.drawText(k, kx, footerTop + 5, fc.textMuted(), false);
+            s.drawText(k, kx, footerTop + 5, fc.textSecondary(), false);
             kx += s.textWidth(k) + 12;
         }
 
@@ -366,7 +366,7 @@ public final class PickerBox implements UiRoot.Overlay {
             if (ry + rh <= listTop || ry >= listTop + listH) continue;
             Row row = rows.get(i);
             if (row.item() == null) {
-                s.drawText(row.label(), tx, ry + 4, fc.textMuted(), false);
+                s.drawText(row.label(), tx, ry + 4, fc.textSecondary(), false);
             } else {
                 drawItem(s, fc, row.item(), i == active, tx, ry, lh);
             }
@@ -433,12 +433,12 @@ public final class PickerBox implements UiRoot.Overlay {
 
     private void drawHeader(IDrawSurface s, NumenTheme.Colors fc, int tx, int top, int lh) {
         int ty = top + 1;
-        s.drawText(table.titleHeader(), tx + CHECK_W, ty, fc.textMuted(), false);
+        s.drawText(table.titleHeader(), tx + CHECK_W, ty, fc.textSecondary(), false);
         for (int i = 0; i < table.columns().size(); i++) {
             Column col = table.columns().get(i);
             int cw = columnWidth(s, col);
             String h = TextClip.fit(s, col.header(), cw);
-            s.drawText(h, columnX(s, i) + (col.right() ? cw - s.textWidth(h) : 0), ty, fc.textMuted(), false);
+            s.drawText(h, columnX(s, i) + (col.right() ? cw - s.textWidth(h) : 0), ty, fc.textSecondary(), false);
         }
     }
 
