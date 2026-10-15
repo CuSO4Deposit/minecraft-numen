@@ -983,7 +983,7 @@ public final class NumenScreen extends Screen {
         dismissDialog.open(overlayUi, railX, top, railW + panelW, panelH,
                 I18n.get("numen.dismiss.title", nameFor(target)),
                 I18n.get("numen.dismiss.warning"),
-                I18n.get("numen.gui.settings.cancel"), I18n.get("numen.dismiss.delete"),
+                I18n.get(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), I18n.get("numen.dismiss.delete"),
                 () -> {
                     NumenNetwork.sendToServer(
                             new com.dwinovo.numen.api.network.payload.DismissRequestPayload(target));
@@ -1002,7 +1002,7 @@ public final class NumenScreen extends Screen {
                 I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE_TITLE,
                         target.displayName(NumenRoster.instance()::name)),
                 I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE_WARNING),
-                I18n.get("numen.gui.settings.cancel"), I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE),
+                I18n.get(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), I18n.get(ModLanguageData.Keys.CONVO_DISSOLVE),
                 () -> {
                     Conversations.instance().dissolve(target);
                     if (sameAs(target, conv)) {   // 解散的是当前这个:跳到另一个会话/回空屏
@@ -2575,7 +2575,7 @@ public final class NumenScreen extends Screen {
         dismissDialog.open(overlayUi, railX, top, railW + panelW, panelH,
                 I18n.get(ModLanguageData.Keys.FOLDER_DELETE_TITLE, folder.name()),
                 I18n.get(ModLanguageData.Keys.FOLDER_DELETE_WARNING),
-                I18n.get("numen.gui.settings.cancel"), I18n.get(ModLanguageData.Keys.FOLDER_DELETE),
+                I18n.get(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), I18n.get(ModLanguageData.Keys.FOLDER_DELETE),
                 () -> {
                     if (folder.id().equals(Conversations.instance().folder())) selectFolder(ChatFolders.ALL);
                     Conversations.instance().deleteFolder(folder.id());

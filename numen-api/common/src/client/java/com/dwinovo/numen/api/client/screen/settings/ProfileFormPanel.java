@@ -183,7 +183,7 @@ public final class ProfileFormPanel {
         ModelInfo model = model();
 
         int ry = y;
-        Label nameLabel = labelWidget(x, ry, "numen.provider.form_name");
+        Label nameLabel = labelWidget(x, ry, ModLanguageData.Keys.PROVIDER_FORM_NAME);
         ry += NumenStyle.LABEL_PITCH;
         nameField = ui.add(new TextField(draft.name, v -> draft.name = v).withLabel(nameLabel));
         nameField.setBounds(x, ry, w, NumenStyle.CONTROL_H);
@@ -202,7 +202,7 @@ public final class ProfileFormPanel {
             baseUrlField = addBaseUrlField(x, ry);
             ry += NumenStyle.ROW_PITCH;
 
-            ry = label(x, ry, "numen.provider.form_provider");
+            ry = label(x, ry, ModLanguageData.Keys.PROVIDER_FORM_PROVIDER);
             List<String> protocols = List.of(t(ModLanguageData.Keys.GUI_PROVIDERS_PROTO_CHAT),
                     t(ModLanguageData.Keys.GUI_PROVIDERS_PROTO_RESPONSES),
                     t(ModLanguageData.Keys.GUI_PROVIDERS_PROTO_ANTHROPIC));
@@ -226,7 +226,7 @@ public final class ProfileFormPanel {
             ry += NumenStyle.ROW_PITCH;
         }
 
-        Label keyLabel = labelWidget(x, ry, "numen.gui.settings.api_key");
+        Label keyLabel = labelWidget(x, ry, ModLanguageData.Keys.GUI_SETTINGS_API_KEY);
         ry += NumenStyle.LABEL_PITCH;
         keyField = ui.add(new TextField(draft.apiKey, v -> draft.apiKey = v).masked(true)
                 .withLabel(keyLabel));

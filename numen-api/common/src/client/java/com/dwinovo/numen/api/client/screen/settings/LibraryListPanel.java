@@ -400,7 +400,7 @@ public final class LibraryListPanel<T> {
 
     private void askDelete(T e) {
         confirm.open(ui, dimX, dimY, dimW, dimH, deleteMessage.apply(e),
-                t("numen.gui.settings.cancel"), t("numen.dismiss.delete"),
+                t(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), t("numen.dismiss.delete"),
                 () -> {
                     String name = rowOf.apply(e).name();
                     onDeleteConfirmed.accept(e);

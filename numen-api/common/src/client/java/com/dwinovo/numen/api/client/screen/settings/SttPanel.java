@@ -160,7 +160,7 @@ public final class SttPanel {
 
         saved = ui.add(new InlineAlert());
         saved.setBounds(x, NumenStyle.bodyTop(y), w, 24);
-        Button save = ui.add(new Button(t("numen.gui.settings.save"),
+        Button save = ui.add(new Button(t(ModLanguageData.Keys.GUI_SETTINGS_SAVE),
                 Button.Style.ACCENT, this::save));
         save.setBounds(x + w - 54, NumenStyle.footerTop(y, h), 54, NumenStyle.CONTROL_H);
     }
@@ -240,7 +240,7 @@ public final class SttPanel {
         cfg.setSttBaseUrl(baseUrl.trim());
         cfg.setSttMicrophone(mic);
         cfg.save();
-        saved.show(InlineAlert.Severity.SUCCESS, t("numen.gui.settings.saved"), 2_500);
+        saved.show(InlineAlert.Severity.SUCCESS, t(ModLanguageData.Keys.GUI_SETTINGS_SAVED), 2_500);
     }
 
     private static String t(String labelKey) {

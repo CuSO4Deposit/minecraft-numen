@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.client.screen.settings;
 
+import com.dwinovo.numen.api.data.ModLanguageData;
 import com.dwinovo.numen.api.client.ui.IDrawSurface;
 import com.dwinovo.numen.api.client.ui.NumenStyle;
 import com.dwinovo.numen.api.client.ui.NumenTheme;
@@ -331,7 +332,7 @@ public final class BrainPanel {
     private void askRegenerate() {
         confirm.open(fixedUi, dimX, dimY, dimW, dimH,
                 t("numen.brain.regen_confirm_title") + "\n" + t("numen.brain.regen_confirm_body"),
-                t("numen.gui.settings.cancel"), t("numen.brain.regenerate"),
+                t(ModLanguageData.Keys.GUI_SETTINGS_CANCEL), t("numen.brain.regenerate"),
                 () -> {
                     McpConfig cfg = McpMode.instance().config();
                     McpMode.instance().applySettings(cfg.host(), cfg.port(),
