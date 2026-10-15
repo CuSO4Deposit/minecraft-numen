@@ -70,12 +70,6 @@ public final class AnthropicProvider implements LlmProvider {
         return m;
     }
 
-    /** 协议无 system 角色(system 是顶层参数),本方法仅满足接口,不参与请求组装。 */
-    @Override
-    public JsonObject buildSystemMessage(String content) {
-        return buildUserMessage(content);
-    }
-
     @Override
     public JsonObject buildToolResultMessage(String toolCallId, String content) {
         JsonObject block = new JsonObject();

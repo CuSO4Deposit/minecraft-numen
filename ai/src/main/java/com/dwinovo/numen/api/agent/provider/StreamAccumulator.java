@@ -55,6 +55,8 @@ public final class StreamAccumulator {
     public final Map<String, JsonElement> extraJson = new LinkedHashMap<>();
 
     public String finishReason;
+    /** 流里带的错误原话(Responses 的 failed / error 帧);非空时这次流不算成,由协议实现在收尾时抛出。 */
+    public String failure;
     public JsonObject usage;
 
     public int chunkCount;

@@ -48,10 +48,19 @@ class ResponsesAnthropicRequestTest {
                 GPT6, new RequestOptions(null, 0, ThinkingLevel.OFF)));
     }
 
+    /** 自动:不写 reasoning,但会思考的型号照样要加密内容,否则回传的思考 item 站不住;系统话的角色由兼容项定。 */
     @Test
-    void responsesSystemRoleFollowsTheCompat() {
-        assertEquals(responses("system-role-auto"), build(new OpenAIResponsesProvider(new ResponsesCompat(false)),
-                GPT6, RequestOptions.NONE));
+    void responsesAutoOnAThinkingModelStillAsksForEncryptedReasoning() {
+        assertEquals(responses("auto-on-a-thinking-model"), build(
+                new OpenAIResponsesProvider(new ResponsesCompat(false)), GPT6, RequestOptions.NONE));
+    }
+
+    /** 不思考的型号:系统话走 system,不收 include。 */
+    @Test
+    void responsesPlainModelGetsNeitherDeveloperRoleNorInclude() {
+        assertEquals(responses("plain-model"), build(new OpenAIResponsesProvider(new ResponsesCompat(true)),
+                new ModelSpec("gpt-4.1", com.dwinovo.numen.api.agent.catalog.ThinkingTable.AUTO_ONLY, true),
+                RequestOptions.NONE));
     }
 
     // ---- Anthropic ----

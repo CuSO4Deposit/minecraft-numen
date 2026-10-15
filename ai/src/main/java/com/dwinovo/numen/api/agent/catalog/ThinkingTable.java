@@ -146,6 +146,11 @@ public record ThinkingTable(List<ThinkingLevel> levels, Map<ThinkingLevel, Strin
         return b == null ? 0 : Math.max(b, budgetMin);
     }
 
+    /** 目录说这个型号会思考,并且给了控制方式(档位不止"自动")。 */
+    public boolean thinks() {
+        return levels.size() > 1;
+    }
+
     /** 控制方式是"effort 取值表,没有预算":自适应思考的型号是这个形状。 */
     public boolean effortOnly() {
         return !efforts.isEmpty() && !budget;

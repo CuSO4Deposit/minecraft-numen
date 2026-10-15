@@ -30,6 +30,7 @@ class StreamGoldenTest {
             "chat-openrouter-reasoning,chat",
             "chat-moonshot-cached,chat",
             "responses-reasoning-toolcall,responses",
+            "responses-text,responses",
             "anthropic-thinking-toolcall,anthropic"})
     void streamDecodesToTheExpectedTurn(String name, String kind) {
         LlmProvider p = provider(kind);

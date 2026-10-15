@@ -202,20 +202,17 @@ public final class NumenLlmClient {
             }
         }, cancel).thenApply(v -> {
             AssistantTurn turn = provider.finalizeStream(acc).withOrigin(endpoint.origin());
-            logCallSummary(t0, acc, turn);
-            return new ChatResult(turn, provider.usage(acc.usage));
+            Usage usage = provider.usage(acc.usage);
+            logCallSummary(t0, acc, turn, usage);
+            return new ChatResult(turn, usage);
         });
     }
 
-    private void logCallSummary(long t0, StreamAccumulator acc, AssistantTurn turn) {
+    private void logCallSummary(long t0, StreamAccumulator acc, AssistantTurn turn, Usage usage) {
         long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
-        String tokens = "?";
-        if (acc.usage != null) {
-            int in = jsonInt(acc.usage, "prompt_tokens");
-            int out = jsonInt(acc.usage, "completion_tokens");
-            int total = jsonInt(acc.usage, "total_tokens");
-            tokens = in + "/" + out + " (total " + total + ")";
-        }
+        // 各协议的用量字段不同,统一读归一后的四元
+        String tokens = acc.usage == null ? "?"
+                : usage.promptTokens() + "/" + usage.output() + " (total " + usage.total() + ")";
         StringBuilder toolSummary = new StringBuilder();
         for (LlmToolCall tc : turn.toolCalls()) {
             if (toolSummary.length() > 0) toolSummary.append(", ");
@@ -228,11 +225,6 @@ public final class NumenLlmClient {
                 elapsedMs, acc.chunkCount, tokens,
                 acc.finishReason == null ? "?" : acc.finishReason,
                 toolSummary, contentSnippet);
-    }
-
-    private static int jsonInt(JsonObject o, String key) {
-        if (o == null || !o.has(key) || o.get(key).isJsonNull()) return 0;
-        try { return o.get(key).getAsInt(); } catch (RuntimeException ex) { return 0; }
     }
 
     private static String truncate(String s, int max) {

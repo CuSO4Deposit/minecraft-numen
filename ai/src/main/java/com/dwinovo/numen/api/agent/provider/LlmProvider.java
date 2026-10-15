@@ -36,9 +36,6 @@ public interface LlmProvider {
     /** Build the user-role wire message for {@code content}. */
     JsonObject buildUserMessage(String content);
 
-    /** Build the system-role wire message for {@code content}. */
-    JsonObject buildSystemMessage(String content);
-
     /** Build the tool-role wire message echoing {@code toolCallId}'s result. */
     JsonObject buildToolResultMessage(String toolCallId, String content);
 

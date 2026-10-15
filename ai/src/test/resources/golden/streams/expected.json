@@ -33,11 +33,22 @@
   },
   "responses-reasoning-toolcall": {
     "content": "这就去",
-    "reasoning": "先看背包",
+    "reasoning": "先看背包\n\n再选工具",
     "toolCalls": [{"id": "call_1", "name": "look", "arguments": "{\"x\":1}"}],
-    "extras": {"numen_reasoning_items": {"type": "reasoning", "id": "rs_1", "summary": [{"type": "summary_text", "text": "先看背包"}], "encrypted_content": "ENC"}},
+    "extras": {
+      "numen_reasoning_items": [{"id": "rs_1", "type": "reasoning", "summary": [{"type": "summary_text", "text": "先看背包"}, {"type": "summary_text", "text": "再选工具"}], "encrypted_content": "ENC"}],
+      "numen_item_ids": [{"type": "message", "id": "msg_1"}, {"type": "function_call", "id": "fc_1", "call_id": "call_1"}]
+    },
     "finish": "completed",
     "usage": {"input": 100, "output": 60, "cacheRead": 400, "cacheWrite": 0}
+  },
+  "responses-text": {
+    "content": "挖到了八块铁。",
+    "reasoning": "",
+    "toolCalls": [],
+    "extras": {"numen_item_ids": [{"type": "message", "id": "msg_2", "phase": "final_answer"}]},
+    "finish": "completed",
+    "usage": {"input": 112, "output": 9, "cacheRead": 1024, "cacheWrite": 64}
   },
   "anthropic-thinking-toolcall": {
     "content": "答",

@@ -80,8 +80,7 @@ public final class OpenAIProvider implements LlmProvider {
         return m;
     }
 
-    @Override
-    public JsonObject buildSystemMessage(String content) {
+    private static JsonObject buildSystemMessage(String content) {
         JsonObject m = new JsonObject();
         m.addProperty("role", "system");
         m.addProperty("content", content == null ? "" : content);
