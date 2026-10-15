@@ -824,8 +824,12 @@ public final class EntityAgentLoop {
         /** 后台活优先(几十秒的长活,主人得看见她在挖矿而不是卡死了),没有才是手上这一个工具调用。 */
         @Override
         public String activity() {
-            String task = runtime.activity();
-            return task != null ? task : dispatcher.currentToolName();
+            var task = runtime.activity();
+            if (task != null) {
+                return task.text().getString();
+            }
+            String tool = dispatcher.currentToolName();
+            return tool == null ? null : ToolWords.label(tool);
         }
     }
 

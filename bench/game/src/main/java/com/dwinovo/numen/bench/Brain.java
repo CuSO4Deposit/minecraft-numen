@@ -119,8 +119,8 @@ final class Brain {
 
             @Override
             public String activity() {
-                String task = runtime.activity();
-                return task != null ? task : tools.currentToolName();
+                var task = runtime.activity();
+                return task != null ? task.text().getString() : tools.currentToolName();
             }
         };
         this.loop = new AgentLoop(her.toString(), model, tools, convo, queue, compactor, host);

@@ -572,6 +572,11 @@ public final class ModLanguageData {
         adder.add("numen.chat.plan", "Plan %s/%s");
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
         adder.add("numen.tool.lua", "Run");
+        adder.add("numen.tool.skill", "Skill");
+        adder.add("numen.tool.todo", "To-do");
+        adder.add("numen.tool.memory", "Memory");
+        // 没有自己说法的任务:头顶只说工具名(Activity.DEFAULT_KEY)
+        adder.add("numen.activity.default", "%s");
         adder.add("numen.mcp.title", "Tool Extensions (MCP)");
         adder.add("numen.mcp.empty", "None · click Add");
         adder.add("numen.mcp.add", "Add");
@@ -1161,6 +1166,11 @@ public final class ModLanguageData {
         adder.add("numen.chat.plan", "计划 %s/%s");
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。
         adder.add("numen.tool.lua", "执行");
+        adder.add("numen.tool.skill", "技能");
+        adder.add("numen.tool.todo", "待办");
+        adder.add("numen.tool.memory", "记忆");
+        // 没有自己说法的任务:头顶只说工具名(Activity.DEFAULT_KEY)
+        adder.add("numen.activity.default", "%s");
         adder.add("numen.mcp.title", "工具扩展 (MCP)");
         adder.add("numen.mcp.empty", "无 · 点「添加」");
         adder.add("numen.mcp.add", "添加");

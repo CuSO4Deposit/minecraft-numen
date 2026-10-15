@@ -8,6 +8,7 @@ import com.dwinovo.numen.api.agent.conversation.Quote;
 import com.dwinovo.numen.api.agent.conversation.Transcript;
 import com.dwinovo.numen.api.client.agent.AgentLoopRegistry;
 import com.dwinovo.numen.api.client.agent.CauseWords;
+import com.dwinovo.numen.api.client.agent.ToolWords;
 import com.dwinovo.numen.api.agent.provider.AssistantTurn;
 import com.dwinovo.numen.api.agent.provider.LlmToolCall;
 import com.dwinovo.numen.api.client.agent.Conversations;
@@ -1402,7 +1403,7 @@ public final class ChatView {
         if (!calls.isEmpty()) {
             parts.add(I18n.get("numen.chat.steps", calls.size()));
             for (LlmToolCall tc : calls) {
-                String name = toolLabel(tc.name());
+                String name = ToolWords.label(tc.name());
                 if (!parts.contains(name)) parts.add(name);
             }
         }
@@ -1744,13 +1745,7 @@ public final class ChatView {
 
     private static String toolLine(LlmToolCall tc) {
         String args = humanArgs(tc.arguments());
-        return args.isEmpty() ? toolLabel(tc.name()) : toolLabel(tc.name()) + "  " + args;
-    }
-
-    /** 工具名 → 人话:约定键 {@code numen.tool.<name>};没有译文的(MCP 外部工具)原样显示。 */
-    private static String toolLabel(String name) {
-        String key = "numen.tool." + name;
-        return I18n.exists(key) ? I18n.get(key) : name;
+        return args.isEmpty() ? ToolWords.label(tc.name()) : ToolWords.label(tc.name()) + "  " + args;
     }
 
     /** 参数 JSON → 人读摘要:抓最能说明这一步的名词(物品/方块/目标)、坐标、数量,
