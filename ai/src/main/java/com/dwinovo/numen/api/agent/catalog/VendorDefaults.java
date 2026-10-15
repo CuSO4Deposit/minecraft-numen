@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * models.dev 没有、但我们需要的几条厂家数据:按厂家 id 补的缺省地址、协议覆盖、额外报头,
+ * models.dev 没有、但我们需要的几条厂家数据:按厂家 id 补的缺省地址、额外报头,
  * 以及界面上先列出的常用厂家。全是数据,没有逻辑;解析目录时({@link ModelsDev})一次性并进厂家记录,
  * 之后谁也不再按厂家 id 查这几张表。
  */
@@ -18,12 +18,6 @@ final class VendorDefaults {
             "anthropic", "https://api.anthropic.com/v1",
             "xai", "https://api.x.ai/v1",
             "google", "https://generativelanguage.googleapis.com/v1beta/openai");
-
-    /**
-     * 不按 {@code npm} 推的协议。OpenAI 官方的 {@code npm} 会推出 Responses,但那条路还没有接过真接口
-     * (第 4 步做),在那之前仍走 Chat Completions;第 4 步删掉这一行。
-     */
-    static final Map<String, Api> API_OVERRIDES = Map.of("openai", Api.CHAT);
 
     /** OpenRouter 的应用署名报头(可选,用于它的榜单展示)。 */
     static final Map<String, Map<String, String>> HEADERS = Map.of(

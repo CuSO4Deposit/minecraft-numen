@@ -78,7 +78,7 @@ class CatalogTest {
             assertTrue(!c.provider(id).baseUrl().isEmpty(), id + " 要有可用的缺省地址");
         }
         assertEquals(VendorDefaults.POPULAR.size(), c.popular().size());
-        assertEquals(Api.CHAT, c.provider("openai").api(), "第 4 步之前 OpenAI 仍走 Chat");
+        assertEquals(Api.RESPONSES, c.provider("openai").api(), "OpenAI 官方的 npm 是 @ai-sdk/openai,走 Responses");
         assertEquals(Api.ANTHROPIC, c.provider("anthropic").api());
     }
 }

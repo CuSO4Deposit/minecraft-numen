@@ -37,7 +37,7 @@ public final class ModelsDev {
 
     private static ProviderInfo provider(String id, JsonObject p) {
         String npm = str(p, "npm");
-        Api api = VendorDefaults.API_OVERRIDES.getOrDefault(id, Api.ofNpm(npm));
+        Api api = Api.ofNpm(npm);
         String baseUrl = p.has("api") ? str(p, "api") : VendorDefaults.BASE_URLS.getOrDefault(id, "");
         List<ModelInfo> models = new ArrayList<>();
         if (p.has("models") && p.get("models").isJsonObject()) {

@@ -49,11 +49,10 @@ class ModelsDevTest {
         assertEquals(Api.CHAT, p.get("google").api());
         assertEquals(Api.CHAT, p.get("xai").api());
         assertEquals(Api.CHAT, p.get("openrouter").api());
-        // 其余用 @ai-sdk/openai 的厂家按规则走 Responses
+        // 用 @ai-sdk/openai 的厂家(含 OpenAI 官方)按规则走 Responses
         assertEquals(Api.RESPONSES, p.get("other-openai").api());
-        // OpenAI 官方在第 4 步之前仍走 Chat Completions
-        assertEquals(Api.CHAT, p.get("openai").api());
-        assertEquals(Api.CHAT, p.get("openai").models().get(0).api());
+        assertEquals(Api.RESPONSES, p.get("openai").api());
+        assertEquals(Api.RESPONSES, p.get("openai").models().get(0).api());
     }
 
     @Test
