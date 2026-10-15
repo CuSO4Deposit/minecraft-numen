@@ -104,6 +104,12 @@ public final class FakeClient {
             teleportZ = player.getZ();
             teleportYRot = player.getYRot();
             teleportXRot = player.getXRot();
+            // 把移动基线钉到落点。真玩家的 firstGood/lastGood 由连接 tick(tickPlayer 开头的
+            // resetPosition)与登录/传送后的 resetPosition 维护;假玩家没有连接 tick,这两个基线
+            // 一直是初始的 0,于是收下回执时那次客户端移动校验会把"落点 − 0"当成瞬移十几格,
+            // 判 moved too quickly 并发纠正传送——同样是每刻死循环。原版 changeDimension 就是
+            // teleport 紧跟 resetPosition,这里照做。
+            player.connection.resetPosition();
         } else if (packet instanceof ClientboundSystemChatPacket said) {
             heard(said.content(), said.overlay());
         }
