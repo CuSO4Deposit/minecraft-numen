@@ -229,7 +229,9 @@ public class CompanionChatScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         // 输入行先拿:弹层的上下/Tab/回车、面板的整个键盘、回车发送。它不要的(比如
         // 没开面板时的 Esc)才落到屏幕——Esc 关屏
-        if (inputBar != null && inputBar.keyPressed(event.key(), event.modifiers())) {
+        if (inputBar != null && inputBar.keyPressed(
+                com.dwinovo.numen.client.ui.mc.McKeys.key(event.key()),
+                com.dwinovo.numen.client.ui.mc.McKeys.modifiers(event.modifiers()))) {
             return true;
         }
         return super.keyPressed(event);

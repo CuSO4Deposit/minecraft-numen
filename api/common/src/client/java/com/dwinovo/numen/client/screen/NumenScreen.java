@@ -1529,8 +1529,8 @@ public final class NumenScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        int keyCode = event.key();
-        int modifiers = event.modifiers();
+        int keyCode = com.dwinovo.numen.client.ui.mc.McKeys.key(event.key());
+        int modifiers = com.dwinovo.numen.client.ui.mc.McKeys.modifiers(event.modifiers());
         int k = keyCode;
         if (overlayOpen()) {   // 确认卡在场:Esc = 取消(UiRoot 浮层通道保证),其余键不下传
             if (overlayUi.keyPressed(keyCode, modifiers)) { rebuild(); return true; }
