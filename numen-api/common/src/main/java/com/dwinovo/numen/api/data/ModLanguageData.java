@@ -571,6 +571,10 @@ public final class ModLanguageData {
         adder.add("numen.chat.steps", "%s steps");
         adder.add("numen.chat.plan", "Plan %s/%s");
         // Tool-chip labels (convention: numen.tool.<tool name>; unknown/MCP tools fall back to the raw name).
+        // 档案页上下文行的悬停:缓存读 / 缓存写 / 最近一轮命中率的前缀
+        adder.add("numen.profile.usage_read", "R");
+        adder.add("numen.profile.usage_write", "W");
+        adder.add("numen.profile.usage_hit", "CH");
         adder.add("numen.tool.lua", "Run");
         adder.add("numen.tool.skill", "Skill");
         adder.add("numen.tool.todo", "To-do");
@@ -1165,6 +1169,10 @@ public final class ModLanguageData {
         adder.add("numen.chat.steps", "%s 步");
         adder.add("numen.chat.plan", "计划 %s/%s");
         // 工具 chip 标签(约定键 numen.tool.<工具名>;未知/MCP 工具回落原名)。
+        // 档案页上下文行的悬停:缓存读 / 缓存写 / 最近一轮命中率的前缀
+        adder.add("numen.profile.usage_read", "读");
+        adder.add("numen.profile.usage_write", "写");
+        adder.add("numen.profile.usage_hit", "命中");
         adder.add("numen.tool.lua", "执行");
         adder.add("numen.tool.skill", "技能");
         adder.add("numen.tool.todo", "待办");

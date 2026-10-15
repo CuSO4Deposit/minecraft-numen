@@ -509,7 +509,7 @@ final class ProfilePage {
     }
 
     /**
-     * 用量明细:{@code ↑输入 ↓输出 R缓存读 W缓存写 CH命中率 占用/窗口}。每段有值才出现——服务商不报缓存
+     * 用量明细:{@code ↑输入 ↓输出 缓存读 缓存写 命中率 占用/窗口}(缓存三段的前缀是语言键,英文是 R / W / CH)。每段有值才出现——服务商不报缓存
      * 的话那三段自然消失。它是给想知道的人看的,住在上下文那一行的悬停提示里,不常驻。
      * 命中率只看<b>最近一轮</b>:累计命中率会被历史稀释,看不出"刚才那轮把缓存打穿了"。
      */
@@ -518,11 +518,11 @@ final class ProfilePage {
         List<String> parts = new ArrayList<>();
         if (sum.input() > 0) parts.add("↑" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.input()));
         if (sum.output() > 0) parts.add("↓" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.output()));
-        if (sum.cacheRead() > 0) parts.add("R" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheRead()));
-        if (sum.cacheWrite() > 0) parts.add("W" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheWrite()));
+        if (sum.cacheRead() > 0) parts.add(I18n.get("numen.profile.usage_read") + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheRead()));
+        if (sum.cacheWrite() > 0) parts.add(I18n.get("numen.profile.usage_write") + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(sum.cacheWrite()));
         double hit = lp.lastUsage().cacheHitRate();
         if (sum.reportsCache() && hit >= 0) {
-            parts.add("CH" + com.dwinovo.numen.api.client.ui.TokenFormat.percent1(hit) + "%");
+            parts.add(I18n.get("numen.profile.usage_hit") + com.dwinovo.numen.api.client.ui.TokenFormat.percent1(hit) + "%");
         }
         parts.add(lp.contextPercent() + "%/" + com.dwinovo.numen.api.client.ui.TokenFormat.tokens(lp.modelWindow()));
         return String.join(" ", parts);
