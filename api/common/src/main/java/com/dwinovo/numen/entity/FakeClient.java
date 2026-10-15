@@ -67,6 +67,20 @@ public final class FakeClient {
      */
     private int awaitingTeleport = -1;
 
+    /**
+     * 最近一次传送把身体落到的位置与朝向。
+     *
+     * <p>回执必须报「服务端把她放到了哪」,不能报「她此刻在哪」。26.3 起
+     * {@code handleAcceptTeleportPacket} 会拿回执里的坐标再跑一遍客户端移动校验
+     * ({@code handlePlayerPositionChange});那一刻她已被 {@code Physics.step} 挪走了一点,
+     * 报当前位置会被判"移动错误"→ 发纠正传送 → 再回执 → 每刻循环,把她钉死原地
+     * (且 {@code onGround} 永远 false)。原版 {@code teleport()} 在发包前已经调
+     * {@code teleportSetPosition} 把身体挪到落点,落点就是那一刻的 {@code position()}——
+     * 报它,校验里"落点 − 基线"为 0,不再触发纠正。
+     */
+    private double teleportX, teleportY, teleportZ;
+    private float teleportYRot, teleportXRot;
+
     /** 服务端对她说的话,折叠后交成事件。 */
     private final ServerMessages messages;
 
@@ -83,6 +97,13 @@ public final class FakeClient {
     public void onOutbound(Packet<?> packet) {
         if (packet instanceof ClientboundPlayerPositionPacket teleport) {
             awaitingTeleport = teleport.id();
+            // 传送包里坐标可能是相对量(Relative),未必等于落点;原版此刻已把身体挪到落点,
+            // 直接记下她的实际位置,回执时原样报回。
+            teleportX = player.getX();
+            teleportY = player.getY();
+            teleportZ = player.getZ();
+            teleportYRot = player.getYRot();
+            teleportXRot = player.getXRot();
         } else if (packet instanceof ClientboundSystemChatPacket said) {
             heard(said.content(), said.overlay());
         }
@@ -123,6 +144,6 @@ public final class FakeClient {
         int id = awaitingTeleport;
         awaitingTeleport = -1;
         player.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(
-                id, player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()));
+                id, teleportX, teleportY, teleportZ, teleportYRot, teleportXRot));
     }
 }
