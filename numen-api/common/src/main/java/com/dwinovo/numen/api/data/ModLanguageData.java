@@ -354,6 +354,8 @@ public final class ModLanguageData {
         public static final String COMMAND_RULE_NO_ROW       = "numen.command.rule_no_row";
         public static final String COMMAND_RULE_REMOVED      = "numen.command.rule_removed";
         public static final String COMMAND_RULES_RESET       = "numen.command.rules_reset";
+        /** 规则写错了({@code Rule.Mistake}),后接原因码。 */
+        public static final String COMMAND_RULE_MISTAKE_PREFIX = "numen.command.rule_mistake.";
         public static final String COMMAND_CONSENT_ANSWERED  = "numen.command.consent_answered";
         public static final String COMMAND_CONSENT_NOT_OWNER = "numen.command.consent_not_owner";
         public static final String COMMAND_CONSENT_NOT_PENDING = "numen.command.consent_not_pending";
@@ -938,6 +940,15 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_RULE_NO_ROW,       "%s has no row %s (it has %s); /numen permission rules list shows the numbers");
         adder.add(Keys.COMMAND_RULE_REMOVED,      "Removed from %s: %s");
         adder.add(Keys.COMMAND_RULES_RESET,       "Cleared your deny, ask and allow tables; the factory rules still apply");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "shape", "A rule looks like verb(term & term), e.g. break(placed & !block_entity): '%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "verb", "Unknown verb '%1$s' in rule '%2$s'; verbs are %3$s, or * for any");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty", "A rule needs at least one term (use * for any): '%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty_term", "Empty term in rule '%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "command_name", "Bad command name '%1$s' in rule '%2$s'; write the command's root name without the slash, e.g. command(setblock)");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "tag", "Bad tag '%1$s' in rule '%2$s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "uuid", "Bad entity uuid '%1$s' in rule '%2$s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "id", "Bad id '%1$s' in rule '%2$s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "signal", "Unknown signal '%1$s' in rule '%2$s'; signals are %3$s, or write a namespaced id (minecraft:chest), a tag (#minecraft:beds), entity:<uuid> or *");
         adder.add(Keys.COMMAND_CONSENT_ANSWERED,  "Answered consent request #%s for %s: %s");
         adder.add(Keys.COMMAND_CONSENT_NOT_OWNER, "Consent request #%s belongs to a companion that is not yours");
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "No pending consent request #%s (already answered, expired or replaced)");
@@ -1519,6 +1530,15 @@ public final class ModLanguageData {
         adder.add(Keys.COMMAND_RULE_NO_ROW,       "%s 没有第 %s 行(一共 %s 行);行号用 /numen permission rules list 看");
         adder.add(Keys.COMMAND_RULE_REMOVED,      "已从 %s 删掉:%s");
         adder.add(Keys.COMMAND_RULES_RESET,       "清空了你的 deny、ask、allow 三张表;出厂规则照旧生效");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "shape", "规则要写成 动作(项 & 项),例如 break(placed & !block_entity):'%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "verb", "规则 '%2$s' 里的动作 '%1$s' 不认识;可用的动作有 %3$s,或 * 表示任何动作");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty", "规则至少要有一项(任何项写 *):'%s'");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "empty_term", "规则 '%s' 里有空的项");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "command_name", "规则 '%2$s' 里的指令名 '%1$s' 不对;写指令的根名、不带斜杠,例如 command(setblock)");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "tag", "规则 '%2$s' 里的标签 '%1$s' 不对");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "uuid", "规则 '%2$s' 里的实体 uuid '%1$s' 不对");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "id", "规则 '%2$s' 里的 id '%1$s' 不对");
+        adder.add(Keys.COMMAND_RULE_MISTAKE_PREFIX + "signal", "规则 '%2$s' 里的信号 '%1$s' 不认识;可用的信号有 %3$s,也可以写带命名空间的 id(minecraft:chest)、标签(#minecraft:beds)、entity:<uuid> 或 *");
         adder.add(Keys.COMMAND_CONSENT_ANSWERED,  "已答复征询 #%s(%s):%s");
         adder.add(Keys.COMMAND_CONSENT_NOT_OWNER, "征询 #%s 属于别人的同伴");
         adder.add(Keys.COMMAND_CONSENT_NOT_PENDING, "没有待答复的征询 #%s(已答复、过期或被顶掉)");
