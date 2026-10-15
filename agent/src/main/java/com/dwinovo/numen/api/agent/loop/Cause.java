@@ -1,6 +1,7 @@
 package com.dwinovo.numen.api.agent.loop;
 
 import com.dwinovo.numen.api.agent.http.LlmHttpException;
+import com.dwinovo.numen.api.agent.http.LlmStreamException;
 
 import java.util.List;
 
@@ -11,7 +12,8 @@ import java.util.List;
  *
  * <p>码的定义只在这里(产生它的模块),界面的文案只在界面的语言文件里。{@code args} 是原话,顺序按码约定:
  * <ul>
- *   <li>{@code llm.*}(调用没成):{@code [HTTP 状态码(没有是 "0"), 回话的主机, 厂家的原话]},后两项可为空;</li>
+ *   <li>{@code llm.*}(调用没成):{@code [HTTP 状态码(没有是 "0"), 回话的主机, 厂家的原话]},后两项可为空;
+ *       {@code llm.stream_failed} 例外,只有 {@code [原话]};</li>
  *   <li>{@code endpoint.no_key}、{@code endpoint.no_url}:{@code [档案的名字]};{@code endpoint.unbound} 没有;</li>
  *   <li>{@code halt.*}(切断,见 {@link HaltReason}):死因这类现场的话,没有就空。</li>
  * </ul>
@@ -33,6 +35,8 @@ public record Cause(String code, List<String> args) {
     public static final String BAD_REQUEST = "llm.bad_request";
     /** 连不上:没有任何回话。 */
     public static final String NETWORK = "llm.network";
+    /** 连接成功、回应开始了,流里却带着错误或没有收尾({@link LlmStreamException}):原话是厂家在流里说的。 */
+    public static final String STREAM_FAILED = "llm.stream_failed";
     /** 服务端回了,但回应是空的(没有话也没有工具调用)。 */
     public static final String EMPTY_REPLY = "llm.empty_reply";
 
@@ -47,9 +51,12 @@ public record Cause(String code, List<String> args) {
      */
     public static Cause fromError(Throwable error) {
         Throwable cause = error;
-        while (cause != null && !(cause instanceof LlmHttpException) && cause.getCause() != null
-                && cause.getCause() != cause) {
+        while (cause != null && !(cause instanceof LlmHttpException) && !(cause instanceof LlmStreamException)
+                && cause.getCause() != null && cause.getCause() != cause) {
             cause = cause.getCause();
+        }
+        if (cause instanceof LlmStreamException stream) {
+            return of(STREAM_FAILED, stream.getMessage());
         }
         if (cause instanceof LlmHttpException http) {
             String code = http.isUnauthorized() ? UNAUTHORIZED
@@ -94,6 +101,7 @@ public record Cause(String code, List<String> args) {
             case SERVER_ERROR -> "服务端出错了";
             case BAD_REQUEST -> "请求被拒绝(HTTP " + arg(0) + ")";
             case NETWORK -> "连不上";
+            case STREAM_FAILED -> "回应中途出错:" + arg(0);
             case EMPTY_REPLY -> "服务端返回了空回应";
             case UNBOUND -> "没绑模型配置";
             case NO_KEY -> "模型配置没填密钥";

@@ -561,6 +561,8 @@ public final class ModLanguageData {
         adder.add("numen.chat.cleared", "Context cleared — she starts fresh (chat log kept)");
         adder.add("numen.chat.persona_changed", "Persona switched");
         adder.add("numen.chat.halted", "Interrupted: %s");
+        adder.add("numen.cause.llm.stream_failed", "The reply broke off midway");
+        adder.add("numen.cause.llm.stream_failed_by", "The reply broke off midway: %s");
         adder.add("numen.cause.llm.empty_reply", "The server returned an empty reply");
         adder.add("numen.cause.halt.owner_stop", "Stopped by you");
         adder.add("numen.cause.halt.death", "She died");
@@ -1151,6 +1153,8 @@ public final class ModLanguageData {
         adder.add("numen.chat.cleared", "上下文已清除，她从头开始（聊天记录保留）");
         adder.add("numen.chat.persona_changed", "人设已切换");
         adder.add("numen.chat.halted", "已中断：%s");
+        adder.add("numen.cause.llm.stream_failed", "回应中途断了");
+        adder.add("numen.cause.llm.stream_failed_by", "回应中途断了：%s");
         adder.add("numen.cause.llm.empty_reply", "服务端返回了空回应");
         adder.add("numen.cause.halt.owner_stop", "被你打断");
         adder.add("numen.cause.halt.death", "她死了");
