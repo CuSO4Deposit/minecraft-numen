@@ -17,7 +17,7 @@ import net.minecraft.data.registries.VanillaRegistries;
  * {@code damage_type} 里的标签(如防火物品查 {@code minecraft:is_fire}),而
  * {@code damage_type} 是数据包注册表,静态注册表里根本没有,查不到就抛
  * {@code Missing tag},整个绑定连同测试类一起被 assumeTrue 静默跳过。
- * 改用 {@link VanillaRegistries#createLookup()}:它把静态注册表与全部数据包
+ * 改用 {@link VanillaRegistries#createWorldLookup()}:它把静态注册表与全部数据包
  * 注册表的引导内容合成一份 provider,且对<b>任何</b>标签一律给空标签集
  * (RegistrySetBuilder 的 datagen 语义——标签来自数据文件,引导期本就没有)。
  * 这正是我们要的:标签查得到、内容为空,组件照常绑定,且不写死任何注册表清单。
@@ -34,7 +34,7 @@ public final class McTestComponents {
         if (bound) {
             return;
         }
-        var provider = VanillaRegistries.createLookup();
+        var provider = VanillaRegistries.createWorldLookup();
         for (DataComponentInitializers.PendingComponents<?> pending
                 : BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(provider)) {
             pending.apply();

@@ -12,7 +12,7 @@ import net.minecraft.data.registries.VanillaRegistries;
  * (DATA_COMPONENT_INITIALIZERS.build(...).apply(),与 ReloadableServerResources
  * 同源)在静态注册表上补绑一遍。幂等:重复调用由 bound 挡住。
  *
- * <p>上下文用 {@link VanillaRegistries#createLookup()}——静态注册表 + 全部数据包
+ * <p>上下文用 {@link VanillaRegistries#createWorldLookup()}——静态注册表 + 全部数据包
  * 注册表的引导内容,任何标签一律空集,组件照常绑定(判据详见 core 测试源码集的
  * 同名拷贝:测试夹具跨模块不可见,只能各持一份)。
  */
@@ -26,7 +26,7 @@ public final class McTestComponents {
         if (bound) {
             return;
         }
-        var provider = VanillaRegistries.createLookup();
+        var provider = VanillaRegistries.createWorldLookup();
         for (DataComponentInitializers.PendingComponents<?> pending
                 : BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(provider)) {
             pending.apply();

@@ -17,7 +17,6 @@ import com.dwinovo.numen.client.ui.NumenStyle;
 import com.dwinovo.numen.client.ui.mc.McDrawSurface;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.platform.Window;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.input.KeyEvent;
@@ -28,7 +27,7 @@ import com.dwinovo.numen.client.skin.ConversationFaces;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-import org.lwjgl.glfw.GLFW;
+import org.lwjgl.sdl.SDLMouse;
 
 import java.util.List;
 
@@ -97,15 +96,16 @@ public class CompanionWheelScreen extends Screen {
         }
     }
 
-    private static boolean physicallyDown(Window window, KeyMapping k) {
+    private static boolean physicallyDown(KeyMapping k) {
         if (k.isUnbound()) {
             return false;
         }
         InputConstants.Key key = InputConstants.getKey(k.saveString());
         if (key.getType() == InputConstants.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window.handle(), key.getValue()) == GLFW.GLFW_PRESS;
+            // SDL 的按键掩码:第 n 号键是 1 << (n - 1)(1=左,2=中,3=右)。
+            return (SDLMouse.SDL_GetMouseState(null, null) & (1 << (key.getValue() - 1))) != 0;
         }
-        return InputConstants.isKeyDown(window, key.getValue());
+        return InputConstants.isKeyDown(key.getValue());
     }
 
     /**
@@ -127,13 +127,12 @@ public class CompanionWheelScreen extends Screen {
      */
     public static net.minecraft.world.phys.Vec2 feedMovement(net.minecraft.client.player.ClientInput input) {
         Minecraft mc = Minecraft.getInstance();
-        Window window = mc.getWindow();
-        boolean up = physicallyDown(window, mc.options.keyUp);
-        boolean down = physicallyDown(window, mc.options.keyDown);
-        boolean left = physicallyDown(window, mc.options.keyLeft);
-        boolean right = physicallyDown(window, mc.options.keyRight);
-        boolean jump = physicallyDown(window, mc.options.keyJump);
-        boolean shift = physicallyDown(window, mc.options.keyShift);
+        boolean up = physicallyDown(mc.options.keyUp);
+        boolean down = physicallyDown(mc.options.keyDown);
+        boolean left = physicallyDown(mc.options.keyLeft);
+        boolean right = physicallyDown(mc.options.keyRight);
+        boolean jump = physicallyDown(mc.options.keyJump);
+        boolean shift = physicallyDown(mc.options.keyShift);
         input.keyPresses = new net.minecraft.world.entity.player.Input(
                 up, down, left, right, jump, shift, input.keyPresses.sprint());
         float forward = (up ? 1f : 0f) - (down ? 1f : 0f);

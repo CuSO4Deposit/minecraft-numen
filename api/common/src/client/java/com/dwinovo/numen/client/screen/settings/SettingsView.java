@@ -884,7 +884,7 @@ public final class SettingsView {
             java.nio.file.Path dir = Minecraft.getInstance().gameDirectory.toPath()
                     .resolve("config").resolve(com.dwinovo.numen.Constants.CONFIG_ROOT).resolve("skills");
             java.nio.file.Files.createDirectories(dir);
-            net.minecraft.util.Util.getPlatform().openUri(dir.toUri());
+            com.mojang.blaze3d.Blaze3D.openPath(dir);
         } catch (Exception ex) {
             com.dwinovo.numen.Constants.LOG.warn("[numen] open skills folder failed: {}", ex.toString());
         }
@@ -991,26 +991,39 @@ public final class SettingsView {
         }
     }
 
-    /** 原生文件对话框(LWJGL tinyfd,MC 自带;FCL 端会翻译成安卓文件选择器):
-     *  独立线程弹窗防冻主循环,选中后回主线程导入。 */
+    /** 保住原生对话框的回调,别让它在弹窗结束前被 GC;下一次弹窗时替换。 */
+    private static org.lwjgl.sdl.SDL_DialogFileCallback skinPickerCallback;
+
+    /** 原生文件对话框。26.3 起 MC 用 SDL 取代了 LWJGL tinyfd,对话框是非阻塞的:
+     *  主线程发起,结果走回调,回调里再回主线程导入。过滤器缓冲区用堆外内存,交给 SDL 后不再释放。 */
     private void openNativeSkinPicker() {
-        new Thread(() -> {
-            String chosen = null;
-            try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
-                var filters = stack.mallocPointer(1);
-                filters.put(stack.UTF8("*.png")).flip();
-                chosen = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
-                        "Numen skin (64x64 png)", null, filters, "PNG", false);
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        mc.execute(() -> {
+            try {
+                org.lwjgl.sdl.SDL_DialogFileFilter.Buffer filters = org.lwjgl.sdl.SDL_DialogFileFilter.malloc(1);
+                filters.name(org.lwjgl.system.MemoryUtil.memUTF8("PNG"));
+                filters.pattern(org.lwjgl.system.MemoryUtil.memUTF8("*.png"));
+                skinPickerCallback = org.lwjgl.sdl.SDL_DialogFileCallback.create((userdata, filelist, filter) -> {
+                    String chosen = null;
+                    if (filelist != 0L) {
+                        long first = org.lwjgl.system.MemoryUtil.memGetAddress(filelist);
+                        if (first != 0L) {
+                            chosen = org.lwjgl.system.MemoryUtil.memUTF8(first);
+                        }
+                    }
+                    String path = chosen;
+                    mc.execute(() -> {
+                        if (path != null && section == Section.SKIN && addingSkin) {
+                            skinForm().importFile(java.nio.file.Path.of(path));
+                        }
+                    });
+                });
+                org.lwjgl.sdl.SDLDialog.SDL_ShowOpenFileDialog(skinPickerCallback, 0L,
+                        mc.getWindow().handle(), filters, (CharSequence) null, false);
             } catch (Throwable t) {
                 com.dwinovo.numen.Constants.LOG.warn("[numen-skin] native file dialog unavailable", t);
             }
-            String path = chosen;
-            net.minecraft.client.Minecraft.getInstance().execute(() -> {
-                if (path != null && section == Section.SKIN && addingSkin) {
-                    skinForm().importFile(java.nio.file.Path.of(path));
-                }
-            });
-        }, "numen-skin-picker").start();
+        });
     }
 
     // ---- render (nav + active section) ----

@@ -18,6 +18,7 @@ import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -130,7 +131,7 @@ public final class CraftOps {
         }
         int have0 = PlayerInv.count(self.getInventory(), target);
         menu.clicked(grid.result(), 0, ContainerInput.QUICK_MOVE, self);   // vanilla mass-craft + onTake
-        self.swing(InteractionHand.MAIN_HAND);
+        self.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         sweepGrid(menu, self, grid);
         int crafted = PlayerInv.count(self.getInventory(), target) - have0;
         if (crafted <= 0) {

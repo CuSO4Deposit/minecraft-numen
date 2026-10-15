@@ -62,8 +62,13 @@ class NumenCommandsTest {
     }
 
     private static CommandSourceStack source(NumenPlayer entity) {
-        return new CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, null, net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER, "test",
-                Component.literal("test"), null, entity);
+        // 26.3 去掉了 textName 参数:有来源实体时名字从实体推导,没有时用常量名。
+        if (entity == null) {
+            return new CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, null,
+                    net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER, Component.literal("test"), null);
+        }
+        return new CommandSourceStack(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, null,
+                net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER, null, entity);
     }
 
     /**

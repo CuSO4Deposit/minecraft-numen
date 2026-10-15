@@ -10,6 +10,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -70,7 +71,7 @@ final class BuildShowmanship {
         // ——每批都触发就是每秒十下,手臂永远画不完一个来回,看起来是抽搐不是干活。
         boolean swung = --swingCooldown <= 0;
         if (swung) {
-            player.swing(InteractionHand.MAIN_HAND);
+            player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
             swingCooldown = SWING_PERIOD_TICKS;
         }
         if (sample != null) {

@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -103,7 +104,7 @@ public final class PlayerHands implements Effector {
         BlockState state = level.getBlockState(pos);
         if (body.gameMode.isCreative()) {
             cooldown(true, true);
-            body.swing(InteractionHand.MAIN_HAND);
+            body.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
             send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
             return landed(level, pos, state);
         }
@@ -116,7 +117,7 @@ public final class PlayerHands implements Effector {
             return Strike.SWINGING;
         }
         progress += state.getDestroyProgress(body, level, pos);
-        body.swing(InteractionHand.MAIN_HAND);
+        body.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         if (progress < 1.0F) {
             return Strike.SWINGING;
         }
@@ -141,7 +142,7 @@ public final class PlayerHands implements Effector {
     /** 第一下:原版客户端换了目标就先放下旧的,再送 START;秒破的当场碎,否则开始累加进度。 */
     private Strike start(ServerLevel level, BlockPos pos, Direction face, BlockState state) {
         release();
-        body.swing(InteractionHand.MAIN_HAND);
+        body.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         boolean instant = !state.isAir() && state.getDestroyProgress(body, level, pos) >= 1.0F;
         send(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face);
         if (instant) {
@@ -242,8 +243,8 @@ public final class PlayerHands implements Effector {
             CriteriaTriggers.ANY_BLOCK_USE.trigger(body, pos, stack.copy());
         }
         if (result instanceof InteractionResult.Success success
-                && success.swingSource() == InteractionResult.SwingSource.SERVER) {
-            body.swing(hand, true);
+                && success.swingSource() == InteractionResult.SwingSource.SERVER_ONLY) {
+            body.swing(hand, SwingAnimation.DEFAULT, true);
         }
         return result;
     }

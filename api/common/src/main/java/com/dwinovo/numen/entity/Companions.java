@@ -10,6 +10,7 @@ import com.dwinovo.numen.network.NumenNetwork;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -446,7 +447,7 @@ public final class Companions {
     private static void dropEverything(NumenPlayer body) {
         for (GearSlot slot : NumenPlugins.gearSlots(body)) {
             ItemStack worn = slot.swap(ItemStack.EMPTY);
-            if (!worn.isEmpty()) body.drop(worn, true, false);
+            if (!worn.isEmpty()) body.drop(worn, false, Prediction.SERVER_ONLY);
         }
         body.getInventory().dropAll();
     }

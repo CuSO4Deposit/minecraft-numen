@@ -19,6 +19,7 @@ import net.minecraft.world.item.FireChargeItem;
 import net.minecraft.world.item.FlintAndSteelItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -400,7 +401,7 @@ public final class Interaction {
         }
         player.setSprinting(false);                    // 疾跑会让原版取消暴击判定
         player.attack(entity);                         // native damage / cooldown / sweep / knockback (resets the ticker itself)
-        player.swing(InteractionHand.MAIN_HAND);
+        player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         return true;
     }
 
@@ -415,7 +416,7 @@ public final class Interaction {
                     player, player.level(), player.getItemInHand(h), h, hit);
             String handName = h == InteractionHand.MAIN_HAND ? "main_hand" : "off_hand";
             if (res.consumesAction()) {
-                player.swing(h);
+                player.swing(h, SwingAnimation.DEFAULT, false);
                 lastUseOutcome = "consumed (" + handName + "=" + res + ")";
                 MenuOrigin.pressed(player, menuBefore, hit.getBlockPos());
                 return true;
@@ -446,7 +447,7 @@ public final class Interaction {
         for (InteractionHand h : HANDS) {
             if (player.gameMode.useItem(player, player.level(),
                     player.getItemInHand(h), h).consumesAction()) {
-                player.swing(h);
+                player.swing(h, SwingAnimation.DEFAULT, false);
                 lastUseOutcome = "consumed (item self-use, "
                         + (h == InteractionHand.MAIN_HAND ? "main_hand" : "off_hand") + ")";
                 return true;

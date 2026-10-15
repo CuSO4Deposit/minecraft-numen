@@ -20,8 +20,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.BiomeSource;
-import net.minecraft.world.level.biome.Climate;
 
 import java.util.function.Predicate;
 
@@ -31,7 +31,7 @@ import java.util.function.Predicate;
  * vanilla {@code /locate biome} semantics, time-sliced across ticks.
  *
  * <h2>The Nature's Compass model</h2>
- * Biomes need no chunks at all: {@link BiomeSource#getNoiseBiome} answers from
+ * Biomes need no chunks at all: {@link BiomeResolver#getNoiseBiome} answers from
  * climate noise alone, so unlike the structure locator there is no expensive
  * fallback — just bounded sampling. Mirrors Nature's Compass (MattCzyr):
  * <ul>
@@ -63,7 +63,7 @@ public final class LocateBiomeCompanionTask extends AbstractCompanionTask<Locate
 
     private Predicate<Holder<Biome>> match;
     private BiomeSource biomeSource;
-    private Climate.Sampler sampler;
+    private BiomeResolver resolver;
     private int[] yBlocks;          // probe heights, ordered outward from entity Y
     private int centerX, centerZ;   // block coords of the search origin
     private int ring, perimIdx;
@@ -93,7 +93,7 @@ public final class LocateBiomeCompanionTask extends AbstractCompanionTask<Locate
             return;
         }
         biomeSource = sl.getChunkSource().getGenerator().getBiomeSource();
-        sampler = sl.getChunkSource().randomState().sampler();
+        resolver = biomeSource.createUncachedResolver(sl.getChunkSource().randomState());
         yBlocks = Mth.outFromOrigin(player.getBlockY(),
                 sl.getMinY() + 1, sl.getMaxY(), Y_STEP_BLOCKS).toArray();
         centerX = player.getBlockX();
@@ -192,7 +192,7 @@ public final class LocateBiomeCompanionTask extends AbstractCompanionTask<Locate
         int qx = QuartPos.fromBlock(x);
         int qz = QuartPos.fromBlock(z);
         for (int y : yBlocks) {
-            Holder<Biome> biome = biomeSource.getNoiseBiome(qx, QuartPos.fromBlock(y), qz, sampler);
+            Holder<Biome> biome = resolver.getNoiseBiome(qx, QuartPos.fromBlock(y), qz);
             if (match.test(biome)) {
                 return new BlockPos(x, y, z);
             }

@@ -218,12 +218,12 @@ public final class NumenPlayer extends ServerPlayer implements Body {
      * 干活的人事后用 {@link BodyDelta} 说给她听;这里只记流水,不替谁下结论。
      */
     @Override
-    public void onEquippedItemBroken(Item item, EquipmentSlot slot) {
+    public void onEquippedItemBroken(ItemStack item, EquipmentSlot slot) {
         super.onEquippedItemBroken(item, slot);
         if (brokenGear.size() == BROKEN_KEPT) {
             brokenGear.remove(0);
         }
-        brokenGear.add(new BrokenGear(item, slot));
+        brokenGear.add(new BrokenGear(item.getItem(), slot));
         brokenGearTotal++;
     }
 

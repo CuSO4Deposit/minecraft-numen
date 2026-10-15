@@ -36,6 +36,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -567,7 +568,7 @@ public final class AttackCompanionTask extends AbstractCompanionTask<AttackTaskR
         // 疾跑会让原版取消暴击判定(Player.attack 里 flag1 带 !isSprinting)。
         player.setSprinting(false);
         player.attack(victim);
-        player.swing(InteractionHand.MAIN_HAND);
+        player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         r.strike(victim.getId());
     }
 

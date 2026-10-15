@@ -8,6 +8,7 @@ import com.dwinovo.numen.entity.NumenPlayer;
 import com.dwinovo.numen.core.task.base.AbstractCompanionTask;
 import com.dwinovo.numen.core.task.base.Precondition;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
@@ -70,7 +71,7 @@ public final class DropCompanionTask extends AbstractCompanionTask<DropItemsTask
             if (s.isEmpty() || !s.is(r.item)) continue;
             ItemStack out = inv.removeItem(i, Math.min(s.getCount(), remaining));
             remaining -= out.getCount();
-            player.drop(out, false);
+            player.drop(out, false, Prediction.SERVER_ONLY);
         }
         inv.setChanged();
         doneMessage = "dropped " + dropped + "x " + r.label

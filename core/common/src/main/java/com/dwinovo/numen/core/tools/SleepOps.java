@@ -12,6 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.AbstractBedBlock;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
@@ -53,7 +54,10 @@ public final class SleepOps {
             throw noBed(self, given);
         }
 
-        Either<Player.BedSleepingProblem, Unit> result = self.startSleepInBed(bedHead);
+        BlockState bedState = self.level().getBlockState(bedHead);
+        AbstractBedBlock bedBlock = (AbstractBedBlock) bedState.getBlock();
+        Either<Player.BedSleepingProblem, Unit> result =
+                self.startSleepInBed(bedBlock, bedState, bedBlock.getBedRule(self.level(), bedHead), bedHead);
         Player.BedSleepingProblem rejection = result.left().orElse(null);
 
         // 这三条的顺序就是判据本身:先看原版拒没拒,再看她是不是真躺下了。
