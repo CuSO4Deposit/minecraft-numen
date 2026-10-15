@@ -9,7 +9,7 @@
 | [0003](0003-provider-catalog-as-data.md) | 06-19 | 厂家目录是数据,只有行为不同才写代码 | 已被 0012 取代 |
 | [0004](0004-network-resilience.md) | 07-14 | 网络韧性照抄官方 SDK 的共识 | 已接受 |
 | [0005](0005-per-companion-profiles.md) | 07-14 | 每只同伴一份模型档案,空库起步、不兜底 | 已接受 |
-| [0006](0006-prompt-cache-first.md) | 07-16 | 前缀缓存是一等公民,用量按各家口径记 | 已接受 |
+| [0006](0006-prompt-cache-first.md) | 07-16 | 前缀缓存是一等公民,用量按各家口径记 | 已接受;三种协议的缓存已对照 pi 补齐 |
 | [0007](0007-pure-jvm-ai-module.md) | 08-02 | 模型接入独立成纯 JVM 模块 `ai` | 已接受 |
 | [0008](0008-thinking-dialects.md) | 08-02 | 思考的方言:出向按开关的形态分族,入向锁定字段 | 已接受;形态改为兼容项,档位由 models.dev 给 |
 | [0009](0009-three-protocols.md) | 08-02 / 09-20 | 三种线协议:Chat Completions、Anthropic Messages、OpenAI Responses | 已接受;Responses 已照 pi 对齐并切为 OpenAI 缺省,未用真 key 验证 |

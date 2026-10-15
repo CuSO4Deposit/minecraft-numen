@@ -82,6 +82,7 @@ models.dev 快照/缓存  →  Chat Completions            按协议各一组,�
 | chat | `maxTokensField`(`max_tokens` 或 `max_completion_tokens`) | `applyGenerationParams` 写死的 `max_tokens` |
 | chat | `replayReasoningContent`:回传时带上 `reasoning_content` | `DeepSeekProvider`、`MoonshotProvider` 两个子类 |
 | chat | `streamUsage`:收不收 `stream_options.include_usage` | `applyStreaming` 的默认 |
+| chat | `anthropicCacheControl`:请求里显式放 `cache_control` 断点(OpenRouter 转发给 `anthropic/*` 型号时) | 新增 |
 | responses | `developerRole`:系统提示用 `developer` 还是 `system`(只对会思考的型号生效,其余一律 `system`) | 新增 |
 | anthropic | `adaptiveThinking`:用 `thinking.type:adaptive` + `output_config.effort`,还是 `budget_tokens` | 目录里的 `budget` 形态 |
 | anthropic | `temperature`:收不收温度 | 新增 |
@@ -230,3 +231,23 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 3. `developer` 角色与 `summary:"auto"` 在非官方的 Responses 兼容端点上是否被接受(兼容项 `developer_role` 可关)。
 4. `gpt-5.x` 的 `phase`(commentary / final_answer)在含工具调用的多轮里是否需要按原顺序交错回传——我们把一个回合的文本合成一条 message,放在工具调用之前。
 5. 缓存命中:没有传 `prompt_cache_key`,看 `cached_tokens` 是否仍随前缀稳定增长。
+
+**流失败与前缀缓存(照 pi 把三种协议对齐)**
+
+*流怎样算失败*(pi:`anthropic-messages.ts`、`openai-completions.ts`、`openai-responses-shared.ts`)
+- 判据只有一处:`StreamAccumulator.requireEnded()`,三种协议的 `finalizeStream` 都先过它——流里带了错误(`failure`),或协议约定的收尾没来(`ended` 为假),就抛 `LlmStreamException`(原因码 `llm.stream_failed`)。协议只做三件事:认出自己的错误帧、认出拒绝类的收尾原因、认出自己的收尾事件。厂家错误话的形状(`{"error":{"message"}}` 等)与 HTTP 错误体共用 `ProviderReply.of`。
+- Anthropic:pi 把 `event: error` 当错误抛出,见了 `message_start` 却没有 `message_stop` 抛 "ended before message_stop",没有 stop_reason 抛 "ended without a stop reason",`refusal`(取 `stop_details.explanation`)、`sensitive`、不认识的取值都算错误,`pause_turn` 按正常结束。原来全无处理(注释写"error 帧由传输层处理",传输层其实只认 `data:`),错误帧被无视、断流被当成成功。现在照 pi。
+- Chat:pi 靠 OpenAI SDK 在错误帧上抛错,`finish_reason` 必须有("Stream ended without finish_reason"),`content_filter`、`network_error` 与不认识的取值算错误。原来错误帧被无视(`choices` 缺失就返回)、没有 `finish_reason` 的半截回应照收、异常的 `finish_reason` 也照收。现在照 pi;pi 另有一个兼容项允许厂家不发 `finish_reason`,我们没有这个项,真有厂家不发时再加。
+- 为什么会漏:三个协议各写各的 `accumulateChunk`,"这个流算不算成功"没有单一出口,每家只写了"怎么收内容",收尾与出错靠各自想起;而 `NumenLlmClient` 对累积器抛的异常只记日志,没有第二道关。所以现在把判据收到累积器里,新协议要么设 `ended`/`failure`,要么 `finalizeStream` 过不了。`StreamFailureTest` 对三种协议跑同一套契约(正常样本能收尾、收尾前断流失败、错误帧失败并带出原话),新协议把样本和错误帧加进去就受同样约束。
+- 老测试里"只喂内容碎片就收尾"的几处,补上了 `finish_reason` / `message_stop` 帧,它们测的是碎片累积,不是流怎么收场。
+
+*前缀缓存*
+- 前缀稳定性:每轮请求里在历史之前的东西——工具表(`ToolRegistry` 是 `LinkedHashMap`,四个工具的描述与 schema 都是静态文字)、系统提示(各层都是登记序或排好序的稳定内容,时间、坐标、背包等会变的东西都在每轮挂的 `<runtime_state>` 里,不在前缀里)——没有发现每轮都变、却排在前面的内容。`CachePrefixTest` 对三种协议断言:同一段对话多走一步,工具表、系统提示、已有消息逐字不变(忽略断点标记)。
+- Anthropic:pi 在 system(一个,OAuth 时两个)、最后一个工具、最后一条用户消息的末块各放一个断点;`cacheRetention` 缺省 `short`(5 分钟,`cache_control` 不带 ttl),`long` 时写 `ttl:"1h"`,没有额外报头;`none` 不放断点。我们放四个:最后一个工具、system、消息里最后两个可放的块(跳过思考块)。出入只在消息里多放一个——每轮请求末尾都会再追加一条现算、不进历史的 `<runtime_state>`,pi 的"最后一块"下一轮就变了、白写一次缓存;倒数第二块是历史末尾,下一轮回看时命中。这个理由写进 `CacheBreakpoints`,Anthropic 与下面的 Chat 共用。我们没有 `cacheRetention`:没有人提出需求,不加选项,一律 5 分钟;若要加,1h 的缓存写是 2 倍价,值得先看真实间隔再定。思考块进历史后是否影响缓存是服务端行为(换思考参数会让消息段缓存失效),pi 与我们都是原样回传。
+- Responses:pi 传 `prompt_cache_key`(会话 id,最长 64 字符),`long` 时再传 `prompt_cache_retention:"24h"`,并按 `sessionAffinityFormat` 写 `session_id`/`x-client-request-id`(OpenRouter 是 `x-session-id`)报头;`supportsExplicitPromptCacheMode` 是 `none` 时关隐式缓存。我们有稳定的会话标识——同伴 UUID(也是对话日志的归属),所以 `chatStreaming` 多收一个 `sessionId`(`EntityAgentLoop` 传 `entityUuid`,设置页探测与评测传 null),经 `buildRequestBody` 到 Responses 写成 `prompt_cache_key`;Chat 与 Anthropic 不用它(靠前缀缓存)。没有做:24h 保留与显式缓存模式(没有对应需求)、会话报头(传输层的报头是整个端点共用的,按请求改要动传输层,而 OpenAI 官方只认 `prompt_cache_key`)。
+- Chat:pi 对 OpenRouter 上 `anthropic/*` 型号(`cacheControlFormat:"anthropic"`)在 system、最后一个工具、最后一条会话消息的末个文字块放 `cache_control`;DeepSeek、Kimi 等自动缓存家什么也不放。原来我们两样都没有,OpenRouter 上的 Claude 完全没有缓存。现在 `ChatCompat.anthropicCacheControl`(`Compats.resolve` 一处认出:OpenRouter 且型号以 `anthropic/` 开头,档案可覆盖)为真时放断点,位置与 Anthropic 一致(`ChatCacheControl`)。pi 只在 `api.openai.com` 上给 Chat 传 `prompt_cache_key`;OpenAI 官方现在走 Responses,Chat 不再到那里,没有照做。
+- 用量:
+  - Chat:pi 取 `prompt_tokens_details.cached_tokens ?? prompt_cache_hit_tokens` 为读、`cache_write_tokens` 为写、`input = prompt − 读 − 写`,并认 Moonshot 放在 `choice.usage` 里的用量。我们的读写字段本来就认(另认 DeepSeek 的未命中字段、顶层 `cached_tokens`);原来不认 `choice.usage`,Moonshot 整轮用量丢失,现在认。`cache_creation_tokens` 是 Anthropic 归一化的私货,不再有人写,删掉。
+  - Anthropic:pi 的 `input_tokens` 不含缓存,读写各单列,`message_delta` 里只收非 null 的字段。原来把两截用量归一成 OpenAI 的字段名(`prompt_tokens` 等)再由默认实现拆回来,delta 里带 null 的 `input_tokens` 会抛异常、带了 `input_tokens` 却没带缓存字段会把缓存清零。现在覆写 `usage()`,累积器里按字段合并原始用量,没有归一这一步。
+  - Responses:读写口径上一节已对齐。
+  - `NumenLlmClient` 的日志也改读归一后的四元。
