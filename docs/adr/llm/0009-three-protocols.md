@@ -1,8 +1,8 @@
 # 0009 三种线协议:Chat Completions、Anthropic Messages、OpenAI Responses
 
-- 状态:已接受;Responses 从没接过真实端点
+- 状态:已接受;Responses 已照 pi-mono 逐项对齐并切为 OpenAI 官方的缺省协议,尚未用真 key 在真接口上验证
 - 日期:2026-08-02(Anthropic)、09-20(Responses)
-- 提交:`8d34c7acb`、`bc4302389`、`77a15013b`
+- 提交:`8d34c7acb`、`bc4302389`、`77a15013b`;对齐与切换见 `docs/llm.md` 第十一节"第 4 步"
 
 ## 背景
 
@@ -33,5 +33,5 @@ OpenAI 兼容的 Chat Completions 覆盖了大多数厂家,但 Anthropic 的 Mes
 ## 后果
 
 - 三种协议共用循环、会话、重试与用量记账,差异都在适配器里。
-- Responses 只有单测,第一次真用要盯思考 item 回传、`developer` 角色、工具表的扁平形状、用量字段。
-- 目录里没有一家默认走 Responses,OpenAI 官方仍走 Chat Completions。
+- Responses 靠单测与按 OpenAI 文档、pi 写的流样本守着,没有接过真接口;第一次用真 key 要盯思考 item 与条目 id 的回传配对、`developer` 角色、用量字段。
+- 协议由 models.dev 的 `npm` 推出(llm 0012),OpenAI 官方(`@ai-sdk/openai`)走 Responses,没有按厂家 id 的特例。

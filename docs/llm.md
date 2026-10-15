@@ -1,6 +1,6 @@
 # 模型接入:目录、协议与兼容项
 
-状态:设计稿(10-14),用户 10-14 同意,第九节四项按建议定。第 1、2、3、5 步已落地(第十一节写现状与差异),第 4 步待做。决策的来路见 `docs/adr/llm/`;这份写打算怎么改。
+状态:设计稿(10-14),用户 10-14 同意,第九节四项按建议定。第 1 至 5 步都已落地(第十一节写现状与差异);第 4 步(OpenAI 缺省走 Responses)照 pi-mono 逐项对齐后切换,**没有用真 key 验证过**。决策的来路见 `docs/adr/llm/`;这份写打算怎么改。
 
 ## 一、要解决的问题
 
@@ -10,7 +10,7 @@
    可同一家不同型号控制方式不同(DeepSeek 新型号是开关 + 档位并存,Anthropic 新型号是自适应思考),只能写死或打补丁。
 3. **厂家的差异散在三处:** 目录里的 `thinkingFormat` 与 `protocol`、`LlmProvider` 接口上的方言常量与 `defaultBaseUrl`、
    DeepSeek 和 Moonshot 两个子类(缓存计费、`reasoning_content` 回传)。加一家要知道该改哪处。
-4. **Responses 从没接过真接口**(llm 0009),OpenAI 官方仍走 Chat Completions。
+4. **Responses 从没接过真接口**(llm 0009),OpenAI 官方因此一直走 Chat Completions。现已照 pi 逐项对齐并切为缺省(未用真 key 验证)。
 5. **OpenRouter 报 "Invalid key"**(已对外承诺 0.1.5 修),根因见第七节。
 
 ## 二、参照:pi-mono 的模型层(读过源码)
@@ -82,7 +82,7 @@ models.dev 快照/缓存  →  Chat Completions            按协议各一组,�
 | chat | `maxTokensField`(`max_tokens` 或 `max_completion_tokens`) | `applyGenerationParams` 写死的 `max_tokens` |
 | chat | `replayReasoningContent`:回传时带上 `reasoning_content` | `DeepSeekProvider`、`MoonshotProvider` 两个子类 |
 | chat | `streamUsage`:收不收 `stream_options.include_usage` | `applyStreaming` 的默认 |
-| responses | `developerRole`:系统提示用 `developer` 还是 `system` | 新增 |
+| responses | `developerRole`:系统提示用 `developer` 还是 `system`(只对会思考的型号生效,其余一律 `system`) | 新增 |
 | anthropic | `adaptiveThinking`:用 `thinking.type:adaptive` + `output_config.effort`,还是 `budget_tokens` | 目录里的 `budget` 形态 |
 | anthropic | `temperature`:收不收温度 | 新增 |
 
@@ -110,8 +110,9 @@ models.dev 快照/缓存  →  Chat Completions            按协议各一组,�
 
 ## 六、OpenAI 默认走 Responses
 
-models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Responses。这一步需要真接口验证(思考 item 回传、`developer` 角色、
-工具表扁平形状、用量字段),要用你的 OpenAI key 跑一次真实对话。
+models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Responses,和其它厂家走同一条路(`Api.ofNpm`),没有按厂家 id 的协议特例。
+请求体、条目形状、多轮回传、流事件、用量都已逐项对照 pi 的 `openai-responses.ts` 与 `openai-responses-shared.ts`(差异见第十一节"第 4 步")。
+还没有用真 key 对话验证过:思考 item 回传、`developer` 角色、条目 id 配对、用量字段这几处要在真接口上确认。
 
 ## 七、OpenRouter "Invalid key"
 
@@ -145,7 +146,7 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 1. **目录:** 构建时生成快照、运行时缓存与刷新、`Catalog` 读口;老档案迁移。行为不变(同样的厂家、同样的请求)。
 2. **协议与兼容项:** 三种协议改吃中立请求与兼容项;删两个子类与方言常量。用录下来的请求与流式返回做单测(每种协议、每种思考写法一组)。
 3. **思考档位与界面:** 档位表、下拉随型号变、型号能力展示、自定义厂家。
-4. **Responses 设为 OpenAI 缺省:** 真接口验证。
+4. **Responses 设为 OpenAI 缺省:** 照 pi 逐项对齐后切换;真接口验证待用 OpenAI key 做。
 5. **OpenRouter:** key 去空白、报错带主机与原话。
 
 每步:构建、单测、日常 GameTest;第 2、4 步要真接口跑一次(DeepSeek、OpenAI、Anthropic、OpenRouter 各一次,用你的 key,不跑 bench)。
@@ -168,7 +169,7 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 - `adaptiveThinking` 的缺省取决于**型号**(只有 effort 取值、没有预算写法),所以 `Compats.resolve` 多收一个档位表。
 - Chat 的 `thinkingFormat`:Z.ai、智谱、Kimi、火山方舟同形(只写 `thinking.type`),都归 `zai`;不再为 xAI 特判,有没有档位由型号的档位表决定。
 - 回合出处戳改成 `协议/厂家/型号`(以前是适配器类名/型号,同一协议的不同厂家分不开)。老存档里的戳对不上,升级后老回合的私货会被脱掉一次。
-- OpenAI 官方暂按 Chat(`VendorDefaults.API_OVERRIDES` 一行,第 4 步删掉)。Responses 请求不再附带 `stream_options`。
+- OpenAI 官方按 `npm` 走 Responses(第 4 步),`VendorDefaults` 里不再有协议覆盖。Responses 请求不附带 `stream_options`。
 - 老档案迁移在 `ConfigMigrations`:档案库根上的 `models_dev_ids` 标记是“已迁过”的判据(`lmstudio` 既是老 id 又是 models.dev 的 id,只看 id 分不出)。
 - 密钥去首尾空白在 `LlmEndpoint` 的构造里,是全仓唯一一处;报错带主机与厂家原话在 `LlmHttpException`;失败原因是 agent 的原因码(`Cause`),界面按语言由 `CauseWords` 说。
 
@@ -183,3 +184,49 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 **与上文不一致的地方(第 3 步)**
 - 第四节说预算型"不低于下限";另外还去掉不小于型号输出上限的档(预算算在输出里,发出去必被拒)。
 - 第五节说型号下面显示"能不能看图";改为输入模态(图像、PDF 等),跟 models.dev 一致。
+
+**第 4 步:Responses 对齐 pi 与切为 OpenAI 缺省**
+
+对照 pi 的 `packages/ai/src/api/openai-responses.ts`、`openai-responses-shared.ts`。逐项:一致的不写,不一致的写成"pi / 原来 / 现在"。
+
+**请求**
+- 系统提示:pi 放进 input,`{role, content: 字符串}`,推理型号且兼容项不禁才用 `developer`,否则 `system`。原来不分型号一律 `developer`、内容是 `input_text` 列表并带 `type:"message"`。现在照 pi;"会不会思考"取自型号档位表(`ThinkingTable.thinks()`),`buildSystemMessage` 因此从协议接口里撤掉,角色只在 Responses 自己一处定。
+- 用户消息:pi 是 `{role:"user", content:[input_text]}`,没有 `type`。原来多一个 `type:"message"`。现在照 pi。
+- 助手回合:pi 回传 `{type:"message", role:"assistant", content:[output_text+annotations], status:"completed", id, phase}` 和 `function_call`(带原 `fc_` id、`call_id`),思考 item 原样在最前。原来 message 与 function_call 都不带 item id。现在把流里 `output_item.done` 的 message/function_call id(及 message 的 `phase`)记进 extras 的 `numen_item_ids`,回传时写回;没记下 id 的回合(换过模型、私货被脱掉)message 用确定的占位 id、function_call 不带 id,与 pi 对不同模型回合的处理一致。服务端靠这些 id 校验思考与后一条输出的配对,原来"带 rs_ 的思考 + 不带 id 的调用"是 pi 从不发的组合。
+- 思考 item 的存法:原来 `mergeExtraJson` 遇到非数组就覆盖,一次回应里有两条思考时只剩最后一条;现在每条都包成数组追加。
+- 工具调用参数:pi 把解析后的参数再序列化;空参数写 `{}`。原来原样回传空串。现在空白写 `{}`。
+- 工具结果:pi 的 `output` 是字符串,空时写 `(no tool output)`。原来可能发空串。现在照 pi。
+- 工具表:一致(扁平 `{type, name, description, parameters}`,默认不开 `strict`)。原来多发 `parallel_tool_calls:true`(接口缺省就是 true),已去掉。
+- `reasoning`/`include`:pi 选了力度才写 `reasoning:{effort, summary:"auto"}` 加 `include:["reasoning.encrypted_content"]`;选了"关"只写 `{effort:"none"}`,不要 include。原来只写 effort、不要摘要,`include` 总是发(不会思考的型号不收这个 include)。现在照 pi。"自动"(我们有、pi 没有的档)不写 `reasoning`,但会思考的型号仍要 include——服务端默认也会思考,store:false 下带 id 却没有加密内容的思考 item 回传会被拒。
+- `store:false`、`stream:true`:一致。不用 `previous_response_id`:一致。
+- 输出上限:pi 对 `max_output_tokens` 取不低于 16(接口拒绝更小的)。原来原样发。现在照 pi。
+- 温度:pi 设了就发。原来只发 `>0`,0 被丢。现在设了就发(Chat 本来如此);推理型号 models.dev 里 `temperature:false`,由 `RequestOptions.temperatureFor` 挡掉,思考时不发的判据只此一处。
+- 没有对齐、也不打算做的 pi 兼容项:`sessionAffinityFormat`、`supportsLongCacheRetention`、`supportsExplicitPromptCacheMode`(`prompt_cache_key`、会话报头、24h 缓存:依赖会话 id,目前不传,缓存靠前缀自动命中)、`supportsStrictMode`、`supportsOpenAIGrammarTools`、`supportsToolSearch`(我们没有对应能力)、`serviceTier`、`toolChoice`。我们的 `ResponsesCompat` 只有 `developerRole`(对应 pi 的 `supportsDeveloperRole`),没有 pi 没有的项。
+
+**流事件**
+- `output_text.delta`、`reasoning_summary_text.delta`、`reasoning_text.delta`、`output_item.added/done`、`function_call_arguments.delta`:一致。
+- `refusal.delta` 与 message 里的 `refusal` 内容:pi 当文本收。原来无视(拒绝时回合是空的)。现在收。
+- 摘要分段:pi 在 `reasoning_summary_part.done` 补 `
+
+`。原来直接拼接。现在在下一段 `part.added` 时补(同样的分隔,结尾不留空行)。
+- `function_call_arguments.done` 与 `output_item.done` 里的最终参数:pi 用它们覆盖累积值,`added` 里的初始参数也收。原来只拼增量。现在照 pi。
+- `response.failed`:pi 抛 `code: message`(无 error 时 `incomplete: reason`,再无则 "Unknown error")。原来当作正常收尾,回合变成"空回应"。现在是流失败,原话原样带出。
+- `error` 帧:pi 抛 `Error Code <code>: <message>`。原来无视。现在同。
+- 没有收尾事件(completed/incomplete/failed 都没来)就断流:pi 抛错。原来把半截回应当成功。现在同。
+- 以上失败走新异常 `LlmStreamException` → 原因码 `llm.stream_failed`(`Cause`),界面显示"回应中途断了:原话";与 HTTP 层的 `LlmHttpException` 分开,因为它没有状态码和主机。循环对所有失败都重试一次,这类也一样。
+- `reasoning_summary` 在 `output_item.done` 里整段覆盖累积摘要(pi):没有对齐——我们的摘要是整条流的一个字符串,增量到齐即完整。Azure 的"加密内容只在 completed 里给"的补写(pi 为 Azure 做的)也没做:Azure 在 models.dev 里不是 `@ai-sdk/openai`。
+
+**用量**
+- pi:`input = input_tokens − cached_tokens − cache_write_tokens`,`cacheRead = cached_tokens`,`cacheWrite = cache_write_tokens`,另记 `reasoning_tokens`。原来没有 `cache_write_tokens`。现在补上。`reasoning_tokens` 已含在 output 里,我们的四元没有它的位置,不单列(llm 0006)。
+- 日志里的"tokens=…"原来读 Chat 的字段名,Responses 与 Anthropic 都显示 0/0;现在读归一后的四元。
+
+**切换**
+- `VendorDefaults` 里"OpenAI 走 Chat"的协议覆盖整张表删除,`ModelsDev` 直接用 `Api.ofNpm`。
+- 档案里已选 OpenAI 的不用动,协议每次从目录取。回合出处戳从 `chat/openai/…` 变成 `responses/openai/…`,升级后老回合的私货脱掉一次。
+
+**真接口上最可能出问题的地方**(用真 key 测时重点看)
+1. 助手回合回传时 `message`/`function_call` 的 id 与思考 item 的配对校验(报错形如 "was provided without its required following item" / "Item … not found")。
+2. "自动"档带 `include` 但不带 `reasoning`,服务端是否仍返回带加密内容的思考 item。
+3. `developer` 角色与 `summary:"auto"` 在非官方的 Responses 兼容端点上是否被接受(兼容项 `developer_role` 可关)。
+4. `gpt-5.x` 的 `phase`(commentary / final_answer)在含工具调用的多轮里是否需要按原顺序交错回传——我们把一个回合的文本合成一条 message,放在工具调用之前。
+5. 缓存命中:没有传 `prompt_cache_key`,看 `cached_tokens` 是否仍随前缀稳定增长。

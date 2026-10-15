@@ -12,10 +12,10 @@
 | [0006](0006-prompt-cache-first.md) | 07-16 | 前缀缓存是一等公民,用量按各家口径记 | 已接受 |
 | [0007](0007-pure-jvm-ai-module.md) | 08-02 | 模型接入独立成纯 JVM 模块 `ai` | 已接受 |
 | [0008](0008-thinking-dialects.md) | 08-02 | 思考的方言:出向按开关的形态分族,入向锁定字段 | 已接受;形态改为兼容项,档位由 models.dev 给 |
-| [0009](0009-three-protocols.md) | 08-02 / 09-20 | 三种线协议:Chat Completions、Anthropic Messages、OpenAI Responses | 已接受;Responses 未接真端点 |
+| [0009](0009-three-protocols.md) | 08-02 / 09-20 | 三种线协议:Chat Completions、Anthropic Messages、OpenAI Responses | 已接受;Responses 已照 pi 对齐并切为 OpenAI 缺省,未用真 key 验证 |
 | [0010](0010-turn-origin.md) | 09-20 | 回合记住出处,换模型后不回塞上一家的私货 | 已接受 |
 | [0011](0011-protocol-view.md) | 09 | 消息配对只在 ProtocolView 一处修 | 已接受 |
-| [0012](0012-models-dev-upstream.md) | 10-10 | 厂家与型号目录改用 models.dev 做上游 | 已接受;目录、兼容项与界面已落地,Responses 缺省待做 |
+| [0012](0012-models-dev-upstream.md) | 10-10 | 厂家与型号目录改用 models.dev 做上游 | 已接受;目录、兼容项、界面与 OpenAI 缺省走 Responses 已落地,厂家 `/models` 一级待做 |
 
 ## 沿着一件事看
 
