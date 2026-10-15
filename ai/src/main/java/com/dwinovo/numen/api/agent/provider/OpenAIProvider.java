@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.agent.provider;
 
+import com.dwinovo.numen.api.agent.http.ProviderReply;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -268,6 +269,12 @@ public final class OpenAIProvider implements LlmProvider {
             acc.usage = chunk.getAsJsonObject("usage");
         }
 
+        // 流中途的错误帧({"error":{...}}):厂家在 200 之后才出的错,和 HTTP 错误体同一批写法
+        if (chunk.has("error") && !chunk.get("error").isJsonNull()) {
+            String reply = ProviderReply.of(chunk);
+            acc.failure = reply != null ? reply : chunk.get("error").toString();
+            return;
+        }
         if (!chunk.has("choices")) return;
         JsonArray choices = chunk.getAsJsonArray("choices");
         if (choices.isEmpty()) return;
@@ -275,9 +282,14 @@ public final class OpenAIProvider implements LlmProvider {
         if (!first.isJsonObject()) return;
         JsonObject choice = first.getAsJsonObject();
 
-        // finish_reason
+        // finish_reason 是本协议的收尾;正常收尾之外的取值(content_filter、network_error、没见过的)算流失败
         if (choice.has("finish_reason") && !choice.get("finish_reason").isJsonNull()) {
-            acc.finishReason = choice.get("finish_reason").getAsString();
+            String finish = choice.get("finish_reason").getAsString();
+            acc.finishReason = finish;
+            acc.ended = true;
+            if (!NORMAL_FINISH.contains(finish)) {
+                acc.failure = "Provider finish_reason: " + finish;
+            }
         }
 
         // delta — body of the chunk's payload
@@ -335,6 +347,9 @@ public final class OpenAIProvider implements LlmProvider {
         }
     }
 
+    private static final java.util.Set<String> NORMAL_FINISH =
+            java.util.Set.of("stop", "end", "length", "tool_calls", "function_call");
+
     /** 思考方言字段,按优先序;首个非空者在流内锁定(有的后端双字段同文,防重复计入)。 */
     private static final List<String> REASONING_FIELDS =
             List.of("reasoning_content", "reasoning", "reasoning_text");
@@ -381,6 +396,7 @@ public final class OpenAIProvider implements LlmProvider {
 
     @Override
     public AssistantTurn finalizeStream(StreamAccumulator acc) {
+        acc.requireEnded();
         acc.endContent();
         List<LlmToolCall> calls = new ArrayList<>(acc.toolCalls.size());
         for (StreamAccumulator.ToolCallBuilder b : acc.toolCalls.values()) {

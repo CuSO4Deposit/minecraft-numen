@@ -1,5 +1,6 @@
 package com.dwinovo.numen.api.agent.provider;
 
+import com.dwinovo.numen.api.agent.http.ProviderReply;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -318,12 +319,19 @@ public final class AnthropicProvider implements LlmProvider {
             }
             case "message_delta" -> {
                 if (chunk.has("delta") && chunk.get("delta").isJsonObject()) {
-                    String stop = str(chunk.getAsJsonObject("delta"), "stop_reason");
-                    if (stop != null) acc.finishReason = mapStopReason(stop);
+                    JsonObject delta = chunk.getAsJsonObject("delta");
+                    String stop = str(delta, "stop_reason");
+                    if (stop != null) acc.finishReason = finishReason(stop, delta, acc);
                 }
                 mergeUsage(acc, chunk.get("usage"));
             }
-            default -> { }   // message_stop / ping / error帧由传输层处理
+            // 收尾:没有 stop_reason 的 message_stop 不算数,流还是没收好
+            case "message_stop" -> acc.ended = acc.finishReason != null;
+            case "error" -> {
+                String reply = ProviderReply.of(chunk);
+                acc.failure = reply != null ? reply : chunk.toString();
+            }
+            default -> { }   // ping 等
         }
     }
 
@@ -352,19 +360,31 @@ public final class AnthropicProvider implements LlmProvider {
         acc.usage = u;
     }
 
-    /** stop_reason → OpenAI 形 finish_reason,日志与下游判读统一口径。 */
-    private static String mapStopReason(String stop) {
-        return switch (stop) {
-            case "end_turn", "stop_sequence" -> "stop";
-            case "tool_use" -> "tool_calls";
-            case "max_tokens" -> "length";
-            default -> stop;
-        };
+    /**
+     * stop_reason → OpenAI 形 finish_reason,日志与下游判读统一口径。正常收尾之外的原因算流失败:
+     * 模型拒绝({@code refusal},附带它的解释)、内容被安全过滤({@code sensitive})、以及不认识的新取值。
+     * {@code pause_turn} 只是服务端工具回合暂停,与正常结束同样处理。
+     */
+    private static String finishReason(String stop, JsonObject delta, StreamAccumulator acc) {
+        switch (stop) {
+            case "end_turn", "stop_sequence", "pause_turn" -> { return "stop"; }
+            case "tool_use" -> { return "tool_calls"; }
+            case "max_tokens" -> { return "length"; }
+            case "refusal" -> {
+                String why = delta.has("stop_details") && delta.get("stop_details").isJsonObject()
+                        ? str(delta.getAsJsonObject("stop_details"), "explanation") : null;
+                acc.failure = why != null && !why.isEmpty() ? why : "The model refused to complete the request";
+            }
+            case "sensitive" -> acc.failure = "Provider stopped with: sensitive";
+            default -> acc.failure = "Unhandled stop reason: " + stop;
+        }
+        return stop;
     }
 
 
     @Override
     public AssistantTurn finalizeStream(StreamAccumulator acc) {
+        acc.requireEnded();
         List<LlmToolCall> calls = new ArrayList<>(acc.toolCalls.size());
         for (StreamAccumulator.ToolCallBuilder b : acc.toolCalls.values()) {
             if (b.id == null && b.name == null && b.arguments.length() == 0) continue;

@@ -24,7 +24,7 @@ class StreamAccumulationTest {
         OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"content\":\"你\"}}]}"), acc);
-        p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"content\":\"好\"}}]}"), acc);
+        p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"content\":\"好\"},\"finish_reason\":\"stop\"}]}"), acc);
         assertEquals("你好", p.finalizeStream(acc).content());
         assertEquals(2, acc.chunkCount);
     }
@@ -36,7 +36,7 @@ class StreamAccumulationTest {
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
                 + "\"id\":\"c1\",\"function\":{\"name\":\"move_to\",\"arguments\":\"{\\\"x\\\":\"}}]}}]}"), acc);
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
-                + "\"function\":{\"arguments\":\"1}\"}}]}}]}"), acc);
+                + "\"function\":{\"arguments\":\"1}\"}}]},\"finish_reason\":\"tool_calls\"}]}"), acc);
         AssistantTurn turn = p.finalizeStream(acc);
         assertTrue(turn.hasToolCalls());
         LlmToolCall tc = turn.toolCalls().get(0);
@@ -47,12 +47,13 @@ class StreamAccumulationTest {
 
     @Test
     void aStreamThatDiesMidArgumentsStillYieldsAUsableTurn() {
-        // 现场:模型把参数当 XML 写进了 content,tool_calls 只来了半截就没了下文。
+        // 现场:模型把参数当 XML 写进了 content,tool_calls 只来了半截,随即带着 finish_reason 收了尾。
         // 这一帧收下什么,就会进对话历史、每轮回传、并落盘——所以它必须是能解析的。
         OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
-                + "\"id\":\"c1\",\"function\":{\"name\":\"goto\",\"arguments\":\"{\\\"x\\\":\"}}]}}]}"), acc);
+                + "\"id\":\"c1\",\"function\":{\"name\":\"goto\",\"arguments\":\"{\\\"x\\\":\"}}]},"
+                + "\"finish_reason\":\"stop\"}]}"), acc);
         // 第二块永远没来
 
         AssistantTurn turn = p.finalizeStream(acc);
@@ -69,7 +70,8 @@ class StreamAccumulationTest {
         OpenAIProvider p = Wire.chat();
         StreamAccumulator acc = new StreamAccumulator();
         p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,"
-                + "\"id\":\"c1\",\"function\":{\"name\":\"goto\",\"arguments\":\"{\\\"x\\\":\"}}]}}]}"), acc);
+                + "\"id\":\"c1\",\"function\":{\"name\":\"goto\",\"arguments\":\"{\\\"x\\\":\"}}]},"
+                + "\"finish_reason\":\"stop\"}]}"), acc);
 
         JsonObject msg = p.assistantToRequestItems(p.finalizeStream(acc)).get(0);
         String wire = msg.getAsJsonArray("tool_calls").get(0).getAsJsonObject()

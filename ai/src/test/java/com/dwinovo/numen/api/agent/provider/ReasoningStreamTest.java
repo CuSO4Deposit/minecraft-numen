@@ -22,6 +22,8 @@ class ReasoningStreamTest {
     private static AssistantTurn stream(OpenAIProvider p, String... deltas) {
         StreamAccumulator acc = new StreamAccumulator();
         for (String d : deltas) p.accumulateChunk(chunk(d), acc);
+        p.accumulateChunk(JsonParser.parseString(
+                "{\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}").getAsJsonObject(), acc);
         return p.finalizeStream(acc);
     }
 

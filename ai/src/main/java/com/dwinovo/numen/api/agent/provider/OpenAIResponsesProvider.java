@@ -1,6 +1,5 @@
 package com.dwinovo.numen.api.agent.provider;
 
-import com.dwinovo.numen.api.agent.http.LlmStreamException;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -305,12 +304,14 @@ public final class OpenAIResponsesProvider implements LlmProvider {
                     acc.usage = response.getAsJsonObject("usage");
                 }
                 acc.finishReason = type.substring(type.lastIndexOf(46) + 1);
+                acc.ended = true;
             }
             case "response.failed" -> {
                 JsonObject response = obj(chunk, "response");
                 JsonObject error = obj(response, "error");
                 JsonObject details = obj(response, "incomplete_details");
                 acc.finishReason = "failed";
+                acc.ended = true;
                 acc.failure = error != null
                         ? orElse(str(error, "code"), "unknown") + ": " + orElse(str(error, "message"), "no message")
                         : details != null ? "incomplete: " + str(details, "reason")
@@ -341,13 +342,7 @@ public final class OpenAIResponsesProvider implements LlmProvider {
 
     @Override
     public AssistantTurn finalizeStream(StreamAccumulator acc) {
-        if (acc.failure != null) {
-            throw new LlmStreamException(acc.failure);
-        }
-        // 连接断了、流却没有收尾事件:前面收到的只是半截回应
-        if (acc.finishReason == null) {
-            throw new LlmStreamException("stream ended before a terminal response event");
-        }
+        acc.requireEnded();
         List<LlmToolCall> calls = new ArrayList<>();
         for (StreamAccumulator.ToolCallBuilder b : acc.toolCalls.values()) {
             if (b.id != null && b.name != null) {

@@ -38,33 +38,19 @@ public final class LlmHttpException extends RuntimeException {
     public boolean isServerError()    { return statusCode >= 500; }
 
     /**
-     * 厂家的原话:从常见的错误体里取那句人话——{@code {"error":{"message":…}}}(OpenAI、OpenRouter、
-     * DeepSeek、Anthropic)、{@code {"error":"…"}}、{@code {"message":…}}、{@code {"detail":…}};
+     * 厂家的原话:从常见的错误体里取那句人话(形状见 {@link ProviderReply#of});
      * 不是这些形状就是整个正文。正文为空给空串。
      */
     public String providerMessage() {
         String text = responseBody.strip();
         try {
             JsonElement root = JsonParser.parseString(text);
-            String found = root.isJsonObject() ? messageOf(root.getAsJsonObject()) : null;
+            String found = root.isJsonObject() ? ProviderReply.of(root.getAsJsonObject()) : null;
             if (found != null) text = found.strip();
         } catch (RuntimeException notJson) {
             // 正文本来就不是 JSON(网关的纯文本错误页之类):原话就是它
         }
         return truncate(text, 300);
-    }
-
-    private static String messageOf(JsonObject o) {
-        for (String key : new String[]{"error", "message", "detail"}) {
-            JsonElement v = o.get(key);
-            if (v == null) continue;
-            if (v.isJsonPrimitive()) return v.getAsString();
-            if (v.isJsonObject()) {
-                String inner = messageOf(v.getAsJsonObject());
-                if (inner != null) return inner;
-            }
-        }
-        return null;
     }
 
     private static String truncate(String s, int max) {

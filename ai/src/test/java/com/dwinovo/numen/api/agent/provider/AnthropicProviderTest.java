@@ -306,6 +306,7 @@ class AnthropicProviderTest {
                 + "\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"2}\"}}"), acc);
         P.accumulateChunk(j("{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},"
                 + "\"usage\":{\"output_tokens\":30}}"), acc);
+        P.accumulateChunk(j("{\"type\":\"message_stop\"}"), acc);
         AssistantTurn turn = P.finalizeStream(acc);
 
         assertEquals("答", turn.content());
@@ -345,7 +346,9 @@ class AnthropicProviderTest {
 
     @Test
     void pingAndUnknownEventsAreIgnored() {
-        AssistantTurn turn = stream("{\"type\":\"ping\"}", "{\"type\":\"message_stop\"}");
+        AssistantTurn turn = stream("{\"type\":\"ping\"}",
+                "{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}",
+                "{\"type\":\"message_stop\"}");
         assertEquals("", turn.content());
         assertFalse(turn.hasToolCalls());
     }
