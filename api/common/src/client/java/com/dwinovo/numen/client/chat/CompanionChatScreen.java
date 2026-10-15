@@ -252,7 +252,8 @@ public class CompanionChatScreen extends Screen {
                 && ConsentMessage.click(this.font, card, keysX, keysY, keysW, mouseX, mouseY)) {
             return true;
         }
-        if (inputBar != null && inputBar.mouseClicked(mouseX, mouseY, event.button())) {
+        if (inputBar != null && inputBar.mouseClicked(mouseX, mouseY,
+                com.dwinovo.numen.client.ui.mc.McMouse.button(event.button()))) {
             return true;
         }
         return super.mouseClicked(event, doubleClick);

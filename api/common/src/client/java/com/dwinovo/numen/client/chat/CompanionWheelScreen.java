@@ -318,7 +318,7 @@ public class CompanionWheelScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
         double mouseY = event.y();
-        if (event.button() != 0 || entries.isEmpty()) {
+        if (com.dwinovo.numen.client.ui.mc.McMouse.button(event.button()) != 0 || entries.isEmpty()) {
             return super.mouseClicked(event, doubleClick);
         }
         // 命中检测与渲染同一套席位坐标
