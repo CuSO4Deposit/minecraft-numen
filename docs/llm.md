@@ -1,6 +1,6 @@
 # 模型接入:目录、协议与兼容项
 
-状态:设计稿(10-14),用户 10-14 同意,第九节四项按建议定。第 1、2、5 步已落地(第十一节写现状与差异),第 3、4 步待做。决策的来路见 `docs/adr/llm/`;这份写打算怎么改。
+状态:设计稿(10-14),用户 10-14 同意,第九节四项按建议定。第 1、2、3、5 步已落地(第十一节写现状与差异),第 4 步待做。决策的来路见 `docs/adr/llm/`;这份写打算怎么改。
 
 ## 一、要解决的问题
 
@@ -150,7 +150,7 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 
 每步:构建、单测、日常 GameTest;第 2、4 步要真接口跑一次(DeepSeek、OpenAI、Anthropic、OpenRouter 各一次,用你的 key,不跑 bench)。
 
-## 十一、落地情况(第 1、2、5 步)
+## 十一、落地情况(第 1、2、3、5 步)
 
 **目录**(`ai` 的 `agent.catalog`)
 - 随包快照 `ai/src/main/resources/numen_models_snapshot.json`:models.dev 全部 228 家的裁剪版(2.6 MB,一家一行),没有再按“常用”裁——
@@ -170,4 +170,16 @@ models.dev 里 OpenAI 的 `npm` 是 `@ai-sdk/openai`,按 pi 的规则走 Respons
 - 回合出处戳改成 `协议/厂家/型号`(以前是适配器类名/型号,同一协议的不同厂家分不开)。老存档里的戳对不上,升级后老回合的私货会被脱掉一次。
 - OpenAI 官方暂按 Chat(`VendorDefaults.API_OVERRIDES` 一行,第 4 步删掉)。Responses 请求不再附带 `stream_options`。
 - 老档案迁移在 `ConfigMigrations`:档案库根上的 `models_dev_ids` 标记是“已迁过”的判据(`lmstudio` 既是老 id 又是 models.dev 的 id,只看 id 分不出)。
-- 密钥去首尾空白在 `LlmEndpoint` 的构造里,是全仓唯一一处;报错带主机与厂家原话在 `LlmHttpException` 与 `LlmErrorWords`。
+- 密钥去首尾空白在 `LlmEndpoint` 的构造里,是全仓唯一一处;报错带主机与厂家原话在 `LlmHttpException`;失败原因是 agent 的原因码(`Cause`),界面按语言由 `CauseWords` 说。
+
+**思考档位与界面**(第 3 步)
+- "这一档在这个型号、这个协议与兼容项下实际写成什么"只在 `ThinkingPlan`(`agent.provider`)算一次:请求体、界面列哪几档、每档右边的说明都问它。
+  发不出参数的档位不列;只剩"自动"时界面不出思考一栏。
+- 照 pi:OpenRouter 对推理型号一律写 `reasoning.effort`(目录只给预算或开关的,缺省给低、中、高),关写 `none`;Anthropic 的关写 `thinking.type=disabled`。
+- 已弃用(`status: deprecated`)的型号在读目录时丢掉,界面不显示也不提示;档案里用着的老型号按手填处理。快照里仍留着它们。
+- 型号能力多留输出上限与输入模态,界面叫法照 pi 与 models.dev:上下文、最大输出、思考、多模态、工具调用。
+- 界面照定稿草图:厂家、型号用窗口中央的选择框 `PickerBox`(搜索在顶,型号带规格列);短列表就地下拉,按可见区域摆放。
+
+**与上文不一致的地方(第 3 步)**
+- 第四节说预算型"不低于下限";另外还去掉不小于型号输出上限的档(预算算在输出里,发出去必被拒)。
+- 第五节说型号下面显示"能不能看图";改为输入模态(图像、PDF 等),跟 models.dev 一致。

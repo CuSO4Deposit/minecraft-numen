@@ -1,6 +1,6 @@
 # 0012 厂家与型号目录改用 models.dev 做上游
 
-- 状态:已接受;目录、协议与兼容项、OpenRouter 报错已落地(见 `docs/llm.md` 第十一节),思考档位界面与 Responses 缺省待做
+- 状态:已接受;目录、协议与兼容项、思考档位与界面、OpenRouter 报错已落地(见 `docs/llm.md` 第十一节),OpenAI 缺省走 Responses 与厂家 `/models` 一级待做
 - 日期:2026-10-08 讨论,10-10 定为 0.1.5 必做,10-12 对外承诺
 - 另见:CurseForge 上 1.20.1 玩家报 OpenRouter "Invalid key",已答复 0.1.5 修复
 

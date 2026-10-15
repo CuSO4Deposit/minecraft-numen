@@ -15,7 +15,7 @@
 | [0009](0009-three-protocols.md) | 08-02 / 09-20 | 三种线协议:Chat Completions、Anthropic Messages、OpenAI Responses | 已接受;Responses 未接真端点 |
 | [0010](0010-turn-origin.md) | 09-20 | 回合记住出处,换模型后不回塞上一家的私货 | 已接受 |
 | [0011](0011-protocol-view.md) | 09 | 消息配对只在 ProtocolView 一处修 | 已接受 |
-| [0012](0012-models-dev-upstream.md) | 10-10 | 厂家与型号目录改用 models.dev 做上游 | 已接受;目录与兼容项已落地,界面待做 |
+| [0012](0012-models-dev-upstream.md) | 10-10 | 厂家与型号目录改用 models.dev 做上游 | 已接受;目录、兼容项与界面已落地,Responses 缺省待做 |
 
 ## 沿着一件事看
 
