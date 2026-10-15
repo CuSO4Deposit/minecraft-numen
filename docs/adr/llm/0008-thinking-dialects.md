@@ -1,6 +1,6 @@
 # 0008 思考的方言:出向按开关的形态分族,入向锁定字段
 
-- 状态:已接受;“六族方言”现在是 Chat 协议兼容项里的 `thinkingFormat`,每个型号能选哪几档由 models.dev 的 `reasoning_options` 推出的档位表决定([0012](0012-models-dev-upstream.md))
+- 状态:已接受;被 [0014](0014-thinking-plan.md) 修订(形态成了 Chat 兼容项的 `thinkingFormat`,档位由 [0012](0012-models-dev-upstream.md) 的档位表给)
 - 日期:2026-08-02;08-03 界面收敛;10-12 `<think>` 归入思考通道
 - 提交:`f4278064c`、`8d34c7acb`、`019672ba7`、`59a6de44c`
 
