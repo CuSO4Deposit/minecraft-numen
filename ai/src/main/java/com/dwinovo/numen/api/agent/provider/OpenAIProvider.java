@@ -146,7 +146,7 @@ public final class OpenAIProvider implements LlmProvider {
 
     @Override
     public JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
-                                       JsonArray tools, RequestOptions options) {
+                                       JsonArray tools, RequestOptions options, String sessionId) {
         JsonObject body = new JsonObject();
         body.addProperty("model", model.id());
 
@@ -155,10 +155,10 @@ public final class OpenAIProvider implements LlmProvider {
             msgs.add(buildSystemMessage(systemPrompt));
         }
         for (JsonObject m : messages) msgs.add(m);
-        body.add("messages", msgs);
+        body.add("messages", compat.anthropicCacheControl() ? ChatCacheControl.markMessages(msgs) : msgs);
 
         if (tools != null && !tools.isEmpty()) {
-            body.add("tools", tools);
+            body.add("tools", compat.anthropicCacheControl() ? ChatCacheControl.markLastTool(tools) : tools);
             body.addProperty("parallel_tool_calls", true);
         }
 
@@ -281,6 +281,11 @@ public final class OpenAIProvider implements LlmProvider {
         JsonElement first = choices.get(0);
         if (!first.isJsonObject()) return;
         JsonObject choice = first.getAsJsonObject();
+
+        // 有的厂家(Moonshot)把用量放在 choice 里而不是顶层
+        if (!chunk.has("usage") && choice.has("usage") && choice.get("usage").isJsonObject()) {
+            acc.usage = choice.getAsJsonObject("usage");
+        }
 
         // finish_reason 是本协议的收尾;正常收尾之外的取值(content_filter、network_error、没见过的)算流失败
         if (choice.has("finish_reason") && !choice.get("finish_reason").isJsonNull()) {

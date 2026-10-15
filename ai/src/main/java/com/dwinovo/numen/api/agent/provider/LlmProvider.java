@@ -57,9 +57,12 @@ public interface LlmProvider {
      * @param messages     already-built wire-format message objects in order
      * @param tools        already-built wire-format tools array (may be empty)
      * @param options      the player's generation parameters; each is only sent when set and the model takes it
+     * @param sessionId    stable id of the conversation this request continues (the companion's uuid), or null.
+     *                     Only protocols whose server routes cache lookups by a client key use it (Responses'
+     *                     {@code prompt_cache_key}); the others cache by prefix alone and ignore it
      */
     JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
-                                JsonArray tools, RequestOptions options);
+                                JsonArray tools, RequestOptions options, String sessionId);
 
     /** Decode the response body into our internal {@link AssistantTurn}. */
     AssistantTurn parseResponseBody(JsonObject body);
@@ -87,8 +90,7 @@ public interface LlmProvider {
      * 缓存量在 {@code prompt_tokens_details} 里,余下即新处理的输入。Chat 协议上几家的缓存字段
      * 在这里都认一遍:DeepSeek 直接报命中与未命中({@code prompt_cache_hit_tokens} /
      * {@code prompt_cache_miss_tokens},不报缓存写),Moonshot 报在顶层 {@code cached_tokens},
-     * OpenRouter 的缓存写叫 {@code cache_write_tokens}。Anthropic 在 mergeUsage 里先归一成这个形状,
-     * Responses 覆写本方法。
+     * OpenRouter 的缓存写叫 {@code cache_write_tokens}。Responses、Anthropic 字段不同,各自覆写本方法。
      *
      * <p>"这一轮真正新处理了多少"是 {@link Usage#fresh()},从四元推导,不需要每家
      * 各写一遍减法。
@@ -109,7 +111,7 @@ public interface LlmProvider {
                 && usage.get("prompt_tokens_details").isJsonObject()) {
             JsonObject d = usage.getAsJsonObject("prompt_tokens_details");
             cacheRead = Math.max(cacheRead, usageInt(d, "cached_tokens"));
-            cacheWrite = Math.max(usageInt(d, "cache_creation_tokens"), usageInt(d, "cache_write_tokens"));
+            cacheWrite = usageInt(d, "cache_write_tokens");
         }
         long input = Math.max(0, prompt - cacheRead - cacheWrite);
         return new Usage(input, output, cacheRead, cacheWrite);

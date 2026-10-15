@@ -142,6 +142,8 @@ public final class NumenLlmClient {
      * @param tools          tool list (provider serialises to wire shape;
      *                       empty = no tools field, e.g. for summarization calls)
      * @param systemPrompt   prepended automatically — pass empty / null to skip
+     * @param sessionId      stable id of the conversation (the companion's uuid), for protocols that route
+     *                       cache lookups by a client key; null = none
      * @param cancel         cancelling it closes the stream: {@code onDelta} is not called again,
      *                       nothing is retried, and the future fails with
      *                       {@link java.util.concurrent.CancellationException}
@@ -153,6 +155,7 @@ public final class NumenLlmClient {
     public CompletableFuture<ChatResult> chatStreaming(List<ConvoState.Msg> messages,
                                                        Collection<? extends IToolSpec> tools,
                                                        String systemPrompt,
+                                                       String sessionId,
                                                        CancelToken cancel,
                                                        Consumer<Delta> onDelta) {
         // -- 1. Build wire-format messages and tool list via provider. The recorded history goes
@@ -174,7 +177,7 @@ public final class NumenLlmClient {
         }
         JsonArray toolList = provider.buildToolList(tools);
         JsonObject body = provider.buildRequestBody(endpoint.model(), systemPrompt, wire, toolList,
-                endpoint.options());
+                endpoint.options(), sessionId);
 
         if (AiLog.LOG.isDebugEnabled()) {
             AiLog.LOG.debug("[numen-llm] chat start: provider={}, model={}, msgs={}, tools={}, system_prompt_chars={}",

@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CompatsTest {
 
     private static ChatCompat chat(String vendor, String url) {
-        return (ChatCompat) Compats.resolve(Api.CHAT, vendor, url, ThinkingTable.AUTO_ONLY, null);
+        return (ChatCompat) Compats.resolve(Api.CHAT, vendor, "m", url, ThinkingTable.AUTO_ONLY, null);
     }
 
     private static JsonObject json(String raw) {
@@ -72,24 +72,38 @@ class CompatsTest {
 
     @Test
     void chatOverridesWinOverTheRecognisedDefaults() {
-        ChatCompat c = (ChatCompat) Compats.resolve(Api.CHAT, "deepseek", "https://api.deepseek.com",
+        ChatCompat c = (ChatCompat) Compats.resolve(Api.CHAT, "deepseek", "m", "https://api.deepseek.com",
                 ThinkingTable.AUTO_ONLY, json("""
                         {"thinking_format":"none","max_tokens_field":"max_completion_tokens",
                          "replay_reasoning_content":false,"stream_usage":false}"""));
-        assertEquals(new ChatCompat(ThinkingFormat.NONE, MaxTokensField.MAX_COMPLETION_TOKENS, false, false), c);
+        assertEquals(new ChatCompat(ThinkingFormat.NONE, MaxTokensField.MAX_COMPLETION_TOKENS, false, false, false), c);
     }
 
     @Test
     void aMisspelledOverrideIsRejectedNotIgnored() {
-        assertThrows(IllegalArgumentException.class, () -> Compats.resolve(Api.CHAT, "custom", "http://x/v1",
+        assertThrows(IllegalArgumentException.class, () -> Compats.resolve(Api.CHAT, "custom", "m", "http://x/v1",
                 ThinkingTable.AUTO_ONLY, json("{\"thinking_format\":\"deepseeek\"}")));
+    }
+
+    @Test
+    void openRouterRoutingToAnAnthropicModelAsksForExplicitCacheBreakpoints() {
+        ThinkingTable none = ThinkingTable.AUTO_ONLY;
+        assertTrue(((ChatCompat) Compats.resolve(Api.CHAT, "openrouter", "anthropic/claude-opus-4.5",
+                "https://openrouter.ai/api/v1", none, null)).anthropicCacheControl());
+        assertFalse(((ChatCompat) Compats.resolve(Api.CHAT, "openrouter", "openai/gpt-5",
+                "https://openrouter.ai/api/v1", none, null)).anthropicCacheControl());
+        // 别家的 anthropic/ 前缀型号不算;玩家可以覆盖
+        assertFalse(((ChatCompat) Compats.resolve(Api.CHAT, "custom", "anthropic/x", "http://x/v1", none, null))
+                .anthropicCacheControl());
+        assertTrue(((ChatCompat) Compats.resolve(Api.CHAT, "custom", "m", "http://x/v1", none,
+                json("{\"anthropic_cache_control\":true}"))).anthropicCacheControl());
     }
 
     @Test
     void responsesDeveloperRoleDefaultsOnAndCanBeSwitchedOff() {
         assertEquals(new ResponsesCompat(true),
-                Compats.resolve(Api.RESPONSES, "openai", "https://api.openai.com/v1", ThinkingTable.AUTO_ONLY, null));
-        assertEquals(new ResponsesCompat(false), Compats.resolve(Api.RESPONSES, "custom", "http://x/v1",
+                Compats.resolve(Api.RESPONSES, "openai", "m", "https://api.openai.com/v1", ThinkingTable.AUTO_ONLY, null));
+        assertEquals(new ResponsesCompat(false), Compats.resolve(Api.RESPONSES, "custom", "m", "http://x/v1",
                 ThinkingTable.AUTO_ONLY, json("{\"developer_role\":false}")));
     }
 
@@ -100,14 +114,14 @@ class CompatsTest {
         ThinkingTable withBudget = ThinkingTable.parse(true, JsonParser.parseString(
                 "[{\"type\":\"effort\",\"values\":[\"low\",\"high\"]},{\"type\":\"budget_tokens\"}]").getAsJsonArray());
         assertEquals(new AnthropicCompat(true, true),
-                Compats.resolve(Api.ANTHROPIC, "anthropic", "https://api.anthropic.com/v1", effortOnly, null));
+                Compats.resolve(Api.ANTHROPIC, "anthropic", "m", "https://api.anthropic.com/v1", effortOnly, null));
         assertEquals(new AnthropicCompat(false, true),
-                Compats.resolve(Api.ANTHROPIC, "anthropic", "https://api.anthropic.com/v1", withBudget, null));
+                Compats.resolve(Api.ANTHROPIC, "anthropic", "m", "https://api.anthropic.com/v1", withBudget, null));
         assertEquals(new AnthropicCompat(false, true),
-                Compats.resolve(Api.ANTHROPIC, "anthropic", "https://api.anthropic.com/v1",
+                Compats.resolve(Api.ANTHROPIC, "anthropic", "m", "https://api.anthropic.com/v1",
                         ThinkingTable.AUTO_ONLY, null), "查不到能力的型号不走自适应");
         assertEquals(new AnthropicCompat(false, false),
-                Compats.resolve(Api.ANTHROPIC, "custom", "http://x/v1", effortOnly,
+                Compats.resolve(Api.ANTHROPIC, "custom", "m", "http://x/v1", effortOnly,
                         json("{\"adaptive_thinking\":false,\"temperature\":false}")));
     }
 }

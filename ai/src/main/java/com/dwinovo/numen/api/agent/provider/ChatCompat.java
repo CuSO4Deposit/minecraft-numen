@@ -9,9 +9,12 @@ import com.dwinovo.numen.api.agent.catalog.Api;
  * @param maxTokensField         输出上限用哪个字段名
  * @param replayReasoningContent 回传助手消息时必须带 {@code reasoning_content}(带工具调用的回合缺了就补)
  * @param streamUsage            流式请求带不带 {@code stream_options.include_usage}(不带就拿不到用量)
+ * @param anthropicCacheControl  请求里显式放 {@code cache_control} 断点:网关转发给 Anthropic 型号时它不会自动缓存
+ *                               (其余厂家按前缀自动缓存,不需要)
  */
 public record ChatCompat(ThinkingFormat thinkingFormat, MaxTokensField maxTokensField,
-                         boolean replayReasoningContent, boolean streamUsage) implements Compat {
+                         boolean replayReasoningContent, boolean streamUsage,
+                         boolean anthropicCacheControl) implements Compat {
 
     @Override
     public Api api() {

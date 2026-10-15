@@ -75,7 +75,7 @@ interface Mind {
             CompletableFuture<NumenLlmClient.ChatResult> result;
             try {
                 result = NumenLlmClient.forEndpoint(endpoint).chatStreaming(request.messages(), request.tools(),
-                        request.systemPrompt(), cancel, null);
+                        request.systemPrompt(), null, cancel, null);
             } catch (RuntimeException ex) {
                 result = CompletableFuture.failedFuture(ex);
             }

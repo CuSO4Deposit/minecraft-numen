@@ -33,7 +33,7 @@ class ThinkingPlanTest {
     }
 
     private static ChatCompat chat(ThinkingFormat f) {
-        return new ChatCompat(f, ChatCompat.MaxTokensField.MAX_TOKENS, false, true);
+        return new ChatCompat(f, ChatCompat.MaxTokensField.MAX_TOKENS, false, true, false);
     }
 
     private static List<ThinkingLevel> levels(ThinkingPlan p) {
@@ -165,6 +165,6 @@ class ThinkingPlanTest {
     }
 
     private static JsonObject body(LlmProvider p, ModelSpec model, ThinkingLevel level) {
-        return p.buildRequestBody(model, "sys", List.of(), new JsonArray(), new RequestOptions(null, 0, level));
+        return p.buildRequestBody(model, "sys", List.of(), new JsonArray(), new RequestOptions(null, 0, level), null);
     }
 }

@@ -16,7 +16,7 @@ final class Wire {
     private Wire() {}
 
     /** 最普通的 OpenAI 兼容写法。 */
-    static final ChatCompat CHAT = new ChatCompat(OPENAI, MAX_TOKENS, false, true);
+    static final ChatCompat CHAT = new ChatCompat(OPENAI, MAX_TOKENS, false, true, false);
 
     /** 目录里查不到的型号:只有自动思考。 */
     static final ModelSpec PLAIN = new ModelSpec("m", ThinkingTable.AUTO_ONLY, true);
@@ -33,7 +33,7 @@ final class Wire {
 
     static JsonObject body(LlmProvider p, ModelSpec model, String system, List<JsonObject> messages,
                            RequestOptions options) {
-        return p.buildRequestBody(model, system, messages, new JsonArray(), options);
+        return p.buildRequestBody(model, system, messages, new JsonArray(), options, null);
     }
 
     static JsonObject json(String raw) {

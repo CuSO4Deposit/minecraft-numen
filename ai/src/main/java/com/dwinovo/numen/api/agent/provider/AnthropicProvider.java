@@ -151,7 +151,7 @@ public final class AnthropicProvider implements LlmProvider {
      */
     @Override
     public JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
-                                       JsonArray tools, RequestOptions options) {
+                                       JsonArray tools, RequestOptions options, String sessionId) {
         JsonObject body = new JsonObject();
         body.addProperty("model", model.id());
         // max_tokens 是本协议的必填项;玩家没设就用协议自己的缺省
@@ -160,17 +160,17 @@ public final class AnthropicProvider implements LlmProvider {
             JsonObject text = new JsonObject();
             text.addProperty("type", "text");
             text.addProperty("text", systemPrompt);
-            text.add("cache_control", ephemeral());
+            text.add("cache_control", CacheBreakpoints.ephemeral());
             JsonArray system = new JsonArray();
             system.add(text);
             body.add("system", system);
         }
         JsonArray merged = mergeConsecutiveRoles(messages);
-        markLastBlocks(merged, 2);
+        markLastBlocks(merged, CacheBreakpoints.HISTORY);
         body.add("messages", merged);
         if (tools != null && !tools.isEmpty()) {
             JsonArray marked = tools.deepCopy();
-            marked.get(marked.size() - 1).getAsJsonObject().add("cache_control", ephemeral());
+            marked.get(marked.size() - 1).getAsJsonObject().add("cache_control", CacheBreakpoints.ephemeral());
             body.add("tools", marked);
         }
 
@@ -214,12 +214,6 @@ public final class AnthropicProvider implements LlmProvider {
         return body;
     }
 
-    private static JsonObject ephemeral() {
-        JsonObject c = new JsonObject();
-        c.addProperty("type", "ephemeral");
-        return c;
-    }
-
     /**
      * 从末尾往前给 {@code count} 个块打缓存断点。思考块不能打断点,跳过;
      * 块对象可能与调用方的消息共用,先换成副本再改。
@@ -233,7 +227,7 @@ public final class AnthropicProvider implements LlmProvider {
                 String type = block.get("type").getAsString();
                 if (type.equals("thinking") || type.equals("redacted_thinking")) continue;
                 JsonObject marked = block.deepCopy();
-                marked.add("cache_control", ephemeral());
+                marked.add("cache_control", CacheBreakpoints.ephemeral());
                 blocks.set(b, marked);
                 left--;
             }
@@ -335,29 +329,29 @@ public final class AnthropicProvider implements LlmProvider {
         }
     }
 
-    /** usage 两截归一成 OpenAI 形字段名——client 的日志与记账下游对协议无感。 */
+    /**
+     * usage 分两截(message_start 带输入与缓存量,message_delta 带输出量),按字段并进同一个对象。
+     * 只收有值的字段:缺失或 null 都不覆盖已有的——有的代理在 message_delta 里省掉输入量。
+     */
     private static void mergeUsage(StreamAccumulator acc, JsonElement usageEl) {
         if (usageEl == null || !usageEl.isJsonObject()) return;
-        JsonObject in = usageEl.getAsJsonObject();
         JsonObject u = acc.usage != null ? acc.usage : new JsonObject();
-        if (in.has("input_tokens")) {
-            int input = in.get("input_tokens").getAsInt();
-            int cacheRead = LlmProvider.usageInt(in, "cache_read_input_tokens");
-            int cacheWrite = LlmProvider.usageInt(in, "cache_creation_input_tokens");
-            // input_tokens 本身不含缓存命中,prompt_tokens 报全量口径,命中量入 details。
-            u.addProperty("prompt_tokens", input + cacheRead + cacheWrite);
-            JsonObject details = new JsonObject();
-            details.addProperty("cached_tokens", cacheRead);
-            // 缓存写也留下:它是实打实处理过的量,归一时丢了下游就再也拆不出来
-            details.addProperty("cache_creation_tokens", cacheWrite);
-            u.add("prompt_tokens_details", details);
+        for (var e : usageEl.getAsJsonObject().entrySet()) {
+            if (e.getValue().isJsonPrimitive()) u.add(e.getKey(), e.getValue());
         }
-        if (in.has("output_tokens")) {
-            u.addProperty("completion_tokens", in.get("output_tokens").getAsInt());
-        }
-        u.addProperty("total_tokens",
-                LlmProvider.usageInt(u, "prompt_tokens") + LlmProvider.usageInt(u, "completion_tokens"));
         acc.usage = u;
+    }
+
+    /**
+     * 本协议的 {@code input_tokens} 本身不含缓存:读({@code cache_read_input_tokens})与写
+     * ({@code cache_creation_input_tokens})各自单列,和四元口径一致,不用减。
+     */
+    @Override
+    public Usage usage(JsonObject usage) {
+        if (usage == null) return Usage.ZERO;
+        return new Usage(LlmProvider.usageInt(usage, "input_tokens"), LlmProvider.usageInt(usage, "output_tokens"),
+                LlmProvider.usageInt(usage, "cache_read_input_tokens"),
+                LlmProvider.usageInt(usage, "cache_creation_input_tokens"));
     }
 
     /**

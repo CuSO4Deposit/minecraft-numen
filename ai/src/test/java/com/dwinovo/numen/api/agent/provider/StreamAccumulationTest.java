@@ -90,12 +90,22 @@ class StreamAccumulationTest {
         assertEquals(10, acc.usage.get("prompt_tokens").getAsInt());
     }
 
+    /** Moonshot 把用量放在 choice 里而不是顶层:不认的话整轮的用量(和缓存命中)都丢了。 */
+    @Test
+    void usageInsideTheChoiceIsRead() {
+        OpenAIProvider p = Wire.chat();
+        StreamAccumulator acc = new StreamAccumulator();
+        p.accumulateChunk(chunk("{\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\","
+                + "\"usage\":{\"prompt_tokens\":80,\"completion_tokens\":5,\"cached_tokens\":64}}]}"), acc);
+        assertEquals(new Usage(16, 5, 64, 0), p.usage(acc.usage));
+    }
+
     @Test
     void replayCompatFillsReasoningContentOnToolCalls() {
         // 带 tool_calls 却缺 reasoning_content 的 assistant 消息会被 Kimi、DeepSeek 拒收:
         // 开了 replayReasoningContent 就补单个空格;字段已在时不得覆盖。
         OpenAIProvider p = new OpenAIProvider(new ChatCompat(ChatCompat.ThinkingFormat.NONE,
-                ChatCompat.MaxTokensField.MAX_TOKENS, true, true));
+                ChatCompat.MaxTokensField.MAX_TOKENS, true, true, false));
         AssistantTurn bare = new AssistantTurn("", java.util.List.of(
                 new LlmToolCall("id1", "look", "{}")), null);
         assertEquals(" ", p.assistantToRequestItems(bare).get(0).get("reasoning_content").getAsString());

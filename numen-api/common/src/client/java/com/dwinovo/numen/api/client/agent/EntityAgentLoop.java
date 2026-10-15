@@ -778,7 +778,8 @@ public final class EntityAgentLoop {
         private java.util.concurrent.CompletableFuture<NumenLlmClient.ChatResult> stream(
                 ModelRequest request, CancelToken cancel, Consumer<Delta> onDelta, Minecraft mc) {
             NumenLlmClient llm = client();
-            return llm.chatStreaming(request.messages(), request.tools(), request.systemPrompt(), cancel, delta -> {
+            return llm.chatStreaming(request.messages(), request.tools(), request.systemPrompt(),
+                    entityUuid.toString(), cancel, delta -> {
                 // 增量在 HTTP 线程上由累积器给出,再按顺序切回主线程
                 Delta d = new Delta(delta.content(), delta.reasoning());
                 mc.execute(() -> {

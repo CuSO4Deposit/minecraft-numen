@@ -634,7 +634,7 @@ public final class ProfileFormPanel {
         checkButton.setLabel(t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
         resultAlert.show(InlineAlert.Severity.INFO, t(ModLanguageData.Keys.GUI_PROVIDERS_CHECKING));
         NumenLlmClient.forEndpoint(ep)
-                .chatStreaming(List.of(new ConvoState.Msg.User("ping")), List.of(), "",
+                .chatStreaming(List.of(new ConvoState.Msg.User("ping")), List.of(), "", null,
                         new com.dwinovo.numen.api.agent.http.CancelToken(), null)
                 .whenComplete((result, error) -> Minecraft.getInstance().execute(() -> {
                     checking = false;

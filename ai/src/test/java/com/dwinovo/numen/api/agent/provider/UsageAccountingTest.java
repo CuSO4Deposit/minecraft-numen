@@ -41,11 +41,11 @@ class UsageAccountingTest {
     }
 
     @Test
-    void anthropicStyleKeepsCacheWriteSeparate() {
-        // Anthropic 在 mergeUsage 里归一;缓存写单独留着,否则下游再也拆不出来
+    void gatewayStyleKeepsCacheWriteSeparate() {
+        // OpenRouter 等网关把缓存写报在 prompt_tokens_details.cache_write_tokens;单独留着,否则下游再也拆不出来
         Usage u = Wire.chat().usage(usage(
                 "{\"prompt_tokens\":100,\"completion_tokens\":20,"
-                + "\"prompt_tokens_details\":{\"cached_tokens\":70,\"cache_creation_tokens\":10}}"));
+                + "\"prompt_tokens_details\":{\"cached_tokens\":70,\"cache_write_tokens\":10}}"));
         assertEquals(20, u.input());
         assertEquals(70, u.cacheRead());
         assertEquals(10, u.cacheWrite());

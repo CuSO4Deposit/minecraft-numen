@@ -49,7 +49,7 @@ public final class EndpointResolver {
                 firstNonBlank(p.proxy(), globalProxy),
                 new ModelSpec(modelId, thinking, info == null || info.temperature()),
                 ctx,
-                Compats.resolve(api, providerId, baseUrl, thinking, p.compat()),
+                Compats.resolve(api, providerId, modelId, baseUrl, thinking, p.compat()),
                 new RequestOptions(p.temperature(), p.maxTokens(), ThinkingLevel.byId(p.reasoningEffort())));
     }
 

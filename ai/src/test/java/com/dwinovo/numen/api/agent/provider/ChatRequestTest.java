@@ -33,7 +33,7 @@ class ChatRequestTest {
     private static JsonObject build(ChatCompat compat, ModelSpec model, RequestOptions options) {
         OpenAIProvider p = new OpenAIProvider(compat);
         return p.buildRequestBody(model, "你是同伴", List.of(p.buildUserMessage("你好")),
-                p.buildToolList(List.of(LOOK)), options);
+                p.buildToolList(List.of(LOOK)), options, null);
     }
 
     private static ModelSpec noTemperature(ModelSpec m) {
@@ -41,7 +41,7 @@ class ChatRequestTest {
     }
 
     private static ChatCompat compat(ThinkingFormat f, MaxTokensField m) {
-        return new ChatCompat(f, m, false, true);
+        return new ChatCompat(f, m, false, true, false);
     }
 
     @Test
@@ -126,7 +126,7 @@ class ChatRequestTest {
     @Test
     void streamUsageOffAndPlayersTemperature() {
         assertEquals(golden("no-stream-usage"), build(
-                new ChatCompat(ThinkingFormat.OPENAI, MaxTokensField.MAX_TOKENS, false, false),
+                new ChatCompat(ThinkingFormat.OPENAI, MaxTokensField.MAX_TOKENS, false, false, false),
                 new ModelSpec("local-model", Wire.PLAIN.thinking(), true),
                 new RequestOptions(1.3, 0, ThinkingLevel.AUTO)));
     }

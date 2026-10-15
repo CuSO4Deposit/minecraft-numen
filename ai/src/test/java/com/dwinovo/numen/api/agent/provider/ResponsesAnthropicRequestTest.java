@@ -20,7 +20,7 @@ class ResponsesAnthropicRequestTest {
 
     private static JsonObject build(LlmProvider p, ModelSpec model, RequestOptions options) {
         return p.buildRequestBody(model, "你是同伴", List.of(p.buildUserMessage("你好")),
-                p.buildToolList(List.of(LOOK)), options);
+                p.buildToolList(List.of(LOOK)), options, null);
     }
 
     private static JsonObject responses(String name) {

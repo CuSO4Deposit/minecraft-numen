@@ -44,6 +44,7 @@ public final class OpenAIResponsesProvider implements LlmProvider {
 
     /** 接口拒绝低于 16 的 {@code max_output_tokens}。 */
     private static final int MIN_OUTPUT_TOKENS = 16;
+    private static final int CACHE_KEY_MAX = 64;
 
     private static final Gson GSON = new Gson();
 
@@ -153,7 +154,7 @@ public final class OpenAIResponsesProvider implements LlmProvider {
 
     @Override
     public JsonObject buildRequestBody(ModelSpec model, String systemPrompt, List<JsonObject> messages,
-                                       JsonArray tools, RequestOptions options) {
+                                       JsonArray tools, RequestOptions options, String sessionId) {
         JsonObject body = new JsonObject();
         body.addProperty("model", model.id());
         JsonArray input = new JsonArray();
@@ -165,6 +166,11 @@ public final class OpenAIResponsesProvider implements LlmProvider {
         }
         body.add("input", input);
         body.addProperty("stream", true);
+        // 同一段对话落到同一个缓存分片,命中才稳;键最长 64 个字符
+        if (sessionId != null && !sessionId.isBlank()) {
+            body.addProperty("prompt_cache_key", sessionId.codePointCount(0, sessionId.length()) <= CACHE_KEY_MAX
+                    ? sessionId : sessionId.substring(0, sessionId.offsetByCodePoints(0, CACHE_KEY_MAX)));
+        }
         // 不让服务端替我们存这次对话:历史是我们自己的账本,存一份在别人那儿就成了第二处真源。
         // 代价是思考 item 带加密内容回传,而那正是 extras 保管的东西。
         body.addProperty("store", false);

@@ -23,7 +23,7 @@ class AnthropicProviderTest {
     private static final RequestOptions NONE = RequestOptions.NONE;
 
     private static JsonObject build(String system, List<JsonObject> messages, JsonArray tools) {
-        return P.buildRequestBody(M, system, messages, tools, NONE);
+        return P.buildRequestBody(M, system, messages, tools, NONE, null);
     }
 
     private static JsonObject j(String json) {
@@ -185,7 +185,7 @@ class AnthropicProviderTest {
     void budgetThinkingMapsTheLevelAndRaisesMaxTokens() {
         ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
         JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(),
-                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH));
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH), null);
         JsonObject thinking = body.getAsJsonObject("thinking");
         assertEquals("enabled", thinking.get("type").getAsString());
         assertEquals(16_384, thinking.get("budget_tokens").getAsInt());
@@ -198,7 +198,7 @@ class AnthropicProviderTest {
     void thinkingBudgetStacksOnTopOfThePlayersMaxTokens() {
         ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
         JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(),
-                new RequestOptions(null, 4096, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MEDIUM));
+                new RequestOptions(null, 4096, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MEDIUM), null);
         assertEquals(4096 + 8_192, body.get("max_tokens").getAsInt(), "玩家设的值仍然是正文的上限");
     }
 
@@ -207,7 +207,7 @@ class AnthropicProviderTest {
         AnthropicProvider adaptive = new AnthropicProvider(new AnthropicCompat(true, true));
         ModelSpec m = Wire.reasoning("claude-opus-5", EFFORT_ONLY);
         JsonObject body = adaptive.buildRequestBody(m, null, List.of(), new JsonArray(),
-                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MAX));
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MAX), null);
         assertEquals("adaptive", body.getAsJsonObject("thinking").get("type").getAsString());
         assertFalse(body.getAsJsonObject("thinking").has("budget_tokens"));
         assertEquals("xhigh", body.getAsJsonObject("output_config").get("effort").getAsString(),
@@ -221,21 +221,21 @@ class AnthropicProviderTest {
         for (var level : new com.dwinovo.numen.api.agent.catalog.ThinkingLevel[]{
                 com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO,
                 com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MAX}) {   // 这个型号没有最高档
-            JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(), think(level));
+            JsonObject body = P.buildRequestBody(m, null, List.of(), new JsonArray(), think(level), null);
             assertFalse(body.has("thinking"), level.name());
             assertFalse(body.has("output_config"), level.name());
             assertEquals(8192, body.get("max_tokens").getAsInt(), level.name());
         }
         // 关显式写 disabled(自动才是什么都不发),不带预算,max_tokens 不变
         JsonObject off = P.buildRequestBody(m, null, List.of(), new JsonArray(),
-                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.OFF));
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.OFF), null);
         assertEquals("disabled", off.getAsJsonObject("thinking").get("type").getAsString());
         assertFalse(off.getAsJsonObject("thinking").has("budget_tokens"));
         assertFalse(off.has("output_config"));
         assertEquals(8192, off.get("max_tokens").getAsInt());
         // 目录里查不到的型号:任何档位都不发
         JsonObject unknown = P.buildRequestBody(M, null, List.of(), new JsonArray(),
-                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH));
+                think(com.dwinovo.numen.api.agent.catalog.ThinkingLevel.HIGH), null);
         assertFalse(unknown.has("thinking"));
     }
 
@@ -244,17 +244,17 @@ class AnthropicProviderTest {
         ModelSpec m = Wire.reasoning("claude-opus-4-5", EFFORT_AND_BUDGET);
         var level = com.dwinovo.numen.api.agent.catalog.ThinkingLevel.MEDIUM;
         assertFalse(P.buildRequestBody(m, null, List.of(), new JsonArray(),
-                new RequestOptions(0.7, 0, level)).has("temperature"), "开思考时协议只允许默认温度");
+                new RequestOptions(0.7, 0, level), null).has("temperature"), "开思考时协议只允许默认温度");
         assertEquals(0.7, P.buildRequestBody(m, null, List.of(), new JsonArray(),
-                new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO))
+                new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO), null)
                 .get("temperature").getAsDouble());
         // 端点不收温度(兼容项),或型号不收温度(目录)
         assertFalse(new AnthropicProvider(new AnthropicCompat(false, false)).buildRequestBody(m, null, List.of(),
-                new JsonArray(), new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO))
+                new JsonArray(), new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO), null)
                 .has("temperature"));
         ModelSpec noTemp = new ModelSpec("m", m.thinking(), false);
         assertFalse(P.buildRequestBody(noTemp, null, List.of(), new JsonArray(),
-                new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO))
+                new RequestOptions(0.7, 0, com.dwinovo.numen.api.agent.catalog.ThinkingLevel.AUTO), null)
                 .has("temperature"));
     }
 
@@ -318,21 +318,34 @@ class AnthropicProviderTest {
     }
 
     @Test
-    void usageNormalisesToOpenAiFieldNames() {
+    void usageIsMergedFromBothHalvesAndKeepsCacheReadAndWriteApart() {
         StreamAccumulator acc = new StreamAccumulator();
         P.accumulateChunk(j("{\"type\":\"message_start\",\"message\":{\"usage\":"
                 + "{\"input_tokens\":50,\"cache_read_input_tokens\":200,\"cache_creation_input_tokens\":10}}}"), acc);
         P.accumulateChunk(j("{\"type\":\"message_delta\",\"delta\":{},\"usage\":{\"output_tokens\":40}}"), acc);
-        // prompt 全量口径 = 50 + 200 + 10;total = prompt + completion。
-        assertEquals(260, acc.usage.get("prompt_tokens").getAsInt());
-        assertEquals(40, acc.usage.get("completion_tokens").getAsInt());
-        assertEquals(300, acc.usage.get("total_tokens").getAsInt());
-        // 四元拆开:输入 50、命中 200、写入 10、输出 40;新处理量 = 50 + 10 + 40。
+        // 本协议的 input_tokens 不含缓存:输入 50、命中 200、写入 10、输出 40;新处理量 = 50 + 10 + 40。
         Usage u = P.usage(acc.usage);
         assertEquals(50, u.input());
         assertEquals(200, u.cacheRead());
         assertEquals(10, u.cacheWrite());
+        assertEquals(40, u.output());
         assertEquals(100, u.fresh());
+        assertEquals(260, u.promptTokens());
+    }
+
+    /** 代理在 message_delta 里把输入与缓存量写成 null 或省掉:message_start 里的值不能被冲掉。 */
+    @Test
+    void aDeltaThatOmitsOrNullsTheInputFieldsKeepsTheStartValues() {
+        StreamAccumulator acc = new StreamAccumulator();
+        P.accumulateChunk(j("{\"type\":\"message_start\",\"message\":{\"usage\":"
+                + "{\"input_tokens\":50,\"cache_read_input_tokens\":200}}}"), acc);
+        P.accumulateChunk(j("{\"type\":\"message_delta\",\"delta\":{},\"usage\":"
+                + "{\"input_tokens\":null,\"output_tokens\":40}}"), acc);
+        assertEquals(new Usage(50, 40, 200, 0), P.usage(acc.usage));
+        // 带了值就以 delta 为准(累计量)
+        P.accumulateChunk(j("{\"type\":\"message_delta\",\"delta\":{},\"usage\":"
+                + "{\"input_tokens\":60,\"cache_read_input_tokens\":210,\"output_tokens\":45}}"), acc);
+        assertEquals(new Usage(60, 45, 210, 0), P.usage(acc.usage));
     }
 
     @Test

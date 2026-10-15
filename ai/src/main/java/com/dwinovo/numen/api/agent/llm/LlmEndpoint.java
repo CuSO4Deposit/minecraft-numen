@@ -40,7 +40,7 @@ public record LlmEndpoint(String providerId, String baseUrl, Map<String, String>
     public static LlmEndpoint unresolved(String proxy) {
         return new LlmEndpoint("", "", Map.of(), "", proxy,
                 new ModelSpec("", ThinkingTable.AUTO_ONLY, true), 0,
-                Compats.resolve(Api.CHAT, "", "", ThinkingTable.AUTO_ONLY, null), RequestOptions.NONE);
+                Compats.resolve(Api.CHAT, "", "", "", ThinkingTable.AUTO_ONLY, null), RequestOptions.NONE);
     }
 
     public boolean hasApiKey() {
