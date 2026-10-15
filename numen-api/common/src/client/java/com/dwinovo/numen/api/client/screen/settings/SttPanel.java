@@ -97,7 +97,7 @@ public final class SttPanel {
         List<String> providerNames = new ArrayList<>();
         for (SttProviders.Option o : SttProviders.all()) {
             providerIds.add(o.id());
-            providerNames.add(o.displayName());
+            providerNames.add(o.label());
         }
         Dropdown providerPick = ui.add(new Dropdown(providerNames,
                 Math.max(0, providerIds.indexOf(provider)), this::onProviderPicked));
@@ -114,7 +114,7 @@ public final class SttPanel {
         // 模型双态:预设下拉(+自定义…) ↔ 输入框(+▾ 回预设);无预设纯输入框。
         // 名字由服务商自己说——豆包那一栏装的是资源档,叫"模型"读着就不对。
         int cy = SettingsRows.controlY(ry, NumenStyle.CONTROL_H);
-        labelText(x, ry, cx, opt.hasModelLabel() ? opt.modelLabel() : t(ModLanguageData.Keys.GUI_SETTINGS_MODEL));
+        labelText(x, ry, cx, opt.hasModelLabel() ? opt.modelFieldLabel() : t(ModLanguageData.Keys.GUI_SETTINGS_MODEL));
         modelIds = new ArrayList<>(opt.models());
         boolean hasPresets = !modelIds.isEmpty();
         if (hasPresets && !customModel) {

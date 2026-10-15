@@ -1778,7 +1778,7 @@ public final class ChatView {
                     var a = v.getAsJsonArray();
                     StringBuilder b = new StringBuilder();
                     for (int i = 0; i < a.size() && i < 2; i++) {
-                        if (i > 0) b.append('、');
+                        if (i > 0) b.append(I18n.get(com.dwinovo.numen.api.data.ModLanguageData.Keys.LIST_SEPARATOR));
                         b.append(stripNs(a.get(i).getAsString()));
                     }
                     if (a.size() > 2) b.append('…');

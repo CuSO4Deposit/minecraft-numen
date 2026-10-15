@@ -133,7 +133,7 @@ public final class Rule {
             }
             Component term = t.shown(action, facts);
             out = out == null ? Component.empty().append(term)
-                    : out.append(Component.translatable(ModLanguageData.Keys.PERMISSION_SEPARATOR)).append(term);
+                    : out.append(Component.translatable(ModLanguageData.Keys.LIST_SEPARATOR)).append(term);
         }
         return out == null ? Component.literal(text) : out;
     }

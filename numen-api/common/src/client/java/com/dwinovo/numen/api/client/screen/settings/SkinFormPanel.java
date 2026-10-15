@@ -245,17 +245,13 @@ public final class SkinFormPanel {
                     if (myGen != gen) return;   // 表单已离开/重开:作废
                     signing = false;
                     saveButton.setEnabled(true);
-                    if (err != null || signed == null) {
-                        Throwable cur = err;
-                        while (cur != null && cur.getCause() != null && cur != cur.getCause()) {
-                            cur = cur.getCause();
-                        }
-                        String why = cur == null ? "?" : (cur.getMessage() == null
-                                ? cur.getClass().getSimpleName() : cur.getMessage());
+                    if (err != null) {
                         // 完整原因进日志(胶囊里被截短,排障全靠这行)。
-                        com.dwinovo.numen.api.Constants.LOG.warn("[numen-skin] MineSkin 签名失败: {}", why);
+                        com.dwinovo.numen.api.Constants.LOG.warn("[numen-skin] MineSkin 签名失败: {}",
+                                com.dwinovo.numen.api.client.skin.SkinError.fromError(err).getMessage());
                         resultAlert.show(InlineAlert.Severity.ERROR,
-                                t2(ModLanguageData.Keys.SKIN_SIGN_FAIL, shorten(why)));
+                                t2(ModLanguageData.Keys.SKIN_SIGN_FAIL,
+                                        shorten(com.dwinovo.numen.api.client.skin.SkinWords.text(err))));
                         return;
                     }
                     com.dwinovo.numen.api.Constants.LOG.info("[numen-skin] MineSkin 签名成功: {}", name);

@@ -143,7 +143,7 @@ public final class ModLanguageData {
         public static final String PERMISSION_PLACED_BY   = "numen.permission.placed_by";
         public static final String PERMISSION_UNCOVERED   = "numen.permission.uncovered";
         public static final String CONSENT_SECONDS        = "numen.consent.seconds";
-        public static final String PERMISSION_SEPARATOR   = "numen.permission.separator";
+        public static final String LIST_SEPARATOR         = "numen.list.separator";
         public static final String PERMISSION_A_BLOCK     = "numen.permission.a_block";
 
         /** Hotkey: open the companion roster panel (shown in Controls settings). */
@@ -238,6 +238,8 @@ public final class ModLanguageData {
         public static final String SKIN_SIGN_FAIL       = "numen.skin.sign_fail";
         public static final String SKIN_SIGN_OK         = "numen.skin.sign_ok";
         public static final String SKIN_WARN_IMAGE      = "numen.skin.warn_image";
+        /** 原生选文件对话框的标题。 */
+        public static final String SKIN_PICKER_TITLE    = "numen.skin.picker_title";
         public static final String SKIN_WARN_SIZE       = "numen.skin.warn_size";
         public static final String SKIN_WARN_READ       = "numen.skin.warn_read";
         public static final String SKIN_SIGNED          = "numen.skin.signed";
@@ -297,6 +299,8 @@ public final class ModLanguageData {
         public static final String VOICE_TEST_FAIL      = "numen.voice.test_fail";
         public static final String VOICE_BIND_NONE      = "numen.voice.bind_none";
         public static final String VOICE_SUMMON_LABEL   = "numen.voice.summon_label";
+        /** 声线列表行的副标题:后端 · 型号或参考音频 · 音量。 */
+        public static final String VOICE_LIST_META      = "numen.voice.list_meta";
 
         // STT (voice input)
         public static final String STT_NAV            = "numen.settings.nav.stt";
@@ -430,7 +434,6 @@ public final class ModLanguageData {
         public static final String MCP_WAITING_BROWSER = "numen.mcp.waiting_browser";
         public static final String MCP_OAUTH_OK = "numen.mcp.oauth_ok";
         public static final String MCP_OAUTH_FAILED = "numen.mcp.oauth_failed";
-        public static final String SKIN_PROFILE_NO_SKIN = "numen.skin.profile_no_skin";
     }
 
     /** Loader-side providers funnel both English and Simplified Chinese through here. */
@@ -507,6 +510,13 @@ public final class ModLanguageData {
         adder.add("numen.brain.port_range", "Port must be between 1 and 65535.");
         adder.add("numen.brain.port_taken", "Port %d is already in use.");
         adder.add(Keys.STT_NAV, "Voice input");
+        // numen_stt.json 里内置服务商的名字与模型栏名写的是这些键(SttProviders.Option.label)
+        adder.add("numen.stt.provider.siliconflow", "SiliconFlow");
+        adder.add("numen.stt.provider.dashscope", "Alibaba Model Studio (realtime)");
+        adder.add("numen.stt.provider.doubao", "Doubao Speech (Volcengine, realtime)");
+        adder.add("numen.stt.provider.stepfun", "StepFun");
+        adder.add("numen.stt.provider.custom", "Custom (OpenAI-compatible)");
+        adder.add("numen.stt.model_label.doubao", "Resource tier (billing mode)");
         adder.add(Keys.STT_MICROPHONE, "Microphone");
         adder.add(Keys.STT_MIC_DEFAULT, "(default microphone)");
         adder.add(Keys.STT_NOT_CONFIGURED, "Voice input not configured — set an STT API key in settings");
@@ -708,6 +718,7 @@ public final class ModLanguageData {
         adder.add("numen.gui.list.deleted",  "Deleted \"%s\"");
         adder.add("numen.gui.list.cloned",   "Cloned as an editable copy");
         adder.add(Keys.SKIN_WARN_IMAGE,      "Pick a skin png first");
+        adder.add(Keys.SKIN_PICKER_TITLE,    "Numen skin (64x64 PNG)");
         adder.add(Keys.SKIN_WARN_SIZE,       "Skin must be 64x64 (or legacy 64x32), got %s");
         adder.add(Keys.SKIN_WARN_READ,       "Couldn't read the file: %s");
         adder.add(Keys.SKIN_SIGNED,          "signed");
@@ -767,6 +778,7 @@ public final class ModLanguageData {
         adder.add(Keys.VOICE_TEST_FAIL,      "Preview failed: %s");
         adder.add(Keys.VOICE_BIND_NONE,      "None (silent)");
         adder.add(Keys.VOICE_SUMMON_LABEL,   "Voice");
+        adder.add(Keys.VOICE_LIST_META,      "%s · %s · vol %s");
     
         adder.add(Keys.GUI_INLINE_NEED_KEY,             "API key required");
         adder.add(Keys.GUI_INLINE_NEED_URL,             "Base URL required");
@@ -888,7 +900,7 @@ public final class ModLanguageData {
         adder.add(Keys.PERMISSION_PLACED_BY,   "placed by %s");
         adder.add(Keys.PERMISSION_UNCOVERED,   "no rule");
         adder.add(Keys.CONSENT_SECONDS,        "%ss");
-        adder.add(Keys.PERMISSION_SEPARATOR,   ", ");
+        adder.add(Keys.LIST_SEPARATOR,         ", ");
         adder.add(Keys.PERMISSION_A_BLOCK,     "a block");
         adder.add(Keys.FOLDER_ALL,   "All");
         adder.add(Keys.FOLDER_SOLO,  "Private");
@@ -1004,7 +1016,16 @@ public final class ModLanguageData {
         adder.add(Keys.MCP_WAITING_BROWSER, "Waiting for browser authorization…");
         adder.add(Keys.MCP_OAUTH_OK, "Numen is authorized; you can close this page.");
         adder.add(Keys.MCP_OAUTH_FAILED, "Authorization failed: %s");
-        adder.add(Keys.SKIN_PROFILE_NO_SKIN, "The profile has no skin data");
+        // 皮肤失败(SkinError)按码翻:numen.skin.error.<码>,原话接在 detail 后面
+        adder.add("numen.skin.error.http", "%s answered HTTP %s");
+        adder.add("numen.skin.error.rate_limited", "%s is rate-limiting requests (free tier: 20 skins a minute), wait a moment and retry");
+        adder.add("numen.skin.error.reply_bad", "%s did not answer with JSON");
+        adder.add("numen.skin.error.reply_missing", "%s answered without any texture data");
+        adder.add("numen.skin.error.network", "Cannot reach %s (check your network or proxy)");
+        adder.add("numen.skin.error.no_skin", "The profile has no skin data");
+        adder.add("numen.skin.error.interrupted", "The lookup was interrupted");
+        adder.add("numen.skin.error.unknown", "Unexpected error (%s): %s");
+        adder.add("numen.skin.error.detail", "%s: %s");
     }
 
     private static void addZh(Adder adder) {
@@ -1069,6 +1090,13 @@ public final class ModLanguageData {
         adder.add("numen.brain.port_range", "端口必须在 1 到 65535 之间。");
         adder.add("numen.brain.port_taken", "端口 %d 已被占用。");
         adder.add(Keys.STT_NAV, "语音输入");
+        // numen_stt.json 里内置服务商的名字与模型栏名写的是这些键(SttProviders.Option.label)
+        adder.add("numen.stt.provider.siliconflow", "硅基流动 SiliconFlow");
+        adder.add("numen.stt.provider.dashscope", "阿里云百炼 (实时)");
+        adder.add("numen.stt.provider.doubao", "豆包语音 (火山引擎 实时)");
+        adder.add("numen.stt.provider.stepfun", "阶跃星辰 StepFun");
+        adder.add("numen.stt.provider.custom", "自定义 (OpenAI 兼容)");
+        adder.add("numen.stt.model_label.doubao", "资源档 (计费方式)");
         adder.add(Keys.STT_MICROPHONE, "麦克风");
         adder.add(Keys.STT_MIC_DEFAULT, "（默认麦克风）");
         adder.add(Keys.STT_NOT_CONFIGURED, "未配置语音输入 —— 请在设置里填入 STT 的 API Key");
@@ -1270,6 +1298,7 @@ public final class ModLanguageData {
         adder.add("numen.gui.list.deleted",  "已删除「%s」");
         adder.add("numen.gui.list.cloned",   "已克隆为可编辑副本");
         adder.add(Keys.SKIN_WARN_IMAGE,      "先选一张皮肤 png");
+        adder.add(Keys.SKIN_PICKER_TITLE,    "Numen 皮肤(64x64 PNG)");
         adder.add(Keys.SKIN_WARN_SIZE,       "皮肤需为 64x64(或旧版 64x32),拖入的是 %s");
         adder.add(Keys.SKIN_WARN_READ,       "文件读取失败: %s");
         adder.add(Keys.SKIN_SIGNED,          "已签名");
@@ -1329,6 +1358,7 @@ public final class ModLanguageData {
         adder.add(Keys.VOICE_TEST_FAIL,      "试听失败:%s");
         adder.add(Keys.VOICE_BIND_NONE,      "无(静音)");
         adder.add(Keys.VOICE_SUMMON_LABEL,   "声线");
+        adder.add(Keys.VOICE_LIST_META,      "%s · %s · 音量 %s");
     
         adder.add(Keys.KEY_CATEGORY_NUMEN,              "Numen");
         adder.add(Keys.GUI_INLINE_NEED_KEY,             "请先填写密钥");
@@ -1451,7 +1481,7 @@ public final class ModLanguageData {
         adder.add(Keys.PERMISSION_PLACED_BY,   "%s 放的");
         adder.add(Keys.PERMISSION_UNCOVERED,   "没有规则");
         adder.add(Keys.CONSENT_SECONDS,        "%s 秒");
-        adder.add(Keys.PERMISSION_SEPARATOR,   "、");
+        adder.add(Keys.LIST_SEPARATOR,         "、");
         adder.add(Keys.PERMISSION_A_BLOCK,     "方块");
         adder.add(Keys.FOLDER_ALL,   "全部");
         adder.add(Keys.FOLDER_SOLO,  "私聊");
@@ -1567,6 +1597,15 @@ public final class ModLanguageData {
         adder.add(Keys.MCP_WAITING_BROWSER, "等待浏览器授权…");
         adder.add(Keys.MCP_OAUTH_OK, "Numen 授权成功,可以关闭此页面。");
         adder.add(Keys.MCP_OAUTH_FAILED, "授权失败:%s");
-        adder.add(Keys.SKIN_PROFILE_NO_SKIN, "档案里没有皮肤数据");
+        // 皮肤失败(SkinError)按码翻:numen.skin.error.<码>,原话接在 detail 后面
+        adder.add("numen.skin.error.http", "%s 回了 HTTP %s");
+        adder.add("numen.skin.error.rate_limited", "%s 限流了(免费档 20 张/分),稍等再试");
+        adder.add("numen.skin.error.reply_bad", "%s 的回应不是 JSON");
+        adder.add("numen.skin.error.reply_missing", "%s 的回应里没有 texture 数据");
+        adder.add("numen.skin.error.network", "连不上 %s(检查网络或代理)");
+        adder.add("numen.skin.error.no_skin", "档案里没有皮肤数据");
+        adder.add("numen.skin.error.interrupted", "查询被中断");
+        adder.add("numen.skin.error.unknown", "意外错误(%s):%s");
+        adder.add("numen.skin.error.detail", "%s:%s");
     }
 }

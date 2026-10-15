@@ -776,7 +776,8 @@ public final class NumenScreen extends Screen {
                             // 去处是聊天框而不是卡上的提示行:召唤卡这会儿已经关了,
                             // 而且他多半过一会儿才注意到皮肤不对,那时要能翻得到原因。
                             com.dwinovo.numen.api.client.chat.ChatLines.notice(d.name,
-                                    I18n.get("numen.summon.skin_failed", r.problem()));
+                                    I18n.get("numen.summon.skin_failed",
+                                            com.dwinovo.numen.api.client.skin.SkinWords.text(r.problem())));
                         }
                         var skin = r.skin();
                         sendSummon(d, skin == null ? "" : skin.value(),
@@ -957,7 +958,8 @@ public final class NumenScreen extends Screen {
                     .thenAccept(r -> Minecraft.getInstance().execute(() -> {
                         if (r.problem() != null) {
                             com.dwinovo.numen.api.client.chat.ChatLines.notice(n,
-                                    I18n.get("numen.summon.skin_failed", r.problem()));
+                                    I18n.get("numen.summon.skin_failed",
+                                            com.dwinovo.numen.api.client.skin.SkinWords.text(r.problem())));
                         }
                         var skin = r.skin();
                         sendSkin(target, skin == null ? "" : skin.value(),

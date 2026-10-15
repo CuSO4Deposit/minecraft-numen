@@ -156,8 +156,8 @@ public final class SettingsView {
                         if (e.isSovits()) detail = nb(e.refAudio()) ? e.refAudio() : "?";
                         else if (e.isMiniMax() || e.isFishAudio()) detail = nb(e.voice()) ? e.voice() : "?";
                         else detail = nb(e.model()) ? e.model() : "?";
-                        String meta = (nb(e.backend()) ? e.backend() : "openai") + " · " + detail
-                                + " · vol " + Math.round(e.volume() * 5.0f);
+                        String meta = I18n.get(ModLanguageData.Keys.VOICE_LIST_META,
+                                nb(e.backend()) ? e.backend() : "openai", detail, Math.round(e.volume() * 5.0f));
                         // 行尾勾 = 本同伴正在用的声线;右键菜单里换绑,或不再使用(闭嘴)。
                         Boolean marked = host.uuid() == null ? null : e.id().equals(
                                 com.dwinovo.numen.api.client.agent.CompanionHome.binding(host.uuid()).voiceId());
@@ -1032,7 +1032,7 @@ public final class SettingsView {
                 var filters = stack.mallocPointer(1);
                 filters.put(stack.UTF8("*.png")).flip();
                 chosen = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
-                        "Numen skin (64x64 png)", null, filters, "PNG", false);
+                        I18n.get(ModLanguageData.Keys.SKIN_PICKER_TITLE), null, filters, "PNG", false);
             } catch (Throwable t) {
                 com.dwinovo.numen.api.Constants.LOG.warn("[numen-skin] native file dialog unavailable", t);
             }
