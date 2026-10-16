@@ -232,8 +232,15 @@ public final class InteractAtCompanionTask extends InReachTask<InteractAtTaskRec
                             + " stands where another face of it is in sight";
         }
         if (hit instanceof net.minecraft.world.phys.EntityHitResult eh) {
-            return eh.getEntity().getName().getString() + " (entity " + eh.getEntity().getId()
-                    + ") — the crosshair landed on it, not on " + aimLabel();
+            net.minecraft.world.entity.Entity e = eh.getEntity();
+            // 挡路的是实体(物品展示框、画……):点名它贴的是这一格的哪一面,并给出去另一面再瞄的写法——
+            // 身体站着通常有好几个面看得见,换个站位准星就落到方块上,和真玩家挪一步是一个意思。
+            net.minecraft.core.Direction side = net.minecraft.core.Direction.getApproximateNearest(
+                    e.position().subtract(net.minecraft.world.phys.Vec3.atCenterOf(r.aim)));
+            return e.getName().getString() + " (entity " + e.getId() + ") sits on the " + side.getName()
+                    + " face of " + aimLabel() + " — the crosshair landed on it, not on the block. "
+                    + GotoReminders.call(r.aim, "arrive = \"use\"")
+                    + " stands where another face of it is in sight";
         }
         return null;
     }
