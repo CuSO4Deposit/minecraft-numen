@@ -80,6 +80,8 @@ end
 ---@return integer made How many it made.
 function M.make(item, count)
   item = id(item)
+  -- tolerant of the {count = N} option-table spelling numen.inv.craft uses (both shapes read the same)
+  if type(count) == "table" then count = count.count or count[1] end
   count = count or 1
   local recipe, closest = nil, nil
   for _, r in ipairs(numen.inv.recipes(item)) do
